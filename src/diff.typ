@@ -5,7 +5,7 @@
 #import "measure.typ" as me
 #import "rendering.typ" as re
 #import "state.typ" as st
-#import "../themes/main.typ": default
+#import "../themes/uraw.typ": default
 #import "utils.typ" as ut
 
 // -----------------------------------------------------------------------------
@@ -143,7 +143,7 @@
 /// Split a line in tokens: words, spaces and symbols.
 #let tokenize(s) = {
   s
-    .matches(regex("\\w+|\\s+|[^\\w\\s]"))
+    .matches(regex("\\w[\\w']*|\\s+|[^\\w\\s]+"))
     .map(m => (text: m.text, start: m.start, end: m.end))
 }
 
@@ -553,6 +553,15 @@
   let sep = ut.with-default-length(general("sep"), stroke-length)
 
   // The gutter between the old and the new codes, with the separator at its center
+  let frame-width = (
+    if frame.width == auto {
+      layout-size.width
+    } else if type(frame.width) == ratio {
+      layout-size.width * frame.width
+    } else {
+      frame.width
+    }
+  ).to-absolute()
   let sep-thickness = if sep != none {
     let t = stroke(sep).thickness
     (if t == auto { 1pt } else { t }).to-absolute()
@@ -762,16 +771,6 @@
   } else {
     numbers-width.at(version) + markers-width.at(version)
   }
-
-  let frame-width = (
-    if frame.width == auto {
-      layout-size.width
-    } else if type(frame.width) == ratio {
-      layout-size.width * frame.width
-    } else {
-      frame.width
-    }
-  ).to-absolute()
 
   // The width available for the codes
   let code-insets = (
@@ -1230,14 +1229,18 @@
   }
 
   /// A separator cell.
-  let sep-cell(r, height, fill) = re.number-cell(
+  let sep-cell(row-new, r, height) = re.number-cell(
     [],
     sep-width / 2,
     height,
     ut.full-inset(0mm),
     (:),
     (left: sep),
-    fill,
+    if diff.new.status.at(row-new) == "whole" {
+      versions.new.fill
+    } else {
+      (code.fill)(r)
+    },
     none,
     top,
   )
@@ -1258,7 +1261,7 @@
     let i = row.at(version)
     if i == none {
       (
-        grid.cell(colspan: side-columns, block(
+        grid.cell(colspan: side-columns + int(version == "new"), block(
           width: side-width(version),
           height: height,
           fill: general("blank-fill"),
@@ -1394,13 +1397,8 @@
       ))
     } else {
       cells += side-cells("old", row, r, height)
-      if sep-width > 0pt {
-        cells.push(sep-cell(r, height, if diff.new.status.at(row.new)
-          == "whole" {
-          versions.new.fill
-        } else {
-          (code.fill)(r)
-        }))
+      if sep-width > 0pt and row.new != none {
+        cells.push(sep-cell(row.new, r, height))
       }
       cells += side-cells("new", row, r, height)
     }

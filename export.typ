@@ -7,7 +7,7 @@
   uraw-set-footer, uraw-set-frame, uraw-set-header, uraw-set-highlights,
   uraw-set-jump, uraw-set-lang-tag, uraw-set-numbering,
 )
-#import "src/highlights.typ" as highlights
+#import "themes/highlights.typ" as highlights
 #import "themes/icons.typ": icons
 #import "src/main.typ": uraw
 #import "src/inline.typ": uraw-inline
@@ -23,5 +23,5 @@
   uraw-pseudo-set, uraw-pseudo-set-code, uraw-pseudo-set-footer,
   uraw-pseudo-set-frame, uraw-pseudo-set-header, uraw-pseudo-set-numbering,
 )
-#import "themes/main.typ" as themes
+#import "themes/uraw.typ" as themes
 #import "themes/pseudo.typ" as pseudo-themes

@@ -13,6 +13,21 @@
   return d1 + d2
 }
 
+/// Check that the keys of a dictionary of settings are known.
+///
+/// - d (dictionary): The settings.
+/// - allowed (array): The known keys.
+/// - name (str): The name of the settings, used in the error message.
+/// -> none
+#let check-keys(d, allowed, name) = {
+  for k in d.keys() {
+    assert(
+      k in allowed,
+      message: "Unknown setting `" + k + "` in " + name + ".",
+    )
+  }
+}
+
 /// Wrap a single element given without a trailing comma (a dictionary, or a pair whose first value is an integer) into an array.
 #let single-to-list(a) = if (
   type(a) == dictionary or (a.len() == 2 and type(a.first()) == int)
@@ -20,6 +35,11 @@
   (a,)
 } else {
   a
+}
+
+#let single-to-list-map(a, f) = {
+  let first-try = f(a)
+  if first-try != none { (first-try,) } else { a.map(f) }
 }
 
 /// Return a new dictionary containing the same keys as `d` but with values the ones of `d` with `f` applied on them.
@@ -141,24 +161,33 @@
 )
 
 /// The fields of a stroke given as a dictionary.
-#let stroke-fields = ("paint", "thickness", "cap", "join", "dash", "miter-limit")
+#let stroke-fields = (
+  "paint",
+  "thickness",
+  "cap",
+  "join",
+  "dash",
+  "miter-limit",
+)
 
 /// Give a length to a stroke without one: a paint (color, gradient or tiling) or a stroke whose thickness is not specified. Dictionaries of strokes by side are handled side by side.
 ///
 /// - s (any): The stroke.
 /// - length (length): The default length.
 /// -> any
-#let with-default-length(s, length) = if s == none or s == auto {
+#let with-default-thickness(s, length) = if s == none or s == auto {
   s
 } else if type(s) in (color, gradient, tiling) {
   length + s
 } else if (
-  type(s) == dictionary and s.len() > 0 and s.keys().all(k => k in stroke-fields)
+  type(s) == dictionary
+    and s.len() > 0
+    and s.keys().all(k => k in stroke-fields)
 ) {
-  with-default-length(stroke(s), length)
+  with-default-thickness(stroke(s), length)
 } else if type(s) == dictionary {
   // A stroke per side
-  s.pairs().map(((k, v)) => (k, with-default-length(v, length))).to-dict()
+  s.pairs().map(((k, v)) => (k, with-default-thickness(v, length))).to-dict()
 } else if type(s) == stroke and s.thickness == auto {
   let fields = (
     paint: s.paint,

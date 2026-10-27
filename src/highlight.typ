@@ -15,8 +15,12 @@
   )
 }
 
-/// Check that a pre-highlight has different left and right delimiters.
-#let check-pre-highlight(hl) = {
+/// Check that a pre-highlight has different left and right delimiters, and only known settings.
+///
+/// - hl (dictionary): The pre-highlight.
+/// - style-keys (array): The style settings of a highlight (the keys of the `highlight` settings).
+#let check-pre-highlight(hl, style-keys) = {
+  ut.check-keys(hl, style-keys + ("ldel", "rdel"), "a highlight")
   assert("ldel" in hl, message: "A highlight has no left delimiter.")
   assert("rdel" in hl, message: "A highlight has no right delimiter.")
   assert(
@@ -26,9 +30,12 @@
 }
 
 /// Check pre-highlight one by one and ensure that no pre-highlights share delimiters.
-#let check-pre-highlights(hls) = {
+///
+/// - hls (dictionary): The pre-highlights by name.
+/// - style-keys (array): The style settings of a highlight (the keys of the `highlight` settings).
+#let check-pre-highlights(hls, style-keys) = {
   hls = hls.values()
-  hls.map(check-pre-highlight)
+  hls.map(h => check-pre-highlight(h, style-keys))
 
   for i in range(hls.len()) {
     for j in range(i + 1, hls.len()) {
@@ -49,7 +56,7 @@
   assert(
     expand == none
       or (type(expand) == alignment and expand.axis() == "horizontal"),
-    message: "The expansion of a highlight must be `none`, `left`, `right` or `center` (for both), use `lined` to make it occupy the height of the lines and connect it between lines.",
+    message: "The expansion of a highlight must be `none`, `left`, `right` or `center` (for both), use `sticky` to make it occupy the height of the lines and connect it between lines.",
   )
 
   (
@@ -58,16 +65,17 @@
   )
 }
 
-#let format-pre-highlight(phl) = (
-  ldel: phl.ldel,
-  rdel: phl.rdel,
-  expand: phl.at("expand", default: center),
-  lined: phl.at("lined", default: false),
-  radius: phl.at("radius", default: 0mm),
-  sharp-break: phl.at("sharp-break", default: false),
-  fill: phl.at("fill", default: none),
-  code-style: phl.at("code-style", default: it => it),
-)
+/// Complete a pre-highlight (a highlight defined by delimiters) with the default highlight settings.
+///
+/// - phl (dictionary): The pre-highlight, with its delimiters and some style fields.
+/// - defaults (dictionary): The `highlight` settings, giving the value of the missing style fields.
+/// -> dictionary
+#let format-pre-highlight(phl, defaults) = {
+  let style = ut.filter-add-dict(defaults, phl)
+  // A highlight read from delimiters is not on whole lines
+  if style.sticky == auto { style.sticky = false }
+  (ldel: phl.ldel, rdel: phl.rdel) + style
+}
 
 /// Import the style of a manually defined highlight.
 #let format-highlight-style(hl, hls) = if "style" in hl {
@@ -100,20 +108,34 @@
   }
 }
 
-/// Fix the range of the highlight.
-#let format-highlight(hl) = {
+#let parse-line(l) = if (
+  type(l) == array
+    and l.len() == 2
+    and type(l.first()) == int
+    and type(l.last()) == int
+    and l.first() <= l.last()
+) {
+  l
+} else if type(l) == int { (l, l) }
+
+/// Fix the range of the highlight, and complete it with the default highlight settings.
+///
+/// - hl (dictionary): The highlight, given by `line`, `range`, or `start` and `end`, and some style fields.
+/// - defaults (dictionary): The `highlight` settings, giving the value of the missing style fields.
+/// -> dictionary
+#let format-highlight(hl, defaults) = {
+  ut.check-keys(
+    hl,
+    defaults.keys() + ("line", "range", "start", "end", "style"),
+    "a highlight",
+  )
+  let style = ut.filter-add-dict(defaults, hl)
+
   // A highlight on whole lines: `line: k` or `line: (k1, k2)`
   let is-line = "line" in hl
   let range = if is-line {
-    let (k1, k2) = if type(hl.line) == int {
-      (hl.line, hl.line)
-    } else if (
-      type(hl.line) == array
-        and hl.line.len() == 2
-        and hl.line.all(k => type(k) == int)
-    ) {
-      hl.line
-    } else {
+    let pl = parse-line(hl.line)
+    let (k1, k2) = if pl != none { pl } else {
       panic(
         "The `line` of a highlight should be an integer or a pair of integers.",
       )
@@ -135,25 +157,29 @@
     (s, e)
   }
 
-  let expand = expand-sides(hl.at("expand", default: center))
+  let expand = expand-sides(style.expand)
+  // By default, only the highlights on whole lines are sticky
+  let sticky = if style.sticky == auto { is-line } else { style.sticky }
   (
     range: range,
     expand: expand,
-    lined: hl.at("lined", default: is-line),
+    sticky: sticky,
     is-line: is-line,
     // Highlights on whole lines have square corners
     radius: if is-line {
       (
-        ut.full-radius(hl.at("radius", default: 0mm))
+        ut.full-radius(style.radius)
           + (if expand.left { (top-left: 0mm, bottom-left: 0mm) } else { (:) })
           + (
             if expand.right { (top-right: 0mm, bottom-right: 0mm) } else { (:) }
           )
       )
-    } else { ut.full-radius(hl.at("radius", default: 0mm)) },
-    sharp-break: hl.at("sharp-break", default: false),
-    fill: hl.at("fill", default: none),
-    code-style: hl.at("code-style", default: it => it),
+    } else { ut.full-radius(style.radius) },
+    // A highlight that is not sticky has sharp ends where it is broken (hidden setting)
+    sharp-break: not sticky,
+    fill: style.fill,
+    stroke: style.stroke,
+    code-style: style.code-style,
   )
 }
 
@@ -307,7 +333,9 @@
 
     if "hl-idx" in d { dels.at(i).insert("idx", d.hl-idx) }
 
-    let c = pos-to-coord(d.pos, new-lines-len)
+    // The column is counted in characters
+    let (l, col) = pos-to-coord(d.pos, new-lines-len)
+    let c = (l, ct.text-len(new-lines.at(l).slice(0, col)))
     if d.left { dels.at(i).insert("start", c) } else {
       dels.at(i).insert("end", c)
     }
@@ -318,14 +346,12 @@
 
 /// Create a highlight from a pre-highlight and a delimitation from the raw text.
 #let make-highlight(phl, del) = (
-  ldel: phl.ldel,
-  rdel: phl.rdel,
   range: (del.start, del.end),
   expand: phl.expand,
-  lined: phl.lined,
+  sticky: phl.sticky,
   radius: phl.radius,
-  sharp-break: phl.sharp-break,
   fill: phl.fill,
+  stroke: phl.stroke,
   code-style: phl.code-style,
 )
 
@@ -417,7 +443,12 @@
 /// The key of the block of a highlight on the sub-line `k` of the line `i`.
 #let block-key(i, k) = str(i) + "-" + str(k)
 
-/// For each block of a lined highlight, the horizontal ranges of the blocks of the same highlight touching it from above and below.
+/// The space added on the left of a highlight block: the left inset of the code when the highlight expands on the left (and does not start on this block).
+#let block-outset-left(hl, spaning-start, inset) = if (
+  (spaning-start or hl.is-line) and hl.expand.left
+) { inset.left.to-absolute() } else { 0pt }
+
+/// For each block of a sticky highlight, the horizontal ranges (as lengths, from the start of the code) of the blocks of the same highlight touching it from above and below.
 ///
 /// - hl (dictionary): The highlight.
 /// - lines (array): The formatted code lines.
@@ -426,18 +457,19 @@
 /// - char-width (length):
 /// -> dictionary
 #let compute-touches(hl, lines, width, inset, char-width) = {
-  if not hl.lined { return (:) }
+  if not hl.sticky { return (:) }
 
   let blocks = ()
   for i in range(hl.range.first().first(), hl.range.last().first() + 1) {
     let l = lines.at(i)
-    for b in line-spans(i, l, hl, width, inset, char-width) {
+    for (m, b) in line-spans(i, l, hl, width, inset, char-width).enumerate() {
       blocks.push((
         i: i,
         k: b.k,
         last: b.k == l.slines.len() - 1,
-        start: b.start,
-        end: b.end,
+        start: b.start * char-width
+          - block-outset-left(hl, is-spaning-start(i, m, hl), inset),
+        end: b.end * char-width,
       ))
     }
   }
@@ -468,13 +500,11 @@
 /// The touches of a block not touching any other block.
 #let no-touches = (top: none, bottom: none)
 
-/// The space added above the code of a highlight block, lined highlights occupy the whole height of the line.
-#let block-top-pad(hl, inset) = if hl.lined { inset.top } else { .24em }
+/// The space added above the code of a highlight block, sticky highlights occupy the whole height of the line.
+#let block-top-pad(hl, inset) = if hl.sticky { inset.top } else { .24em }
 
-/// The space added below the code of a highlight block, lined highlights occupy the whole height of the line.
-#let block-bottom-pad(hl, inset) = if hl.lined { inset.bottom + .2pt } else {
-  .25em
-}
+/// The space added below the code of a highlight block, sticky highlights occupy the whole height of the line.
+#let block-bottom-pad(hl, inset) = if hl.sticky { inset.bottom } else { .25em }
 
 /// Compute the radius of the highlight block.
 #let compute-radius(radius, sharp-start, sharp-end) = (
@@ -500,32 +530,76 @@
   // The open ends are closed when the highlight sticks to the next part on this side
   let sharp-start = hl.sharp-break and spaning-start
   let sharp-end = hl.sharp-break and spaning-end
-  let radius = compute-radius(hl.radius, sharp-start, sharp-end)
+  let radius = ut.full-radius(compute-radius(hl.radius, sharp-start, sharp-end))
+
+  // The horizontal range of the block (from the start of the code)
+  let outset-left = block-outset-left(hl, spaning-start, inset)
+  let (x0, x1) = (start * char-width - outset-left, end * char-width)
 
   // Remove the radius of the corners touching other blocks of the highlight
   if touch-top != none {
     let (s, e) = touch-top
-    if s <= start and start < e { radius.top-left = 0mm }
-    if s < end and end <= e { radius.top-right = 0mm }
+    if s <= x0 and x0 < e { radius.top-left = 0mm }
+    if s < x1 and x1 <= e { radius.top-right = 0mm }
   }
   if touch-bottom != none {
     let (s, e) = touch-bottom
-    if s <= start and start < e { radius.bottom-left = 0mm }
-    if s < end and end <= e { radius.bottom-right = 0mm }
+    if s <= x0 and x0 < e { radius.bottom-left = 0mm }
+    if s < x1 and x1 <= e { radius.bottom-right = 0mm }
+  }
+
+  let height = (
+    block-top-pad(hl, inset) + char-height + block-bottom-pad(hl, inset)
+  )
+
+  // The stroke surrounds the whole highlight: there is none on the touching parts of the top and bottom sides,
+  // nor on the broken ends of a highlight with sharp breaks (a highlight that is not sticky)
+  let s = hl.stroke
+  let broken = hl.sharp-break
+  let stroke = if s == none { none } else {
+    (
+      left: if broken and spaning-start { none } else { s },
+      right: if broken and spaning-end { none } else { s },
+      top: if touch-top == none { s },
+      bottom: if touch-bottom == none { s },
+    )
+  }
+
+  // The parts of a touched side not touching the other block, stroked by blocks of their own (to keep the rounded corners)
+  let free-parts(touch) = {
+    let (a, b) = touch
+    ((x0, calc.min(x1, a)), (calc.max(x0, b), x1)).filter(((u, v)) => (
+      v - u > .01pt
+    ))
+  }
+  let side-strokes(side, touch) = if s == none or touch == none { () } else {
+    let (left-corner, right-corner) = (side + "-left", side + "-right")
+    free-parts(touch).map(((u, v)) => place(
+      if side == "top" { top + left } else { bottom + left },
+      dx: u - x0 - outset-left,
+      block(
+        width: v - u,
+        height: height,
+        stroke: ((side): s),
+        radius: (
+          (left-corner): if u == x0 { radius.at(left-corner) } else { 0pt },
+          (right-corner): if v == x1 { radius.at(right-corner) } else { 0pt },
+        ),
+      ),
+    ))
   }
 
   block(
     radius: radius,
     fill: hl.fill,
-    outset: (
-      left: if (spaning-start or hl.is-line) and hl.expand.left {
-        inset.left
-      } else { 0mm },
-    ),
+    stroke: stroke,
+    outset: (left: outset-left),
     width: (end - start) * char-width,
-    height: (
-      block-top-pad(hl, inset) + char-height + block-bottom-pad(hl, inset)
-    ),
+    height: height,
+    {
+      side-strokes("top", touch-top).join()
+      side-strokes("bottom", touch-bottom).join()
+    },
   )
 }
 

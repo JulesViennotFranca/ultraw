@@ -1,6 +1,6 @@
 #import "content.typ" as ct
 #import "highlight.typ" as hl
-#import "state.typ" as st
+#import "config.typ" as cf
 #import "utils.typ" as ut
 
 /// The position of a manual highlight of inline code: a character position, `(line, character)` being also accepted.
@@ -21,14 +21,16 @@
 /// - manual (array): The manual highlights.
 /// - delimited (array): The highlights read from delimiters.
 /// - pre-highlights (dictionary): The highlights defined in the settings.
+/// - defaults (dictionary): The `highlight` settings, giving the missing style fields of the manual highlights.
 /// - length (int): The length of the code.
 /// -> array
-#let inline-highlights(manual, delimited, pre-highlights, length) = {
+#let inline-highlights(manual, delimited, pre-highlights, defaults, length) = {
   let simplify(h, start, end) = (
     start: calc.max(0, start),
     end: calc.min(length, end),
     fill: h.at("fill", default: none),
     radius: h.at("radius", default: 0pt),
+    stroke: h.at("stroke", default: none),
     code-style: h.at("code-style", default: it => it),
   )
 
@@ -40,7 +42,7 @@
   let manual = ut
     .single-to-list(manual)
     .map(h => {
-      let h = hl.format-highlight-style(h, pre-highlights)
+      let h = defaults + hl.format-highlight-style(h, pre-highlights)
       simplify(
         h,
         inline-position(h.at("start", default: auto), 0),
@@ -51,13 +53,15 @@
   (delimited + manual).filter(h => h.start < h.end)
 }
 
-/// Highlight a line of inline code: it is split at the bounds of the highlights, each part being styled and put in the boxes of the highlights covering it (the later highlights being on top).
+/// Highlight a line of inline code: it is split at the bounds of the highlights, each part being styled and highlighted by the highlights covering it (the later highlights being on top).
 ///
 /// - body (content): The content of the line.
 /// - length (int): The length of the line.
 /// - highlights (array): The simplified highlights.
+/// - cap-height (length): The height of the capital letters of the code, the highlights going from `.24em` above it to `.25em` below the baseline (as the highlights of raw blocks).
+/// - with-dst (function): Give a thickness to the strokes given without one.
 /// -> content
-#let highlight-inline(body, length, highlights) = {
+#let highlight-inline(body, length, highlights, cap-height, with-dst) = {
   if highlights.len() == 0 { return body }
 
   let bounds = (0, length)
@@ -74,18 +78,33 @@
     let covering = highlights.filter(h => h.start <= a and b <= h.end)
     // (the style functions can return strings, which are converted to content)
     for h in covering { part = [#ct.content-map-text(part, h.code-style)] }
-    for h in covering.rev() {
-      // The corners are only rounded at the ends of the highlight
+    // The later highlights wrap the earlier ones, so that they are drawn on top of them
+    for h in covering.filter(h => h.fill != none or h.stroke != none) {
+      // The corners are only rounded and the sides only stroked at the ends of the highlight
       let radius = ut.full-radius(h.radius)
+      let s = with-dst(h.stroke)
+      let stroke = if s == none { none } else {
+        (top: s, bottom: s, left: s, right: s)
+      }
       if a != h.start {
         radius.top-left = 0pt
         radius.bottom-left = 0pt
+        if stroke != none { stroke.left = none }
       }
       if b != h.end {
         radius.top-right = 0pt
         radius.bottom-right = 0pt
+        if stroke != none { stroke.right = none }
       }
-      part = box(fill: h.fill, radius: radius, outset: (y: .25em), part)
+      // (unlike a box, a highlight can be broken across lines)
+      part = std.highlight(
+        fill: h.fill,
+        radius: radius,
+        stroke: stroke,
+        top-edge: cap-height + .24em,
+        bottom-edge: -.25em,
+        part,
+      )
     }
     result += part
   }
@@ -101,7 +120,8 @@
 #let uraw-inline(body, lang: none, highlights: ()) = {
   // The code displayed by this function is not displayed again (when it is used in a show rule)
   if (
-    type(body) == content and body.at("label", default: none) == <uraw-inline-code>
+    type(body) == content
+      and body.at("label", default: none) == <uraw-inline-code>
   ) {
     return body
   }
@@ -116,32 +136,46 @@
   let shown = type(body) == content and body.location() != none
 
   context {
-    let pre-highlights = st.uraw-uncontext-get-highlights(none)
-    let phls = pre-highlights.values()
+    let highlight = cf.uncontext-category-getter("highlight", lang)
+    let pre-highlights = cf.uncontext-category-getter("highlights", none)
+    let phls = pre-highlights
+      .values()
+      .map(h => hl.format-pre-highlight(h, highlight))
     let (dels, lines) = hl.parse-delimiters(text.split("\n"), phls)
     let delimited = dels.map(del => hl.make-highlight(phls.at(del.idx), del))
     let code = lines.join("\n", default: "")
 
     // The code is shown as a raw element, to get its highlighted lines
-    show <uraw-inline-code>: it => {
+    show <uraw-inline-code>: it => context {
+      // (the height of a text is the one of its capital letters, measured in the font of the code)
+      let cap-height = measure(it.lines.first(default: [])).height
+      let thickness = cf
+        .uncontext-category-getter("general", lang)
+        .default-stroke-thickness
+      let with-dst(s) = ut.with-default-thickness(s, thickness)
       let hls = inline-highlights(
         highlights,
         delimited,
         pre-highlights,
-        code.len(),
+        highlight,
+        ct.text-len(code),
       )
       // The lines of the code (with their position in the code)
       let start = 0
       let parts = ()
       for l in it.lines {
+        let n = ct.text-len(l.text)
         let line-hls = hls
-          .filter(h => h.start < start + l.text.len() and h.end > start)
-          .map(h => h + (
-            start: calc.max(0, h.start - start),
-            end: calc.min(l.text.len(), h.end - start),
+          .filter(h => h.start < start + n and h.end > start)
+          .map(h => (
+            h
+              + (
+                start: calc.max(0, h.start - start),
+                end: calc.min(n, h.end - start),
+              )
           ))
-        parts.push(highlight-inline(l.body, l.text.len(), line-hls))
-        start += l.text.len() + 1
+        parts.push(highlight-inline(l.body, n, line-hls, cap-height, with-dst))
+        start += n + 1
       }
       parts.join(linebreak())
     }

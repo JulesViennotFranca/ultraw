@@ -1,3 +1,21 @@
+// The positions in a text are counted in characters (grapheme clusters), not in bytes as `str.len` and `str.slice` do.
+
+/// The number of characters of some text.
+///
+/// - text (str):
+/// -> int
+#let text-len(text) = text.clusters().len()
+
+/// The part of some text between two character positions.
+///
+/// - text (str):
+/// - start (int):
+/// - end (none, int):
+/// -> str
+#let text-slice(text, start, end: none) = (
+  text.clusters().slice(start, end).sum(default: "")
+)
+
 /// Check wether a line is only composed of white spaces.
 ///
 /// - line (content):
@@ -41,7 +59,7 @@
 #let content-len(elem) = if elem.has("child") and elem.has("styles") {
   content-len(elem.child)
 } else if elem.has("text") {
-  elem.text.len()
+  text-len(elem.text)
 } else if elem.has("children") {
   elem.children.map(content-len).sum(default: 0)
 } else if elem.has("body") {
@@ -88,7 +106,7 @@
   let clusters = text.clusters().rev()
   for c in clusters {
     if c.trim().len() == 0 {
-      i += c.len()
+      i += 1
     } else {
       break
     }
@@ -104,8 +122,8 @@
   map-split(content-trim-end(elem.child), e => (elem.func())(e, elem.styles))
 } else if elem.has("text") {
   let i = find-nbr-whitespace-end(elem.text)
-  let emptied = i == elem.text.len()
-  ([#elem.text.slice(0, elem.text.len() - i)], i, emptied)
+  let n = text-len(elem.text)
+  ([#text-slice(elem.text, 0, end: n - i)], i, i == n)
 } else if elem.has("children") {
   let nc = elem.children
   let inc = nc.len() - 1
@@ -131,8 +149,8 @@
 /// -> int
 #let find-nbr-whitespace-start(text) = {
   let i = 0
-  while i < text.len() and text.at(i).starts-with(regex("\s")) {
-    i += 1
+  for c in text.clusters() {
+    if c.trim().len() == 0 { i += 1 } else { break }
   }
   return i
 }
@@ -145,8 +163,7 @@
   map-split(content-trim-start(elem.child), e => (elem.func())(e, elem.styles))
 } else if elem.has("text") {
   let i = find-nbr-whitespace-start(elem.text)
-  let emptied = i == elem.text.len()
-  ([#elem.text.slice(i)], i, emptied)
+  ([#text-slice(elem.text, i)], i, i == text-len(elem.text))
 } else if elem.has("children") {
   let nc = elem.children
   let inc = 0
@@ -155,7 +172,7 @@
   let ni = 0
   let e = true
   while inc < nc.len() and e {
-    (t, ni, e) = content-trim-end(nc.at(inc))
+    (t, ni, e) = content-trim-start(nc.at(inc))
     i += ni
     inc += 1
   }
@@ -172,36 +189,40 @@
 /// - pos (int):
 /// -> array
 #let text-split-word-pos(elem, pos) = {
+  // The position in characters, and in bytes (to slice the text)
   let i = 0
-  while i < elem.text.len() {
-    let t = elem.text.slice(i)
+  let b = 0
+  while b < elem.text.len() {
+    let t = elem.text.slice(b)
 
     if t.starts-with(regex("\S+")) {
       let word = t.find(regex("\S+"))
-      if word.len() < pos - i + 1 { i += word.len() } else {
-        return (
-          elem.text.slice(0, i),
-          i,
-          i,
-          t,
-        )
+      let n = text-len(word)
+      if n < pos - i + 1 {
+        i += n
+        b += word.len()
+      } else {
+        return (elem.text.slice(0, b), i, i, t)
       }
     } else if t.starts-with(regex("\s+")) {
       let space = t.find(regex("\s+"))
-      if space.len() < pos - i + 1 {
-        i += space.len()
+      let n = text-len(space)
+      if n < pos - i + 1 {
+        i += n
+        b += space.len()
       } else {
         return (
-          elem.text.slice(0, i),
+          elem.text.slice(0, b),
           i,
-          i + space.len(),
-          elem.text.slice(i + space.len()),
+          i + n,
+          elem.text.slice(b + space.len()),
         )
       }
     }
   }
 
-  return (elem, elem.text.len(), elem.text.len(), "")
+  let n = text-len(elem.text)
+  return (elem, n, n, "")
 }
 
 /// Map some splited content.
@@ -274,8 +295,11 @@
     content-split-pos(elem.child, pos).map(e => (
       elem.func()(e, elem.styles) + []
     ))
-  } else if elem.has("text") and pos <= elem.text.len() {
-    ([#elem.text.slice(0, pos)], [#elem.text.slice(pos)])
+  } else if elem.has("text") and pos <= text-len(elem.text) {
+    (
+      [#text-slice(elem.text, 0, end: pos)],
+      [#text-slice(elem.text, pos)],
+    )
   } else if elem.has("text") {
     ([#elem.text], [])
   } else if elem.has("children") {
@@ -354,6 +378,11 @@
   }
 
   let max-pos = get-max-pos(max-width, char-width)
+  // Each sub-line must contain at least one character
+  assert(
+    max-pos >= 1,
+    message: "The code is too narrow: no character fits in its width.",
+  )
 
   while line-end - prev-start >= max-pos {
     let (l1, l1-end, l2-start, l2) = clean-content-split-word-pos(line, max-pos)

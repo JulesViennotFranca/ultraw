@@ -1,11 +1,12 @@
 #let default-style(color) = (
   expand: none,
   radius: .3em,
-  fill: color,
+  fill: color.lighten(70%),
+  stroke: color,
   code-style: it => it,
 )
 
-#let default(color: yellow.lighten(70%)) = (
+#let default(color: yellow) = (
   ldel: "*|",
   rdel: "|*",
   ..default-style(color),
@@ -26,7 +27,7 @@
 
 #let hide-style() = (
   expand: none,
-  lined: true,
+  sticky: true,
   code-style: it => hide(it),
 )
 
@@ -38,7 +39,7 @@
 
 #let strike-style(color) = (
   expand: none,
-  lined: true,
+  sticky: true,
   code-style: it => strike(stroke: .1em + color, it),
 )
 
@@ -50,7 +51,7 @@
 
 #let underline-style(color) = (
   expand: none,
-  lined: true,
+  sticky: true,
   code-style: it => underline(offset: .2em, stroke: .1em + color, it),
 )
 

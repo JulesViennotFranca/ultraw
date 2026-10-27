@@ -1,17 +1,36 @@
 #import "content.typ" as ct
 
-/// Return the maximum width of numbers.
+/// Return the widths of the gutter columns: the numbers and the markers.
 ///
-/// - line-numbers (array): The displayed line numbers.
-/// - format (function): Format a number.
-/// -> length
+/// - number (dictionary): The number parameters, with its cells (which contain the line markers placed over the numbers).
+/// - marker (dictionary): The marker column parameters, with all the markers of the number column (`number-markers`) and of the marker column (`markers`).
+/// - widest (none, str, content): Some content the number column must be wide enough for (the widest number of the following blocks).
 /// - monotonic (bool): Wether the widest numbers are the first and the last ones (as for the numbers themselves), so that only them are measured.
-#let numbers-width(line-numbers, format: str, monotonic: false) = calc.max(
-  0pt,
-  ..if monotonic and line-numbers.len() > 2 {
-    (line-numbers.first(), line-numbers.last())
-  } else { line-numbers }.map(n => measure(format(n)).width),
-)
+/// -> array
+#let numbers-markers-width(number, marker, widest: none, monotonic: false) = {
+  let max-width(contents) = calc.max(0pt, ..contents.map(c => measure(c).width))
+
+  let numbers-width = if number.visible {
+    let cells = if monotonic and number.cells.len() > 2 {
+      (number.cells.first(), number.cells.last())
+    } else { number.cells }
+    (
+      number.inset.left
+        + calc.max(
+          max-width(cells),
+          max-width(marker.number-markers),
+          max-width(if widest != none { (widest,) } else { () }),
+        )
+        + number.inset.right
+    )
+  } else { 0mm }
+
+  let markers-width = if marker.visible {
+    marker.inset.left + max-width(marker.markers) + marker.inset.right
+  } else { 0mm }
+
+  return (numbers-width, markers-width)
+}
 
 /// Return the maximum width of the code.
 ///
@@ -44,9 +63,9 @@
 #let tight-code-width(frame, code-width, lang-tag, it-lines) = {
   if frame.width == auto {
     let lines-width = it-lines.map(l => l.slines.map(sl => {
-      if "estimated-width" in sl { sl.estimated-width } else {
-        measure(sl.body).width
-      }
+      measure(
+        sl.body,
+      ).width
     }))
 
     if lang-tag.placement == "inline" and lines-width.len() > 0 {
@@ -92,8 +111,7 @@
 /// The code width when the comments are taken into account.
 ///
 /// - frame (dictionary): The frame parameters.
-/// - comments (array): The formatted comments.
-/// - numbers-width (length):
+/// - comments (array): The formatted comments, with the position of the code in their cell (`code-offset`).
 /// - code (dictionary): The code parameters.
 /// - code-width (length):
 /// - max-code-width (length): The maximum width available for the code.
@@ -101,7 +119,6 @@
 #let comments-code-width(
   frame,
   comments,
-  numbers-width,
   code,
   code-width,
   max-code-width,
@@ -114,7 +131,7 @@
         c.inset.left
           + measure(c.body).width
           + c.inset.right
-          - if c.spans { numbers-width } else { 0mm }
+          - c.code-offset
           - code.inset.left
           - code.inset.right
       ).to-absolute(),
@@ -123,3 +140,27 @@
 } else {
   code-width
 }
+
+/// Return the actual width filled by the lines of pseudo code.
+///
+/// - frame (dictionary): The frame parameters.
+/// - code-width (length): The available code width.
+/// - bodies (array): The contents of the lines (see `pseudo-line-body`).
+/// -> length
+#let pseudo-code-width(frame, code-width, bodies) = if frame.width == auto {
+  calc.min(code-width, calc.max(0pt, ..bodies.map(b => measure(b).width)))
+} else { code-width }
+
+/// Return the height of each line of pseudo code.
+///
+/// - bodies (array): The contents of the lines (see `pseudo-line-body`).
+/// - code (dictionary): The code parameters.
+/// - code-width (length):
+/// - char-height (length): The height of a line of text.
+/// -> array
+#let pseudo-lines-height(bodies, code, code-width, char-height) = bodies.map(
+  b => (
+    calc.max(char-height, measure(block(width: code-width, b)).height)
+      + code.line-spacing.to-absolute()
+  ),
+)

@@ -1,8 +1,10 @@
 #let default = (
-  coloring-follow-numbering: true,
-  default-stroke-length: 1pt,
-  line-reference: it => ", line " + str(it),
-  algorithm-figure: true,
+  general: (
+    coloring-follow-number: true,
+    default-stroke-thickness: 1pt,
+    line-reference: it => ", line " + str(it),
+    algorithm-figure: true,
+  ),
   frame: (
     breakable: true,
     fill: none,
@@ -29,22 +31,22 @@
     repeat: false,
     sep: auto,
   ),
-  numbering: (
+  number: (
     format: "1:",
     start: 1,
     end: none,
+    color: none,
     fill: auto,
-    color: auto,
     inset: .25em,
     alignment: right,
     sep: none,
   ),
   code: (
-    fill: none,
     inset: (x: .25em),
     line-spacing: .65em,
     indentation: none,
     indent-size: 1.5em,
     style: none,
+    fill: none,
   ),
 )

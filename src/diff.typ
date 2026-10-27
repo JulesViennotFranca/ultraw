@@ -4,7 +4,7 @@
 #import "../src/lang-tag.typ" as lt
 #import "measure.typ" as me
 #import "rendering.typ" as re
-#import "state.typ" as st
+#import "config.typ" as st
 #import "../themes/uraw.typ": default
 #import "utils.typ" as ut
 
@@ -12,31 +12,32 @@
 // Settings
 // -----------------------------------------------------------------------------
 
-/// The settings names of diffs: the ones of `uraw` (without `coloring-follow-numbering`) and the ones specific to diffs.
-#let diff-spec = st.settings-spec(
-  default + default.diff,
-  (
-    "frame",
-    "header",
-    "footer",
-    "numbering",
-    "code",
-    "comment",
-    "jump",
-    "lang-tag",
-  )
-    + st.diff-sections,
-  st.diff-general + ("default-stroke-length",),
-  (
-    width: ("frame", "width"),
-    height: ("frame", "height"),
-    breakable: ("frame", "breakable"),
-    start: ("numbering", "start"),
-    end: ("numbering", "end"),
-    line-spacing: ("code", "line-spacing"),
-    indentation: ("code", "indentation"),
-  ),
-)
+/// The settings names of diffs: the ones of `uraw` (without `coloring-follow-number`) and the ones specific to diffs.
+#let diff-spec = (sections: (:), flat-names: (:), additional: ())
+
+// sp.settings-spec(
+//   default + default.diff,
+//   (
+//     "frame",
+//     "header",
+//     "footer",
+//     "number",
+//     "code",
+//     "comment",
+//     "jump",
+//     "lang-tag",
+//   )
+//     + sp.diff-sections,
+//   (
+//     width: ("frame", "width"),
+//     height: ("frame", "height"),
+//     breakable: ("frame", "breakable"),
+//     start: ("number", "start"),
+//     end: ("number", "end"),
+//     line-spacing: ("code", "line-spacing"),
+//     indentation: ("code", "indentation"),
+//   ),
+// )
 
 /// Get the settings specific to diffs (the other settings are the ones of `uraw`).
 /// -> dictionary
@@ -61,7 +62,7 @@
   st.diff-general.map(key => (key, conf.at(key))).to-dict()
 }
 
-/// Set the settings specific to diffs, by section or flat (`section-key`, and `markers: bool`): \ **markers**: **visible** (bool): wether the markers are shown, **inset** (auto | relative | dictionary): the inset of the markers (only left and right), `auto` for the inset of the numbering, **sep**: the separator between the markers and the code \ **old** and **new**: **marker** (content): the marker of the changed lines, **number-color** and **number-fill**: the color and background of the numbers of the changed lines (`auto` for the ones of the numbering), **fill**: the background of the changes \ the general settings **line-reference** (none | auto | function): how a reference to a line is displayed after "Listing n", a function of the number and of the version (`"old"` or `"new"`), **columns** (int | array): the widths of the code columns, as for a grid (`auto`, relative or fraction): one column merges the old and the new codes, two columns separate them (`(auto, auto)` by default, which become `(1fr, 1fr)` when the codes are too large), **column-gutter** (relative): the space between the old and the new codes when they are separated (each half continuing the coloring of the code next to it, the separator being at its center), **no-diff-marker** (content): the marker of the unchanged lines, **blank-fill**: the background of the space left by a line which only is in one version, **sep**: the separator between the old and the new code. \ The other settings of diffs are the ones of `uraw` (see `uraw-set`).
+/// Set the settings specific to diffs, by section or flat (`section-key`, and `markers: bool`): \ **markers**: **visible** (bool): wether the markers are shown, **inset** (auto | relative | dictionary): the inset of the markers (only left and right), `auto` for the inset of the number, **sep**: the separator between the markers and the code \ **old** and **new**: **marker** (content): the marker of the changed lines, **number-color** and **number-fill**: the color and background of the numbers of the changed lines (`auto` for the ones of the number), **fill**: the background of the changes \ the general settings **line-reference** (none | auto | function): how a reference to a line is displayed after "Listing n", a function of the number and of the version (`"old"` or `"new"`), **columns** (int | array): the widths of the code columns, as for a grid (`auto`, relative or fraction): one column merges the old and the new codes, two columns separate them (`(auto, auto)` by default, which become `(1fr, 1fr)` when the codes are too large), **column-gutter** (relative): the space between the old and the new codes when they are separated (each half continuing the coloring of the code next to it, the separator being at its center), **no-diff-marker** (content): the marker of the unchanged lines, **blank-fill**: the background of the space left by a line which only is in one version, **sep**: the separator between the old and the new code. \ The other settings of diffs are the ones of `uraw` (see `uraw-set`).
 /// -> content
 #let uraw-diff-set(..args) = st.update-diff(args.named())
 
@@ -423,15 +424,15 @@
   let frame = st.parse-frame(lang: lang, ..settings)
   let header = st.parse-header(lang: lang, ..settings)
   let footer = st.parse-footer(lang: lang, ..settings)
-  let numbering = st.parse-numbering(lang: lang, ..settings)
+  let number = st.parse-number(lang: lang, ..settings)
   let code = st.parse-code(lang: lang, ..settings)
   let lang-tag = st.parse-lang-tag(lang: lang, ..settings)
-  let stroke-length = st.parse-general(
+  let stroke-thickness = st.parse-general(
     lang: lang,
-    "default-stroke-length",
+    "default-stroke-thickness",
     ..settings,
   )
-  lang-tag.stroke = ut.with-default-length(lang-tag.stroke, stroke-length)
+  lang-tag.stroke = ut.with-default-thickness(lang-tag.stroke, stroke-thickness)
   let comment = st.parse-comment(lang: lang, ..settings)
   let jump = st.parse-jump(lang: lang, ..settings)
 
@@ -442,19 +443,19 @@
   )
   let general(key) = settings.at(key, default: conf.at(key))
   let markers = section("markers")
-  markers.sep = ut.with-default-length(markers.sep, stroke-length)
+  markers.sep = ut.with-default-thickness(markers.sep, stroke-thickness)
   let versions = (old: section("old"), new: section("new"))
   let columns-setting = normalize-columns(general("columns"))
   let same-code = columns-setting.len() == 1
   let line-reference = general("line-reference")
 
   assert(
-    numbering.end == none,
-    message: "The `end` of the numbering is not supported by diffs.",
+    number.end == none,
+    message: "The `end` of the number is not supported by diffs.",
   )
   assert(
-    type(numbering.start) == int,
-    message: "The `start` of the numbering of a diff must be an integer.",
+    type(number.start) == int,
+    message: "The `start` of the number of a diff must be an integer.",
   )
 
   set par(leading: code.line-spacing)
@@ -504,14 +505,12 @@
   let jumps-of(version) = user-jumps.filter(j => j.version == version)
   let format(version-jumps, version) = cm.format-jumps(
     version-jumps,
-    numbering,
+    number,
     lines.at(version).len(),
-    "raw",
-    register: false,
   )
 
   let both-jumps = jumps-of("both")
-  let (_, new-jumps, new-numbers, new-checks) = format(
+  let (_, new-jumps, new-numbers) = format(
     jumps-of("new") + both-jumps,
     "new",
   )
@@ -526,31 +525,30 @@
       old-jumps.push((from: from, to: from + j.to - j.from, version: "both"))
     }
   }
-  let (_, old-jumps, old-numbers, old-checks) = format(old-jumps, "old")
+  let (_, old-jumps, old-numbers) = format(old-jumps, "old")
 
   let numbers = (
     old: (jumps: old-jumps, line-numbers: old-numbers),
     new: (jumps: new-jumps, line-numbers: new-numbers),
   )
-  let checks = old-checks + new-checks
 
   // Insets & radius & stroke
 
-  (frame, header, footer, numbering, code) = cm.format-insets(
+  (frame, header, footer, number, code) = cm.format-insets(
     frame,
     header,
     footer,
-    numbering,
+    number,
     code,
-    stroke-length: stroke-length,
+    stroke-thickness: stroke-thickness,
   )
 
-  // An automatic markers inset is the numbering one
-  if markers.inset == auto { markers.inset = numbering.inset }
+  // An automatic markers inset is the number one
+  if markers.inset == auto { markers.inset = number.inset }
   markers.inset = ut.line-inset(markers.inset, code.line-spacing)
 
   // The separator column between the old and the new codes
-  let sep = ut.with-default-length(general("sep"), stroke-length)
+  let sep = ut.with-default-thickness(general("sep"), stroke-thickness)
 
   // The gutter between the old and the new codes, with the separator at its center
   let frame-width = (
@@ -584,8 +582,8 @@
 
   // Colors (they follow the position of the rows)
 
-  (numbering, code) = cm.format-colors(
-    numbering,
+  (number, code) = cm.format-colors(
+    number,
     code,
     frame,
     numbers.new.line-numbers,
@@ -723,11 +721,11 @@
 
   let numbers-width = (:)
   for version in ("old", "new") {
-    numbers-width.insert(version, if numbering.visible {
+    numbers-width.insert(version, if number.visible {
       let numbers-width = me.numbers-width(
         numbers.at(version).line-numbers,
-        format: n => cm.format-number(numbering.format, n),
-        monotonic: type(numbering.format) != function,
+        format: n => cm.format-number(number.format, n),
+        monotonic: type(number.format) != function,
       )
       let comments-markers-width = calc.max(
         0pt,
@@ -738,9 +736,9 @@
           .map(c => measure(c.marker).width),
       )
       (
-        numbering.inset.left
+        number.inset.left
           + calc.max(numbers-width, comments-markers-width)
-          + numbering.inset.right
+          + number.inset.right
       ).to-absolute()
     } else { 0pt })
   }
@@ -816,8 +814,8 @@
         c.pos-indent.last() * char-width
       } else { 0pt }
       pre-width(version) + code.inset.at(version).left.to-absolute() + indent
-    } else if numbering.visible {
-      numbering.inset.left.to-absolute()
+    } else if number.visible {
+      number.inset.left.to-absolute()
     } else {
       markers.inset.left.to-absolute()
     }
@@ -1126,21 +1124,21 @@
   // Cells
 
   /// The number cell of a line of a version, or an empty number cell.
-  let number-cell(version, i, r, height, sep: numbering.sep) = {
+  let number-cell(version, i, r, height, sep: number.sep) = {
     let changed = i != none and diff.at(version).status.at(i) != "same"
     let conf = versions.at(version)
     let content = if i != none {
       let n = numbers.at(version).line-numbers.at(i)
       let color = if changed and conf.number-color != auto {
         conf.number-color
-      } else if numbering.color == auto {
+      } else if number.color == auto {
         none
-      } else if type(numbering.color) == function {
-        (numbering.color)(numbering.start + r)
+      } else if type(number.color) == function {
+        (number.color)(number.start + r)
       } else {
-        numbering.color
+        number.color
       }
-      let number = cm.format-number(numbering.format, n)
+      let number = cm.format-number(number.format, n)
       (
         if color != none { text(fill: color, number) } else { number }
           + cm.line-label(n, line-reference, version: version)
@@ -1151,18 +1149,18 @@
     } else if changed and conf.number-fill != auto {
       conf.number-fill
     } else {
-      (numbering.fill)(r)
+      (number.fill)(r)
     }
-    re.number-cell(
+    re.side-cell(
       content,
       numbers-width.at(version),
       height,
-      ut.grow-inset(numbering.inset, edge(r)),
+      ut.grow-inset(number.inset, edge(r)),
       (:),
       none,
       fill,
       sep,
-      numbering.alignment,
+      number.alignment,
     )
   }
 
@@ -1171,7 +1169,7 @@
     let status = if version != none { diff.at(version).status.at(i) } else {
       "same"
     }
-    re.number-cell(
+    re.side-cell(
       if status == "same" { general("no-diff-marker") } else {
         versions.at(version).marker
       },
@@ -1229,7 +1227,7 @@
   }
 
   /// A separator cell.
-  let sep-cell(row-new, r, height) = re.number-cell(
+  let sep-cell(row-new, r, height) = re.side-cell(
     [],
     sep-width / 2,
     height,
@@ -1251,9 +1249,9 @@
       and (if same-code { r == 0 } else { version == "new" and i == 0 })
   ) { lang-tag-block }
 
-  let side-columns = int(numbering.visible) + int(markers.visible) + 1
+  let side-columns = int(number.visible) + int(markers.visible) + 1
   let all-columns = if same-code {
-    2 * int(numbering.visible) + int(markers.visible) + 1
+    2 * int(number.visible) + int(markers.visible) + 1
   } else { 2 * side-columns }
 
   /// The cells of a version for separated codes.
@@ -1269,7 +1267,7 @@
       )
     } else {
       let cells = ()
-      if numbering.visible { cells.push(number-cell(version, i, r, height)) }
+      if number.visible { cells.push(number-cell(version, i, r, height)) }
       if markers.visible { cells.push(marker-cell(version, i, r, height)) }
       cells.push(code-cell(
         version,
@@ -1370,7 +1368,7 @@
       }
     } else if same-code {
       let (i, j) = (row.old, row.new)
-      if numbering.visible {
+      if number.visible {
         cells.push(number-cell("old", i, r, height, sep: none))
         cells.push(number-cell("new", j, r, height))
       }
@@ -1409,7 +1407,7 @@
   let code-column(version) = code-insets.at(version) + code-width.at(version)
   let columns = if same-code {
     (
-      if numbering.visible { (numbers-width.old, numbers-width.new) } else {
+      if number.visible { (numbers-width.old, numbers-width.new) } else {
         ()
       }
         + if markers.visible { (markers-width.new,) } else { () }
@@ -1417,7 +1415,7 @@
     )
   } else {
     let side(version) = (
-      if numbering.visible { (numbers-width.at(version),) } else { () }
+      if number.visible { (numbers-width.at(version),) } else { () }
         + if markers.visible { (markers-width.at(version),) } else { () }
         + (code-column(version),)
     )
@@ -1485,8 +1483,6 @@
       ..footer-cells,
     ),
   )
-
-  checks
 
   if lang-tag.visible and lang-tag.on-frame {
     if is-left or is-right {
@@ -1572,10 +1568,10 @@
 
 /// Display the difference between two raw blocks of code.
 ///
-/// - args (arguments): The old and the new raw blocks, and the settings: the ones of `uraw` (except `coloring-follow-numbering`) and the ones specific to diffs (see `uraw-diff-set`).
+/// - args (arguments): The old and the new raw blocks, and the settings: the ones of `uraw` (except `coloring-follow-number`) and the ones specific to diffs (see `uraw-diff-set`).
 /// - highlights (array): The highlights, on the line numbers of their `version` (`"old"` or `"new"`, `"new"` by default).
 /// - comments (array): The comments, as `(line, content)`, `(version, line, content)` or dictionaries with a `version` (`"old"` or `"new"`, `"new"` by default). When the codes are separated, they span over both codes, the text of the old comments staying in the old code.
-/// - jumps (array): The jumps of the numbering, as `(from, to)`, `(version, from, to)` or dictionaries with a `version`: `"old"`, `"new"` (by default), or `"both"` for a jump given on the new numbers, which jumps the same number of lines in the old code (its comment spans over both codes and is not indented).
+/// - jumps (array): The jumps of the number, as `(from, to)`, `(version, from, to)` or dictionaries with a `version`: `"old"`, `"new"` (by default), or `"both"` for a jump given on the new numbers, which jumps the same number of lines in the old code (its comment spans over both codes and is not indented).
 /// -> content
 #let uraw-diff(
   ..args,

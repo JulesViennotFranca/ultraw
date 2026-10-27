@@ -72,7 +72,7 @@
 /// - k (str): The name of the field.
 /// -> dictionary
 #let df(d, k) = if type(d) == dictionary {
-  if k in d { (k: d.k) } else { (:) }
+  if k in d { ((k): d.at(k)) } else { (:) }
 } else {
   let nd = (:)
   nd.insert(k, d)
@@ -121,7 +121,7 @@
   let tag-stroke(frame-stroke) = if lt.stroke == auto {
     frame-stroke
   } else if type(lt.stroke) in (color, gradient, tiling) {
-    lt.at("stroke-length", default: .05em) + lt.stroke
+    lt.at("stroke-thickness", default: .05em) + lt.stroke
   } else {
     lt.stroke
   }
@@ -167,7 +167,8 @@
           .map(side => frame.stroke.at(side))
           .find(s => s != none),
       ),
-      fill: lt.fill,
+      // An automatic fill shows the fill of the code or of the header behind it
+      fill: if lt.fill == auto { none } else { lt.fill },
       radius: lt.radius,
       inset: 0.2 * lt.size,
       ltc,

@@ -2,20 +2,20 @@
 #import "content.typ" as ct
 #import "utils.typ" as ut
 
-/// Create a number cell.
+/// Create the cell of a column of the gutter (beside the code): a number, a marker, a diff marker.
 ///
-/// - n (str): The number.
-/// - width (length): The width of the numbering.
+/// - body (content): The content of the cell.
+/// - width (length): The width of the column.
 /// - height (length): The height of the line.
 /// - inset (inset):
 /// - radius (radius):
 /// - stroke (stroke):
 /// - fill (color, none):
-/// - sep (stroke, none): The separating stroke between numbers and code, none if there is none.
+/// - sep (stroke, none): The separating stroke on the right of the column, none if there is none.
 /// - alignment (alignment):
 /// -> block
-#let number-cell(
-  n,
+#let side-cell(
+  body,
   width,
   height,
   inset,
@@ -34,13 +34,16 @@
   stroke: stroke,
   fill: fill,
   {
-    align(alignment, n)
+    align(alignment, body)
 
     if sep != none or fill != none {
-      place(right + top, dx: inset.right, dy: -inset.top, line(
+      let s = std.stroke(if sep != none { sep } else { fill })
+      let thickness = if s.thickness == auto { 1pt } else { s.thickness }
+      // The line is inside the cell, which clips its content
+      place(right + top, dx: inset.right - thickness / 2, dy: -inset.top, line(
         start: (0mm, 0mm),
         end: (0mm, height),
-        stroke: if sep != none { sep } else { fill },
+        stroke: s,
       ))
     }
   },
@@ -185,6 +188,56 @@
   )
 }
 
+/// Create the cell of a line of pseudo code.
+///
+/// - l (dictionary): The line (see `pseudo-lines`).
+/// - body (content): Its content (see `pseudo-line-body`).
+/// - code (dictionary): The code parameters, with an absolute `indent-size`.
+/// - width (length): The width of the code.
+/// - height (length): The height of the line.
+/// - radius (radius):
+/// - stroke (stroke):
+/// - fill (color, none):
+/// - extra (dictionary): The space added above and below (on the first and last lines).
+/// -> block
+#let pseudo-line-cell(
+  l,
+  body,
+  code,
+  width,
+  height,
+  radius,
+  stroke,
+  fill,
+  extra,
+) = {
+  let inset = ut.grow-inset(code.inset, extra)
+  block(
+    breakable: false,
+    width: code.inset.left + width + code.inset.right,
+    height: height,
+    inset: inset,
+    radius: radius,
+    stroke: stroke,
+    fill: fill,
+    align(left, {
+      // Indentation
+      if code.indentation != none {
+        for k in range(l.level) {
+          let x = k * code.indent-size
+          place(left + top, line(
+            start: (x, -inset.top),
+            end: (x, height - inset.top),
+            stroke: code.indentation,
+          ))
+        }
+      }
+
+      body
+    }),
+  )
+}
+
 /// Create a comment cell.
 ///
 /// - c (dictionary): The comment.
@@ -213,7 +266,7 @@
 
   // Add indentation if needed
   if (
-    indentation != none and c.in-code and c.indented and c.pos-indent.len() > 0
+    indentation != none and c.to-indent and c.pos-indent.len() > 0
   ) {
     let x-offset = c.inset.left - c.pos-indent.last() * char-width
     for p in c.pos-indent.slice(0, -1) {
@@ -231,29 +284,55 @@
 ///
 /// - header (dictionary): The header parameters.
 /// - frame (dictionary): The frame parameters.
-/// - numbering (dictionary): The numbering parameters.
+/// - nbr-columns (int): The number of columns of the grid.
+/// The anchors of the first and last rows of a block, used to know on which pages they are.
+///
+/// - id (int): The identifier of the block.
+/// - kind (str): `"start"` or `"end"`.
+/// -> metadata
+#let row-anchor(id, kind) = metadata((uraw-anchor: (id: id, kind: kind)))
+
+/// Wether the current page is the one of an anchor of a block (`true` when there is no such anchor).
+///
+/// - id (int): The identifier of the block.
+/// - kind (str): `"start"` or `"end"`.
+/// -> bool
+#let on-anchor-page(id, kind) = {
+  let anchors = query(metadata.where(value: (uraw-anchor: (id: id, kind: kind))))
+  anchors.len() == 0 or anchors.first().location().page() == here().page()
+}
+
+/// Create a header cell. Once repeated on another page, it has no top radius and no lang tag.
+///
+/// - header (dictionary): The header parameters.
+/// - frame (dictionary): The frame parameters.
+/// - nbr-columns (int): The number of columns of the grid.
+/// - id (int): The identifier of the block.
 /// -> grid.header, none
-#let header-cell(header, frame, numbering) = if header.content != none {
+#let header-cell(header, frame, nbr-columns, id) = if header.content != none {
   grid.header(
     repeat: header.repeat,
     grid.cell(
-      colspan: 1 + int(numbering.visible),
-      block(
-        width: frame.width,
-        height: header.height,
-        radius: header.radius,
-        inset: header.inset,
-        stroke: header.stroke,
-        fill: header.fill,
-        breakable: false,
-        {
-          align(header.alignment, header.content)
-          // The lang tag placed in the header
-          if header.at("tag", default: none) != none {
-            place(right + horizon, header.tag)
-          }
-        },
-      ),
+      colspan: nbr-columns,
+      context {
+        let first = id == none or on-anchor-page(id, "start")
+        block(
+          width: frame.width,
+          height: header.height,
+          radius: if first { header.radius } else { (:) },
+          inset: header.inset,
+          stroke: header.stroke,
+          fill: header.fill,
+          breakable: false,
+          {
+            align(header.alignment, header.content)
+            // The lang tag placed in the header
+            if first and header.at("tag", default: none) != none {
+              place(right + horizon, header.tag)
+            }
+          },
+        )
+      },
     ),
   )
 }
@@ -262,17 +341,21 @@
 ///
 /// - footer (dictionary): The footer parameters.
 /// - frame (dictionary): The frame parameters.
-/// - numbering (dictionary): The numbering parameters.
+/// - nbr-columns (int): The number of columns of the grid.
+/// - id (int): The identifier of the block.
 /// -> grid.footer, none
-#let footer-cell(footer, frame, numbering) = if footer.content != none {
+#let footer-cell(footer, frame, nbr-columns, id) = if footer.content != none {
   grid.footer(
     repeat: footer.repeat,
     grid.cell(
-      colspan: 1 + int(numbering.visible),
-      block(
+      colspan: nbr-columns,
+      // Repeated on another page than the last one, it has no bottom radius
+      context block(
         width: frame.width,
         height: footer.height,
-        radius: footer.radius,
+        radius: if id == none or on-anchor-page(id, "end") {
+          footer.radius
+        } else { (:) },
         inset: footer.inset,
         stroke: footer.stroke,
         fill: footer.fill,
@@ -286,7 +369,7 @@
 /// Render a whole block of raw code.
 ///
 /// - nl (int): The number of lines.
-/// - numbering (dictionary): The numbering parameters.
+/// - number (dictionary): The number parameters.
 /// - numbers-width (length):
 /// - code (dictionary): The code parameters.
 /// - code-lines (array):
@@ -301,12 +384,15 @@
 /// - char-height (length):
 /// - highlights (array): The list of highlights per line.
 /// - comments (array): The list of comments placed before the first line, then after each line.
-/// - lines-range (none, array): The range `(start, end)` of the indexes of the lines shown, all the lines if `none`.
 /// - line-cell (none, function): The function creating the cell of a line from its index, height, radius, stroke, fill and extra space (top and bottom), instead of a code cell.
+/// - marker (dictionary): The marker column parameters (formatted, see `format-marker`), only its visibility is needed when it is not visible.
+/// - markers-width (length): The width of the marker column.
+/// - markers (array): For each line, its marker (`none` if it has none).
+/// - id (none, int): The identifier of the block, to find the pages of its first and last rows (for the repeated header and footer).
 /// -> grid
 #let render(
   nl,
-  numbering,
+  number,
   numbers-width,
   code,
   code-lines,
@@ -322,24 +408,25 @@
   highlights,
   comments,
   line-cell: none,
-  lines-range: none,
+  marker: (visible: false),
+  markers-width: 0pt,
+  markers: (),
+  id: none,
 ) = {
-  // Compute the number of columns and the associated widths
+  // Compute the number of columns and the associated widths: the numbers, the markers, the code
 
-  let nbr-columns = 1 + int(numbering.visible)
-  let column-widths = if numbering.visible { (numbers-width,) } else { () }
+  let nbr-columns = 1 + int(number.visible) + int(marker.visible)
+  let column-widths = ()
+  if number.visible { column-widths.push(numbers-width) }
+  if marker.visible { column-widths.push(markers-width) }
   column-widths.push(code.inset.left + code-width + code.inset.right)
+  // Wether there are columns before the code (the first one takes the left side of the frame)
+  let has-side = number.visible or marker.visible
 
   // Order the code lines and the comments
 
-  // Only the lines of the range are shown (for a block of a chain of continued blocks), the comments before a line of the range being shown with the previous line
-  let (first-line, end-line) = if lines-range == none { (0, nl) } else {
-    lines-range
-  }
-  let rows = if first-line == 0 {
-    comments.at(0).map(c => (kind: "comment", comment: c))
-  } else { () }
-  for i in range(first-line, end-line) {
+  let rows = comments.at(0).map(c => (kind: "comment", comment: c))
+  for i in range(nl) {
     rows.push((kind: "code", i: i))
     rows += comments.at(i + 1).map(c => (kind: "comment", comment: c))
   }
@@ -353,7 +440,7 @@
 
   let is-filled(row) = if row.kind == "code" {
     (
-      (numbering.visible and (numbering.fill)(row.i) != none)
+      (has-side and (number.fill)(row.i) != none)
         or (code.fill)(row.i) != none
     )
   } else {
@@ -390,27 +477,28 @@
   let is-first(r) = r == 0 and header.content == none
   let is-last(r) = r == nr - 1 and footer.content == none
 
-  let numbers-radius(r) = if is-first(r) {
+  // The radius and stroke of a column beside the code, `leftmost` when it is the first column
+  let side-radius(r, leftmost) = if not leftmost { (:) } else if is-first(r) {
     (top-left: frame.radius.top-left)
   } else if is-last(r) {
     (bottom-left: frame.radius.bottom-left)
   } else { (:) }
 
-  let numbers-stroke(r) = (
+  let side-stroke(r, leftmost) = (
     top: if is-first(r) { frame.stroke.top },
-    left: frame.stroke.left,
+    left: if leftmost { frame.stroke.left },
     bottom: if is-last(r) { frame.stroke.bottom },
   )
 
   let code-radius(r) = if is-first(r) {
     (
       (top-right: frame.radius.top-right)
-        + if not numbering.visible { (top-left: frame.radius.top-left) }
+        + if not has-side { (top-left: frame.radius.top-left) }
     )
   } else if is-last(r) {
     (
       (bottom-right: frame.radius.bottom-right)
-        + if not numbering.visible { (bottom-left: frame.radius.bottom-left) }
+        + if not has-side { (bottom-left: frame.radius.bottom-left) }
     )
   } else {
     (:)
@@ -418,7 +506,7 @@
 
   let code-stroke(r) = (
     top: if is-first(r) { frame.stroke.top },
-    left: if not numbering.visible { frame.stroke.left },
+    left: if not has-side { frame.stroke.left },
     right: frame.stroke.right,
     bottom: if is-last(r) { frame.stroke.bottom },
   )
@@ -443,6 +531,44 @@
     right: frame.stroke.right,
     bottom: if is-last(r) { frame.stroke.bottom },
   )
+
+  // The separator between the gutter and the code, drawn on the left edge of the code cell (above its content)
+  let with-sep(cell, height) = if has-side and number.sep != none {
+    cell
+    place(left + top, line(start: (0pt, 0pt), end: (0pt, height), stroke: number.sep))
+  } else { cell }
+
+  // The cells of the gutter of a row: the number column then the marker column (when visible)
+  let gutter-cells(r, height, extra, number-body, marker-body, fill) = {
+    let cells = ()
+    if number.visible {
+      cells.push(side-cell(
+        if number-body != none { number-body } else { [] },
+        numbers-width,
+        height,
+        ut.grow-inset(number.inset, extra),
+        side-radius(r, true),
+        side-stroke(r, true),
+        fill,
+        none,
+        number.alignment,
+      ))
+    }
+    if marker.visible {
+      cells.push(side-cell(
+        if marker-body != none { marker-body } else { [] },
+        markers-width,
+        height,
+        ut.grow-inset(marker.inset, extra),
+        side-radius(r, not number.visible),
+        side-stroke(r, not number.visible),
+        fill,
+        none,
+        number.alignment.y + right,
+      ))
+    }
+    cells
+  }
 
   let row-cells = rows
     .enumerate()
@@ -482,29 +608,23 @@
           )
         }
 
-        if numbering.visible {
-          (
-            number-cell(
-              (numbering.cell)(i),
-              numbers-width,
-              height,
-              ut.grow-inset(numbering.inset, extra),
-              numbers-radius(r),
-              numbers-stroke(r),
-              (numbering.fill)(i),
-              numbering.sep,
-              numbering.alignment,
-            ),
-            code-cell,
+        (
+          gutter-cells(
+            r,
+            height,
+            extra,
+            (number.color)(i, number.cells.at(i)),
+            markers.at(i, default: none),
+            (number.fill)(i),
           )
-        } else {
-          (code-cell,)
-        }
+            + (with-sep(code-cell, height),)
+        )
       } else {
         let c = row.comment
         c.inset = ut.grow-inset(c.inset, extra)
 
-        if c.spans {
+        if c.marker == none {
+          // The comment spans over the gutter
           (
             grid.cell(
               colspan: nbr-columns,
@@ -513,57 +633,63 @@
                 height,
                 full-radius(r),
                 full-stroke(r),
-                none,
+                code.indentation,
                 char-width,
               ),
             ),
           )
-        } else if numbering.visible {
-          (
-            number-cell(
-              if c.in-code {
-                (numbering.coloring)(
-                  if c.copy-before { c.gap - 1 } else { c.gap },
-                  c.marker,
-                )
-              } else { c.marker },
-              numbers-width,
-              height,
-              ut.grow-inset(numbering.inset, extra),
-              numbers-radius(r),
-              numbers-stroke(r),
-              if c.in-code {
-                (numbering.fill)(if c.copy-before { c.gap - 1 } else { c.gap })
-              } else { c.fill },
-              if c.in-code { numbering.sep } else { none },
-              numbering.alignment,
-            ),
-            comment-cell(
-              c,
-              height,
-              code-radius(r),
-              code-stroke(r),
-              code.indentation,
-              char-width,
-            ),
-          )
         } else {
+          let fill = if c.marker-fill == auto {
+            c.fill
+          } else if c.marker-fill == none {
+            // The number fill of the commented line: the line before for a comment after it, the line after otherwise
+            let k = if c.copy-before { c.gap - 1 } else { c.gap }
+            (number.fill)(calc.clamp(k, 0, nl - 1))
+          } else { c.marker-fill }
+          let in-number = c.placement == "number"
           (
-            comment-cell(
-              c,
+            gutter-cells(
+              r,
               height,
-              code-radius(r),
-              code-stroke(r),
-              code.indentation,
-              char-width,
-            ),
+              extra,
+              if in-number { c.marker },
+              if not in-number { c.marker },
+              fill,
+            )
+              + (
+                with-sep(
+                  comment-cell(
+                    c,
+                    height,
+                    code-radius(r),
+                    code-stroke(r),
+                    code.indentation,
+                    char-width,
+                  ),
+                  height,
+                ),
+              )
           )
         }
       }
     })
-    .flatten()
 
-  let header-cell = header-cell(header, frame, numbering)
+  // Anchors in the first and last rows, to know the pages they are on
+  if id != none {
+    let anchored(cell, kind) = {
+      let anchor = row-anchor(id, kind)
+      if type(cell) == content and cell.func() == grid.cell {
+        let fields = cell.fields()
+        let body = fields.remove("body")
+        grid.cell(..fields, [#body#anchor])
+      } else { [#cell#anchor] }
+    }
+    row-cells.first().first() = anchored(row-cells.first().first(), "start")
+    row-cells.last().last() = anchored(row-cells.last().last(), "end")
+  }
+  row-cells = row-cells.flatten()
+
+  let header-cell = header-cell(header, frame, nbr-columns, id)
 
   let cells = if header-cell != none {
     let sep-thickness = if header.stroke.bottom == none {
@@ -582,7 +708,7 @@
 
   cells += row-cells
 
-  let footer-cell = footer-cell(footer, frame, numbering)
+  let footer-cell = footer-cell(footer, frame, nbr-columns, id)
 
   if footer-cell != none {
     row-heights.push(footer.height)

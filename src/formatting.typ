@@ -197,14 +197,20 @@
 /// - number-markers (array): The markers shown in the number column, for each line (`none` if it has none).
 /// - line-numbers (array): The displayed line numbers.
 /// -> dictionary
-#let number-cells(number, general, number-markers, line-numbers) = {
+#let number-cells(
+  number,
+  general,
+  number-markers,
+  line-numbers,
+  version: none,
+) = {
   number.cells = line-numbers
     .enumerate()
     .map(((i, n)) => if number-markers.at(i) != none {
       number-markers.at(i)
     } else if n == none or not number.visible { [] } else {
       shown-number(number, n)
-      add-line-label(n, general.line-reference)
+      add-line-label(n, general.line-reference, version: version)
     })
 
   return number
@@ -565,10 +571,17 @@
   return comment
 }
 
-#let jump-comments(jumps, jump, comment, line-index, format) = {
+// The comments of the jumps (the style of a comment being given by its content, a jump has no `comment-style`), with the `extra` keys of the jumps (with their default value)
+#let jump-comments(jumps, jump, comment, line-index, format, extra: (:)) = {
   jumps
     .map(j => {
-      ut.check-keys(j, jump.keys() + ("from", "to"), "a jump")
+      ut.check-keys(
+        j,
+        jump.keys().filter(k => k != "comment-style")
+          + ("from", "to")
+          + extra.keys(),
+        "a jump",
+      )
       let jc = ut.filter-add-dict(jump, j)
 
       let settings = (:)
@@ -584,6 +597,7 @@
       if content != none {
         format(
           settings
+            + extra.keys().map(k => (k, j.at(k, default: extra.at(k)))).to-dict()
             + (
               content: content,
               copy-before: true,
@@ -596,7 +610,8 @@
     .filter(c => c != none)
 }
 
-#let comments(comments, comment, line-numbers, format) = {
+// The comments (the style of a comment being given by its content, a comment has no `style`), with their `extra` keys (with their default value)
+#let comments(comments, comment, line-numbers, format, extra: (:)) = {
   ut
     .single-to-list(comments)
     .map(c => {
@@ -616,7 +631,9 @@
       )
       ut.check-keys(
         c,
-        comment.keys() + ("after", "before", "content"),
+        comment.keys().filter(k => k != "style")
+          + ("after", "before", "content")
+          + extra.keys(),
         "a comment",
       )
 
@@ -629,6 +646,7 @@
 
       format(
         ut.filter-add-dict(comment, c)
+          + extra.keys().map(k => (k, c.at(k, default: extra.at(k)))).to-dict()
           + (
             content: c.content,
             copy-before: after,
@@ -650,6 +668,7 @@
 /// - pre-width (length): The width of the gutter (the columns before the code: numbers and markers).
 /// - gutter-inset (dictionary): The inset of the first column of the gutter.
 /// - char-width (length):
+/// - code-start (auto, length): The start of the code (after the diff markers of diffs), the end of the gutter by default.
 /// -> array
 #let comments-position(
   comments,
@@ -658,7 +677,9 @@
   pre-width,
   gutter-inset,
   char-width,
+  code-start: auto,
 ) = comments.map(c => {
+  let code-start = if code-start == auto { pre-width } else { code-start }
   // An indented comment takes the indentation of the line before it (or after it for `before`)
   if c.indented {
     let k = if c.copy-before { c.gap - 1 } else { c.gap }
@@ -670,13 +691,13 @@
   // The comment cell starts after the gutter when it has a marker (the marker being in the gutter), at the left of the frame otherwise
   let cell-start = if c.marker != none { pre-width } else { 0mm }
   // The horizontal position of the code in the comment cell
-  c.code-offset = pre-width - cell-start
+  c.code-offset = code-start - cell-start
   let indent = if c.indented and c.pos-indent.len() > 0 {
     c.pos-indent.last() * char-width
   } else { 0mm }
   let left = if c.in-code {
     c.code-offset + code.inset.left + indent
-  } else if pre-width.to-absolute() > 0mm {
+  } else if code-start.to-absolute() > 0mm {
     gutter-inset.left
   } else { code.inset.left }
   c.inset = (
@@ -881,3 +902,394 @@
   left: l.level * code.indent-size,
   if code.style != none { (code.style)(l.body) } else { l.body },
 )
+
+// -----------------------------------------------------------------------------
+// Diff
+// -----------------------------------------------------------------------------
+
+// The longest common subsequence of two arrays, as operations: `("=", i, j)` for common elements, `("-", i, none)` for removed ones and `("+", none, j)` for added ones
+#let lcs-ops(a, b) = {
+  let (n, m) = (a.len(), b.len())
+
+  // The common prefix and suffix
+  let p = 0
+  while p < n and p < m and a.at(p) == b.at(p) { p += 1 }
+  let q = 0
+  while q < n - p and q < m - p and a.at(n - 1 - q) == b.at(m - 1 - q) {
+    q += 1
+  }
+
+  let (a2, b2) = (a.slice(p, n - q), b.slice(p, m - q))
+  let (n2, m2) = (a2.len(), b2.len())
+
+  // The lengths of the longest common subsequences of the suffixes
+  let w = m2 + 1
+  let t = range((n2 + 1) * w).map(_ => 0)
+  for i in range(n2 - 1, -1, step: -1) {
+    for j in range(m2 - 1, -1, step: -1) {
+      t.at(i * w + j) = if a2.at(i) == b2.at(j) {
+        t.at((i + 1) * w + j + 1) + 1
+      } else {
+        calc.max(t.at((i + 1) * w + j), t.at(i * w + j + 1))
+      }
+    }
+  }
+
+  let ops = range(p).map(k => ("=", k, k))
+  let (i, j) = (0, 0)
+  while i < n2 or j < m2 {
+    if i < n2 and j < m2 and a2.at(i) == b2.at(j) {
+      ops.push(("=", p + i, p + j))
+      i += 1
+      j += 1
+    } else if (
+      j >= m2 or (i < n2 and t.at((i + 1) * w + j) >= t.at(i * w + j + 1))
+    ) {
+      ops.push(("-", p + i, none))
+      i += 1
+    } else {
+      ops.push(("+", none, p + j))
+      j += 1
+    }
+  }
+  ops + range(q).map(k => ("=", n - q + k, m - q + k))
+}
+
+// The words, spaces and symbols of a line, with their positions in characters
+#let tokenize(s) = (
+  s
+    .matches(regex("\\w[\\w']*|\\s+|[^\\w\\s]+"))
+    .map(m => {
+      let start = ct.text-len(s.slice(0, m.start))
+      (text: m.text, start: start, end: start + ct.text-len(m.text))
+    })
+)
+
+// The ranges of the changed tokens, the spaces between changed tokens being changed too, but not the ones at the ends
+#let changed-ranges(tokens, changed) = {
+  let is-space(k) = tokens.at(k).text.trim() == ""
+  let n = tokens.len()
+
+  for k in range(n) {
+    if not changed.at(k) and is-space(k) {
+      let prev = k > 0 and changed.at(k - 1)
+      let next = k < n - 1 and changed.at(k + 1)
+      if prev and next { changed.at(k) = true }
+    }
+  }
+
+  let ranges = ()
+  let k = 0
+  while k < n {
+    if changed.at(k) {
+      let e = k
+      while e + 1 < n and changed.at(e + 1) { e += 1 }
+      let (s2, e2) = (k, e)
+      while s2 <= e2 and is-space(s2) { s2 += 1 }
+      while e2 >= s2 and is-space(e2) { e2 -= 1 }
+      if s2 <= e2 { ranges.push((tokens.at(s2).start, tokens.at(e2).end)) }
+      k = e + 1
+    } else {
+      k += 1
+    }
+  }
+  ranges
+}
+
+// The changed ranges of two lines replacing each other, `none` if they are too different
+#let line-diff(old-text, new-text) = {
+  let (a, b) = (tokenize(old-text), tokenize(new-text))
+  let ops = lcs-ops(a.map(t => t.text), b.map(t => t.text))
+
+  // The similarity of the lines, on the characters which are not spaces
+  let size(t) = ct.text-len(t.text.replace(regex("\s"), ""))
+  let common = ops
+    .filter(op => op.at(0) == "=")
+    .map(op => size(a.at(op.at(1))))
+    .sum(default: 0)
+  let total = a.map(size).sum(default: 0) + b.map(size).sum(default: 0)
+  if total == 0 or 2 * common / total < .5 { return none }
+
+  let old-changed = a.map(_ => true)
+  let new-changed = b.map(_ => true)
+  for op in ops.filter(op => op.at(0) == "=") {
+    old-changed.at(op.at(1)) = false
+    new-changed.at(op.at(2)) = false
+  }
+
+  (old: changed-ranges(a, old-changed), new: changed-ranges(b, new-changed))
+}
+
+// The difference between two codes: the `items` (`(kind: "same", old: i, new: j)` or `(kind: "hunk", dels: .., adds: ..)`), for each version the `status` of its lines (`"same"`, `"mod"` or `"whole"`) and the changed `ranges` of the modified lines, and for each new line the old line at the same place (`new-to-old`, -1 if there is none)
+#let compute-diff(old-texts, new-texts) = {
+  let items = ()
+  let (dels, adds) = ((), ())
+  for op in lcs-ops(old-texts, new-texts) {
+    if op.at(0) == "=" {
+      if dels.len() + adds.len() > 0 {
+        items.push((kind: "hunk", dels: dels, adds: adds))
+        (dels, adds) = ((), ())
+      }
+      items.push((kind: "same", old: op.at(1), new: op.at(2)))
+    } else if op.at(0) == "-" {
+      dels.push(op.at(1))
+    } else {
+      adds.push(op.at(2))
+    }
+  }
+  if dels.len() + adds.len() > 0 {
+    items.push((kind: "hunk", dels: dels, adds: adds))
+  }
+
+  let diff = (
+    items: items,
+    old: (status: old-texts.map(_ => "same"), ranges: old-texts.map(_ => ())),
+    new: (status: new-texts.map(_ => "same"), ranges: new-texts.map(_ => ())),
+    new-to-old: new-texts.map(_ => -1),
+  )
+
+  let last-old = -1
+  for item in items {
+    if item.kind == "same" {
+      diff.new-to-old.at(item.new) = item.old
+      last-old = item.old
+      continue
+    }
+    for i in item.dels { diff.old.status.at(i) = "whole" }
+    for (k, j) in item.adds.enumerate() {
+      diff.new.status.at(j) = "whole"
+      diff.new-to-old.at(j) = item.dels.at(k, default: if item.dels.len() > 0 {
+        item.dels.last()
+      } else { last-old })
+    }
+    if item.dels.len() > 0 { last-old = item.dels.last() }
+
+    // The lines replacing each other are compared
+    for k in range(calc.min(item.dels.len(), item.adds.len())) {
+      let (i, j) = (item.dels.at(k), item.adds.at(k))
+      let d = line-diff(old-texts.at(i), new-texts.at(j))
+      if d != none {
+        diff.old.status.at(i) = "mod"
+        diff.new.status.at(j) = "mod"
+        diff.old.ranges.at(i) = d.old
+        diff.new.ranges.at(j) = d.new
+      }
+    }
+  }
+
+  diff
+}
+
+// The columns of a diff: an array of one (merged codes) or two (separated codes) widths
+#let diff-columns(columns) = {
+  let columns = if type(columns) == int {
+    assert(
+      columns in (1, 2),
+      message: "The `columns` of a diff must be 1 or 2, or an array of one or two widths.",
+    )
+    range(columns).map(_ => auto)
+  } else if type(columns) == array { columns } else { (columns,) }
+  assert(
+    columns.len() in (1, 2)
+      and columns.all(c => (
+        c == auto or type(c) in (length, ratio, relative, fraction)
+      )),
+    message: "The `columns` of a diff must be 1 or 2, or an array of one or two widths (auto, relative or fraction).",
+  )
+  columns
+}
+
+// The entries of a diff (comments, jumps, markers, highlights) with their version: arrays `(..keys)` or `(version, ..keys)`, or dictionaries with an optional `version` (`"new"` by default)
+#let versioned(entries, keys, both: false) = {
+  let entries = if (
+    type(entries) == dictionary
+      or (entries.len() > 0 and type(entries.first()) in (int, str))
+  ) { (entries,) } else { entries }
+  let versions = ("old", "new") + if both { ("both",) } else { () }
+
+  entries.map(e => {
+    if type(e) == array {
+      assert(
+        e.len() in (keys.len(), keys.len() + 1),
+        message: "An entry of a diff given as an array must be of the form `("
+          + keys.join(", ")
+          + ")` or `(version, "
+          + keys.join(", ")
+          + ")`.",
+      )
+      let version = if e.len() > keys.len() { e.remove(0) } else { "new" }
+      e = keys.zip(e).to-dict() + (version: version)
+    }
+    let version = e.at("version", default: "new")
+    assert(
+      version in versions,
+      message: "The version of an entry of a diff must be "
+        + versions.map(v => "\"" + v + "\"").join(", ", last: " or ")
+        + ".",
+    )
+    e + (version: version)
+  })
+}
+
+#let of-version(entries, version) = (
+  entries
+    .filter(e => e.version == version)
+    .map(e => {
+      let _ = e.remove("version")
+      e
+    })
+)
+
+// The numbers of both versions: the jumps of both versions are given on the new numbers, and jump the same number of lines in the old code
+#let diff-numbers(diff-number, diff-jumps, nbr-lines, new-to-old, code, with-dst) = {
+  let numbers-of(version, version-jumps) = {
+    let (version-jumps, jumps-map) = jumps(
+      version-jumps,
+      diff-number,
+      nbr-lines.at(version),
+    )
+    let version-number = number(
+      diff-number,
+      nbr-lines.at(version),
+      version-jumps,
+      code,
+      with-dst,
+    )
+    let (version-line-numbers, line-index) = line-numbers(
+      version-number,
+      nbr-lines.at(version),
+      version-jumps,
+      jumps-map,
+    )
+    (
+      number: version-number,
+      jumps: version-jumps,
+      line-numbers: version-line-numbers,
+      line-index: line-index,
+    )
+  }
+
+  let both = of-version(diff-jumps, "both")
+  let new = numbers-of("new", of-version(diff-jumps, "new") + both)
+
+  let old-jumps = of-version(diff-jumps, "old")
+  for j in both.sorted(key: j => j.from) {
+    let i = new-to-old.at((new.line-index)(j.from))
+    if i >= 0 {
+      let from = numbers-of("old", old-jumps).line-numbers.at(i)
+      old-jumps.push((from: from, to: from + j.to - j.from))
+    }
+  }
+
+  (old: numbers-of("old", old-jumps), new: new)
+}
+
+// The changed ranges of a version, as highlights
+#let diff-changes(diff, version, conf, defaults) = (
+  diff
+    .at(version)
+    .ranges
+    .enumerate()
+    .map(((i, ranges)) => ranges.map(((s, e)) => hl.format-highlight(
+      (
+        start: (i, s),
+        end: (i, e),
+        expand: none,
+        sticky: false,
+        radius: 0mm,
+        fill: conf.fill,
+        stroke: none,
+      ),
+      defaults,
+    )))
+    .flatten()
+)
+
+// The rows of a diff: the lines (`(kind: "line", old: i, new: j)`, one of them being `none` for a line in one version only) and the comments (`(kind: "comment", old: c, new: c)`, one of them being `none` for a comment of one version only, both being set for separated codes)
+#let diff-rows(diff, comments, same-code) = {
+  let comment-rows(olds, news) = {
+    let after(cs) = cs.filter(c => c.copy-before)
+    let before(cs) = cs.filter(c => not c.copy-before)
+    // The comments spanning over both separated codes are alone in their rows, the ones after the lines first
+    let is-span(c) = c.span and not same-code
+    let spans = (olds + news).filter(is-span)
+    let (olds, news) = (olds, news).map(cs => cs.filter(c => not is-span(c)))
+    let span-rows(cs) = cs.map(c => (
+      kind: "comment",
+      old: none,
+      new: none,
+      span: c,
+    ))
+    let single(version, cs) = cs.map(c => (
+      kind: "comment",
+      old: if version == "old" { c },
+      new: if version == "new" { c },
+    ))
+    let pairs(olds, news) = olds
+      .zip(news)
+      .map(((o, n)) => (kind: "comment", old: o, new: n))
+
+    if same-code {
+      return (
+        single("old", after(olds))
+          + single("new", after(news))
+          + single("old", before(olds))
+          + single("new", before(news))
+      )
+    }
+    let (spans-after, spans-before) = (after(spans), before(spans))
+
+    // The comments of both versions are paired: the ones after the lines from the top, the ones before the lines from the bottom
+    let (oa, ob, na, nb) = (after(olds), before(olds), after(news), before(news))
+    let top = pairs(oa, na)
+    let bottom = pairs(ob.rev(), nb.rev()).rev()
+    let (oa, na) = (oa.slice(top.len()), na.slice(top.len()))
+    let (ob, nb) = (
+      ob.slice(0, ob.len() - bottom.len()),
+      nb.slice(0, nb.len() - bottom.len()),
+    )
+
+    // The remaining comments of one version after the lines are paired with the ones of the other version before the lines
+    let (first, firsts) = if oa.len() > 0 { ("old", oa) } else { ("new", na) }
+    let (second, seconds) = if ob.len() > 0 { ("old", ob) } else { ("new", nb) }
+    let n = if first == second { 0 } else {
+      calc.min(firsts.len(), seconds.len())
+    }
+    let middle = (
+      single(first, firsts.slice(0, firsts.len() - n))
+        + firsts
+          .slice(firsts.len() - n)
+          .zip(seconds.slice(0, n))
+          .map(((a, b)) => (kind: "comment", (first): a, (second): b))
+        + single(second, seconds.slice(n))
+    )
+    span-rows(spans-after) + top + middle + bottom + span-rows(spans-before)
+  }
+
+  let rows = comment-rows(comments.old.at(0), comments.new.at(0))
+  let line-rows = ()
+  for item in diff.items {
+    if item.kind == "same" {
+      line-rows.push((kind: "line", old: item.old, new: item.new))
+    } else if same-code {
+      line-rows += item.dels.map(i => (kind: "line", old: i, new: none))
+      line-rows += item.adds.map(j => (kind: "line", old: none, new: j))
+    } else {
+      for k in range(calc.max(item.dels.len(), item.adds.len())) {
+        line-rows.push((
+          kind: "line",
+          old: item.dels.at(k, default: none),
+          new: item.adds.at(k, default: none),
+        ))
+      }
+    }
+  }
+  for (k, row) in line-rows.enumerate() {
+    rows.push(row + (k: k))
+    rows += comment-rows(
+      if row.old != none { comments.old.at(row.old + 1) } else { () },
+      if row.new != none { comments.new.at(row.new + 1) } else { () },
+    )
+  }
+  rows
+}

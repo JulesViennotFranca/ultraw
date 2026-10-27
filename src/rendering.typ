@@ -280,11 +280,6 @@
   }
 }
 
-/// Create a header cell.
-///
-/// - header (dictionary): The header parameters.
-/// - frame (dictionary): The frame parameters.
-/// - nbr-columns (int): The number of columns of the grid.
 /// The anchors of the first and last rows of a block, used to know on which pages they are.
 ///
 /// - id (int): The identifier of the block.
@@ -300,6 +295,23 @@
 #let on-anchor-page(id, kind) = {
   let anchors = query(metadata.where(value: (uraw-anchor: (id: id, kind: kind))))
   anchors.len() == 0 or anchors.first().location().page() == here().page()
+}
+
+// The cells of the rows (an array of cells per row), with anchors in the first and last rows to know the pages they are on
+#let anchor-rows(row-cells, id) = {
+  if id != none and row-cells.len() > 0 {
+    let anchored(cell, kind) = {
+      let anchor = row-anchor(id, kind)
+      if type(cell) == content and cell.func() == grid.cell {
+        let fields = cell.fields()
+        let body = fields.remove("body")
+        grid.cell(..fields, [#body#anchor])
+      } else { [#cell#anchor] }
+    }
+    row-cells.first().first() = anchored(row-cells.first().first(), "start")
+    row-cells.last().last() = anchored(row-cells.last().last(), "end")
+  }
+  row-cells.flatten()
 }
 
 /// Create a header cell. Once repeated on another page, it has no top radius and no lang tag.
@@ -674,20 +686,7 @@
       }
     })
 
-  // Anchors in the first and last rows, to know the pages they are on
-  if id != none {
-    let anchored(cell, kind) = {
-      let anchor = row-anchor(id, kind)
-      if type(cell) == content and cell.func() == grid.cell {
-        let fields = cell.fields()
-        let body = fields.remove("body")
-        grid.cell(..fields, [#body#anchor])
-      } else { [#cell#anchor] }
-    }
-    row-cells.first().first() = anchored(row-cells.first().first(), "start")
-    row-cells.last().last() = anchored(row-cells.last().last(), "end")
-  }
-  row-cells = row-cells.flatten()
+  row-cells = anchor-rows(row-cells, id)
 
   let header-cell = header-cell(header, frame, nbr-columns, id)
 
@@ -727,3 +726,492 @@
   )
 }
 
+
+// -----------------------------------------------------------------------------
+// Diff
+// -----------------------------------------------------------------------------
+
+// A code cell with the highlights of one or two versions (`sources`: the index of the line in a version and the highlights of this line)
+#let diff-code-cell(
+  l,
+  sources,
+  width,
+  height,
+  inset,
+  radius,
+  stroke,
+  fill,
+  lang-tag,
+  char-width,
+  char-height,
+  indentation,
+  extra,
+) = {
+  let blocks = ()
+  for (i, highlights) in sources {
+    let (slines, b) = hl.compute-highlights(
+      i,
+      l,
+      width,
+      inset,
+      char-width,
+      char-height,
+      highlights,
+    )
+    l.slines = slines
+    blocks += b
+  }
+  code-block(
+    l,
+    blocks,
+    width,
+    height,
+    inset,
+    radius,
+    stroke,
+    fill,
+    lang-tag,
+    char-width,
+    char-height,
+    indentation,
+    extra: extra,
+  )
+}
+
+#let render-diff(
+  rows,
+  versions,
+  same-code,
+  number,
+  code,
+  diff-marker,
+  general,
+  gutter,
+  frame,
+  header,
+  footer,
+  lang-tag-block,
+  char-width,
+  char-height,
+  id,
+) = {
+  // The columns, by key: the number, marker and diff marker columns and the code of each version (only once for merged codes), and the gutter between separated codes
+  let columns = ()
+  for v in ("old", "new") {
+    let side = (
+      (number.visible, "number"),
+      (versions.at(v).marker.visible, "marker"),
+      (diff-marker.visible, "diff-marker"),
+      (true, "code"),
+    )
+    if v == "new" and not same-code and gutter > 0pt {
+      columns.push(("new-gutter", gutter))
+    }
+    for (visible, key) in side {
+      let shared = same-code and key != "number"
+      if visible and not (shared and v == "old") {
+        columns.push((
+          if shared { key } else { v + "-" + key },
+          if key == "number" { versions.at(v).numbers-width } else if (
+            key == "marker"
+          ) { versions.at(v).markers-width } else if key == "diff-marker" {
+            diff-marker.width
+          } else {
+            (
+              versions.at(v).code.inset.left
+                + versions.at(v).code-width
+                + versions.at(v).code.inset.right
+            )
+          },
+        ))
+      }
+    }
+  }
+  let keys = columns.map(c => c.first())
+  let column-widths = columns.map(c => c.last())
+  let key(v, name) = if same-code and name != "number" { name } else {
+    v + "-" + name
+  }
+  let has(k) = k in keys
+  let first-key(v) = keys.find(k => k.starts-with(v + "-") or same-code)
+  let width-between(a, b) = column-widths
+    .slice(keys.position(k => k == a), keys.position(k => k == b) + 1)
+    .sum()
+  let cell(a, b, body) = grid.cell(
+    colspan: keys.position(k => k == b) - keys.position(k => k == a) + 1,
+    body,
+  )
+
+  let nr = rows.len()
+
+  // The parts of the frame of a cell of the row `r` in the columns `a`-`b`: the cells on the sides of the grid have its stroke and radius
+  let is-first(r) = r == 0 and header.content == none
+  let is-last(r) = r == nr - 1 and footer.content == none
+  let framing(r, a, b) = {
+    let sides = (
+      left: a == keys.first(),
+      right: b == keys.last(),
+      top: is-first(r),
+      bottom: is-last(r),
+    )
+    let corner(y, x) = if sides.at(y) and sides.at(x) {
+      frame.radius.at(y + "-" + x)
+    } else { 0pt }
+    (
+      radius: (
+        top-left: corner("top", "left"),
+        top-right: corner("top", "right"),
+        bottom-left: corner("bottom", "left"),
+        bottom-right: corner("bottom", "right"),
+      ),
+      stroke: sides
+        .keys()
+        .map(side => (side, if sides.at(side) { frame.stroke.at(side) }))
+        .to-dict(),
+    )
+  }
+
+  let edge(r) = (
+    top: if r == 0 { code.edge.top } else { 0pt },
+    bottom: if r == nr - 1 { code.edge.bottom } else { 0pt },
+  )
+  let line-height(v, i) = (
+    versions.at(v).lines.at(i).slines.len() * (char-height + code.line-spacing)
+  ).to-absolute()
+  let row-heights = rows
+    .enumerate()
+    .map(((r, row)) => {
+      let present = ("old", "new").filter(v => row.at(v) != none)
+      let heights = if row.kind == "line" {
+        present.map(v => line-height(v, row.at(v)))
+      } else if "span" in row { (row.span.height,) } else {
+        present.map(v => row.at(v).height)
+      }
+      calc.max(..heights) + edge(r).top + edge(r).bottom
+    })
+
+  // The separator between the gutter and the code, on the left of the first cell of the code side
+  let gutter-visible(v) = number.visible or versions.at(v).marker.visible
+  let with-sep(v, body, height) = if gutter-visible(v) and number.sep != none {
+    body
+    place(left + top, line(
+      start: (0pt, 0pt),
+      end: (0pt, height),
+      stroke: number.sep,
+    ))
+  } else { body }
+
+  let code-fill(v, i, k) = if versions.at(v).status.at(i) == "whole" {
+    versions.at(v).conf.fill
+  } else { (code.fill)(k) }
+
+  let side(body, width, inset, fill, alignment, height, extra, f) = side-cell(
+    body,
+    width,
+    height,
+    ut.grow-inset(inset, extra),
+    f.radius,
+    f.stroke,
+    fill,
+    none,
+    alignment,
+  )
+
+  let number-cell(v, i, k, height, extra, f) = {
+    let conf = versions.at(v).conf
+    let changed = i != none and versions.at(v).status.at(i) != "same"
+    let body = if i == none { [] } else {
+      let n = versions.at(v).number.cells.at(i)
+      if changed and conf.number-color != auto {
+        text(fill: conf.number-color, n)
+      } else { (versions.at(v).number.color)(k, n) }
+    }
+    let fill = if i == none { general.blank-fill } else if (
+      changed and conf.number-fill != auto
+    ) { conf.number-fill } else { (versions.at(v).number.fill)(k) }
+    side(
+      body,
+      versions.at(v).numbers-width,
+      number.inset,
+      fill,
+      number.alignment,
+      height,
+      extra,
+      f,
+    )
+  }
+
+  let marker-cell(v, body, fill, height, extra, f) = side(
+    if body != none { body } else { [] },
+    versions.at(v).markers-width,
+    versions.at(v).marker.inset,
+    fill,
+    number.alignment.y + right,
+    height,
+    extra,
+    f,
+  )
+
+  // The cells of a line of a version (the code of a merged unchanged line having the highlights of both versions)
+  let code-side-cells(v, row, k, r, height, extra) = {
+    let i = row.at(v)
+    let status = versions.at(v).status.at(i)
+    let fill = code-fill(v, i, k)
+    let cells = ()
+    if diff-marker.visible {
+      cells.push(side(
+        if status == "same" { diff-marker.unchanged } else {
+          versions.at(v).conf.diff-marker
+        },
+        diff-marker.width,
+        diff-marker.inset,
+        fill,
+        center + number.alignment.y,
+        height,
+        extra,
+        framing(r, key(v, "diff-marker"), key(v, "diff-marker")),
+      ))
+    }
+    let f = framing(r, key(v, "code"), key(v, "code"))
+    let sources = if same-code and row.old != none and row.new != none {
+      (("old", row.old), ("new", row.new))
+    } else { ((v, i),) }
+    cells.push(diff-code-cell(
+      versions.at(v).lines.at(i),
+      sources.map(((sv, si)) => (si, versions.at(sv).highlights.at(si))),
+      versions.at(v).code-width,
+      height,
+      versions.at(v).code.inset,
+      f.radius,
+      f.stroke,
+      fill,
+      if (if same-code { k == 0 } else { v == "new" and i == 0 }) {
+        lang-tag-block
+      },
+      char-width,
+      char-height,
+      code.indentation,
+      extra,
+    ))
+    cells.first() = with-sep(v, cells.first(), height)
+    cells
+  }
+
+  // A blank cell (or the gutter of the separated new code when `fill` is given), separated from the old code
+  let blank(a, b, r, height, fill: general.blank-fill) = {
+    let f = framing(r, a, b)
+    cell(a, b, block(
+      width: width-between(a, b),
+      height: height,
+      radius: f.radius,
+      stroke: f.stroke + if a == "new-gutter" { (left: general.sep) },
+      fill: fill,
+    ))
+  }
+
+  // The width of the gutter of a version
+  let pre-width(v) = ("number", "marker")
+    .map(name => key(v, name))
+    .filter(has)
+    .map(k => width-between(k, k))
+    .sum(default: 0pt)
+
+  // A comment in the columns of a version from `from` (with the gutter of the separated new code) to `to` (the code by default), its marker being in the gutter of the version, its text being shifted by `shift` (the gutter of the separated new code by default)
+  let comment-cells(v, c, k, from, r, height, extra, to: auto, shift: auto) = {
+    let to = if to == auto { key(v, "code") } else { to }
+    let shift = if shift != auto { shift } else if from == "new-gutter" {
+      gutter
+    } else { 0pt }
+    let c = c + (inset: ut.grow-inset(c.inset, extra))
+    c.inset.left += shift
+    if c.marker == none {
+      let f = framing(r, from, to)
+      c.width = width-between(from, to)
+      return (
+        cell(from, to, comment-cell(
+          c,
+          height,
+          f.radius,
+          f.stroke + if from == "new-gutter" { (left: general.sep) },
+          code.indentation,
+          char-width,
+        )),
+      )
+    }
+
+    let fill = if c.marker-fill == auto { c.fill } else if (
+      c.marker-fill == none
+    ) { (number.fill)(k) } else { c.marker-fill }
+    let cells = ()
+    if from == "new-gutter" {
+      cells.push(blank("new-gutter", "new-gutter", r, height, fill: fill))
+    }
+    for gv in if same-code { ("old", "new") } else { (v,) } {
+      if number.visible {
+        cells.push(side(
+          if gv == v and c.placement == "number" { c.marker } else { [] },
+          versions.at(gv).numbers-width,
+          number.inset,
+          fill,
+          number.alignment,
+          height,
+          extra,
+          framing(r, key(gv, "number"), key(gv, "number")),
+        ))
+      }
+    }
+    if versions.at(v).marker.visible {
+      cells.push(marker-cell(
+        v,
+        if c.placement == "marker" { c.marker },
+        fill,
+        height,
+        extra,
+        framing(r, key(v, "marker"), key(v, "marker")),
+      ))
+    }
+    let first-code-key = if diff-marker.visible { key(v, "diff-marker") } else {
+      key(v, "code")
+    }
+    let f = framing(r, first-code-key, to)
+    c.width = width-between(first-code-key, to)
+    cells.push(cell(first-code-key, to, with-sep(
+      v,
+      comment-cell(c, height, f.radius, f.stroke, code.indentation, char-width),
+      height,
+    )))
+    cells
+  }
+
+  let k = 0
+  let row-cells = ()
+  for (r, row) in rows.enumerate() {
+    let height = row-heights.at(r)
+    let extra = edge(r)
+    let cells = ()
+
+    if row.kind == "line" {
+      k = row.k
+      if same-code {
+        let v = if row.new != none { "new" } else { "old" }
+        if number.visible {
+          for nv in ("old", "new") {
+            cells.push(number-cell(
+              nv,
+              row.at(nv),
+              k,
+              height,
+              extra,
+              framing(r, key(nv, "number"), key(nv, "number")),
+            ))
+          }
+        }
+        if versions.new.marker.visible {
+          let m = ("new", "old")
+            .filter(mv => row.at(mv) != none)
+            .map(mv => versions.at(mv).markers.at(row.at(mv)))
+            .find(m => m != none)
+          cells.push(marker-cell(
+            "new",
+            m,
+            (number.fill)(k),
+            height,
+            extra,
+            framing(r, "marker", "marker"),
+          ))
+        }
+        cells += code-side-cells(v, row, k, r, height, extra)
+      } else {
+        for v in ("old", "new") {
+          let from = if v == "new" and has("new-gutter") { "new-gutter" } else {
+            first-key(v)
+          }
+          if from == "new-gutter" and row.new != none {
+            cells.push(blank(
+              "new-gutter",
+              "new-gutter",
+              r,
+              height,
+              fill: code-fill("new", row.new, k),
+            ))
+          }
+          if row.at(v) == none {
+            cells.push(blank(from, key(v, "code"), r, height))
+            continue
+          }
+          if number.visible {
+            cells.push(number-cell(
+              v,
+              row.at(v),
+              k,
+              height,
+              extra,
+              framing(r, key(v, "number"), key(v, "number")),
+            ))
+          }
+          if versions.at(v).marker.visible {
+            cells.push(marker-cell(
+              v,
+              versions.at(v).markers.at(row.at(v)),
+              (versions.at(v).number.fill)(k),
+              height,
+              extra,
+              framing(r, key(v, "marker"), key(v, "marker")),
+            ))
+          }
+          cells += code-side-cells(v, row, k, r, height, extra)
+        }
+      }
+    } else if "span" in row {
+      // A comment spanning over both separated codes (its marker being in the gutter of the old code), its text being at the same place as in its code
+      let c = row.span
+      cells += comment-cells(
+        "old",
+        c,
+        k,
+        first-key("old"),
+        r,
+        height,
+        extra,
+        to: keys.last(),
+        shift: if c.version == "new" {
+          (
+            width-between(first-key("old"), "old-code")
+              + gutter
+              + if c.marker != none { pre-width("new") - pre-width("old") } else {
+                0pt
+              }
+          )
+        } else { 0pt },
+      )
+    } else if same-code {
+      let v = if row.new != none { "new" } else { "old" }
+      cells += comment-cells(v, row.at(v), k, keys.first(), r, height, extra)
+    } else {
+      for v in ("old", "new") {
+        let from = if v == "new" and has("new-gutter") { "new-gutter" } else {
+          first-key(v)
+        }
+        cells += if row.at(v) == none {
+          (blank(from, key(v, "code"), r, height),)
+        } else { comment-cells(v, row.at(v), k, from, r, height, extra) }
+      }
+    }
+    row-cells.push(cells)
+  }
+
+  let cells = anchor-rows(row-cells, id)
+  let heights = row-heights
+  let header-cell = header-cell(header, frame, keys.len(), id)
+  if header-cell != none {
+    heights.insert(0, auto)
+    cells.insert(0, header-cell)
+  }
+  let footer-cell = footer-cell(footer, frame, keys.len(), id)
+  if footer-cell != none {
+    heights.push(auto)
+    cells.push(footer-cell)
+  }
+
+  grid(columns: column-widths, rows: heights, ..cells)
+}

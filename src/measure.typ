@@ -164,3 +164,43 @@
       + code.line-spacing.to-absolute()
   ),
 )
+
+// The widths of the codes of a diff, from the `columns` setting and the natural widths of the codes: the automatic ones take their natural width, the fractions share the rest (too large automatic separated codes sharing the available width), and the automatic ones share the rest of a fixed width
+#let diff-code-widths(columns, natural, available, fill) = {
+  if (
+    columns.len() == 2
+      and columns.all(c => c == auto)
+      and natural.sum() > available
+  ) {
+    columns = (1fr, 1fr)
+  }
+
+  let widths = columns.map(c => if c == auto or type(c) == fraction {
+    none
+  } else if type(c) == ratio { available * c } else if type(c) == relative {
+    available * c.ratio + c.length.to-absolute()
+  } else { c.to-absolute() })
+  let fixed = widths.filter(w => w != none).sum(default: 0pt)
+
+  let autos = range(columns.len()).filter(k => columns.at(k) == auto)
+  for k in autos {
+    widths.at(k) = calc.min(natural.at(k), calc.max(0pt, available - fixed))
+    fixed += widths.at(k)
+  }
+
+  let total-fr = columns
+    .filter(c => type(c) == fraction)
+    .map(c => c / 1fr)
+    .sum(default: 0)
+  let rest = calc.max(0pt, available - fixed)
+  for (k, c) in columns.enumerate() {
+    if type(c) == fraction { widths.at(k) = rest * (c / 1fr) / total-fr }
+  }
+
+  if fill and total-fr == 0 and autos.len() > 0 {
+    let rest = calc.max(0pt, available - widths.sum())
+    for k in autos { widths.at(k) += rest / autos.len() }
+  }
+
+  widths
+}

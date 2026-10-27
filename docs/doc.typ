@@ -144,6 +144,11 @@
   )
 }
 
+#let octique-marker(name, color: black) = move(dy: -.3mm, octique(
+  name,
+  color: color,
+))
+
 #page(margin: 1cm)[
 
   #uraw-add-highlights(
@@ -202,15 +207,17 @@
           stroke: none,
         ),
       ),
-      markers: (17, octique-inline("alert", color: red)),
+      markers: (17, octique-marker("alert", color: red)),
       comments: (
         (
           after: 4,
-          content: [Safety condition to avoid out of bounds indices],
+          content: text(
+            style: "italic",
+            olive,
+          )[Safety condition to avoid out of bounds indices],
           indent: "guideline",
           marker: [],
           fill: none,
-          style: text.with(style: "italic", olive),
         ),
         (
           before: 5,
@@ -273,45 +280,44 @@
 
   #uraw-reset-highlights()
 
-  // #uraw-diff(
-  //   header: [`merge-sort` correction],
-  //   // columns: auto,
-  //   columns: (1fr, auto),
-  //   // column-gutter: 1cm,
-  //   sep: 1pt + luma(230),
-  //   comments: (
-  //     (
-  //       before: 2,
-  //       content: [test a1],
-  //       version: "old",
-  //       indent: "guideline",
-  //     ),
-  //     // TODO: no frame adaptation for uraw diff page break
-  //   ),
-  //   ```typ
-  //   #let merge-sort(l) = {
-  //     if l.len() <= 1 { return l }
-  //     let h = int(l.len() / 2)
-  //     let l1 = l.slice(0, h)
-  //     let l2 = l.slice(h)
-  //     l1 = merge-sort(l1)
-  //     l2 = merge-sort(l2)
-  //     return merge(l1, l2)
-  //   }
-  //   ```,
-  //   ```typ
-  //   #let merge-sort(l) = {
-  //     if l.len() == 0 { return () }
-  //     if l.len() == 1 { return (l.first()) }
-  //     let h = int(l.len() / 2)
-  //     let l1 = l.slice(0, h)
-  //     let l2 = l.slice(h)
-  //     l1 = merge-sort(l1)
-  //     l2 = merge-sort(l2)
-  //     return merge(l1, l2)
-  //   }
-  //   ```,
-  // )
+  #uraw-diff(
+    header: [`merge-sort` correction],
+    // columns: auto,
+    columns: (1fr, auto),
+    // column-gutter: 1cm,
+    sep: 1pt + luma(230),
+    comments: (
+      (
+        before: 2,
+        content: [test a1],
+        version: "old",
+        indent: "guideline",
+      ),
+    ),
+    ```typ
+    #let merge-sort(l) = {
+      if l.len() <= 1 { return l }
+      let h = int(l.len() / 2)
+      let l1 = l.slice(0, h)
+      let l2 = l.slice(h)
+      l1 = merge-sort(l1)
+      l2 = merge-sort(l2)
+      return merge(l1, l2)
+    }
+    ```,
+    ```typ
+    #let merge-sort(l) = {
+      if l.len() == 0 { return () }
+      if l.len() == 1 { return (l.first()) }
+      let h = int(l.len() / 2)
+      let l1 = l.slice(0, h)
+      let l2 = l.slice(h)
+      l1 = merge-sort(l1)
+      l2 = merge-sort(l2)
+      return merge(l1, l2)
+    }
+    ```,
+  )
 
 ]
 
@@ -584,9 +590,19 @@
 
 = Raw blocks
 
-#let frame-col = rgb("#1B6393")
+#let frame-col = rgb("#2583c1")
 #let hf-col = rgb("#AC397E")
 #let num-col = rgb("#C5283D")
+#let marker-col(body) = box({
+  place(rect(
+    width: 100%,
+    height: 100%,
+    stroke: none,
+    outset: (x: .3em, y: .325em),
+    fill: rgb(black),
+  ))
+  body
+})
 #let code-col = rgb("#FFC857")
 #let lang-col = rgb("#E9724C")
 
@@ -606,6 +622,7 @@
     lang-tag: text.with(white),
     lang-tag-fill: lang-col,
     lang-tag-stroke: 2pt + lang-col,
+    markers: (2, marker-col(octique-marker("star-fill", color: white))),
     ```typ
     #let my-box(body) = box(
       stroke: purple,
@@ -756,7 +773,7 @@ The #ultraw package provides a simple and efficient highlighting that enables on
 
 == #f("uraw-diff")
 
-Arguments from `frame`, `header`, `footer`, `number`, `code`, `comment`, `jump`, and `lang-tag` follow the same pattern as the #link(<uraw-args-forms-table>)[#f("uraw") table].
+Arguments from `frame`, `header`, `footer`, `number`, `code`, `comment`, `jump`, `highlight`, and `lang-tag` follow the same pattern as the #link(<uraw-args-forms-table>)[#f("uraw") table], the general ones adding the following ones.
 
 #stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
 
@@ -765,22 +782,29 @@ Arguments from `frame`, `header`, `footer`, `number`, `code`, `comment`, `jump`,
   code-inset: 0mm,
   indentation: none,
   ```
-  markers: (
-    inset..........................................................markers-inset
-    sep..............................................................markers-sep
-    visible..............................................................markers
+  general: (
+    blank-fill........................................................blank-fill
+    column-gutter..................................................column-gutter
+    columns..............................................................columns
+    line-reference................................................line-reference
+    sep......................................................................sep
+  )
+  diff-marker: (
+    inset......................................................diff-marker-inset
+    unchanged..............................................diff-marker-unchanged
+    visible..........................................................diff-marker
   )
   old: (
+    diff-marker..................................................old-diff-marker
     fill................................................................old-fill
-    marker............................................................old-marker
     number-color................................................old-number-color
     number-fill..................................................old-number-fill
   )
   new: (
-    fill....................................................................fill
-    marker................................................................marker
-    number-color....................................................number-color
-    number-fill......................................................number-fill
+    diff-marker..................................................new-diff-marker
+    fill................................................................new-fill
+    number-color................................................new-number-color
+    number-fill..................................................new-number-fill
   )
   ```,
 ))

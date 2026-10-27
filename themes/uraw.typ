@@ -96,7 +96,6 @@
       line-reference: (k, version) => ", " + version + " line " + str(k),
       columns: (auto, auto),
       column-gutter: 0pt,
-      no-diff-marker: [],
       blank-fill: tiling(size: (4pt, 4pt), line(
         start: (0pt, 4pt),
         end: (4pt, 0pt),
@@ -104,19 +103,19 @@
       )),
       sep: .05em + gray,
     ),
-    markers: (
+    diff-marker: (
       visible: true,
       inset: auto,
-      sep: none,
+      unchanged: [],
     ),
     old: (
-      marker: text(red.darken(20%))[-],
+      diff-marker: text(red.darken(20%))[-],
       number-color: auto,
       number-fill: rgb("#FF8B85"),
       fill: red.lighten(75%),
     ),
     new: (
-      marker: text(olive)[+],
+      diff-marker: text(olive)[+],
       number-color: auto,
       number-fill: rgb("#7CCBA7"),
       fill: rgb("#32C04C").lighten(75%),

@@ -178,25 +178,28 @@
   ("markers", "comments", "jumps", "highlights", "follows", "precedes"),
 )
 
-// /// The categories of the settings specific to diffs.
-// #let diff-categories = ("general", "markers", "old", "new")
+#let diff-categories = ("diff-marker", "old", "new")
 
-// /// The general settings specific to diffs.
-// #let diff-general = (
-//   "line-reference",
-//   "columns",
-//   "column-gutter",
-//   "no-diff-marker",
-//   "blank-fill",
-//   "sep",
-// )
-
-// /// The settings names specific to diffs.
-// #let diff-only-spec = settings-spec(
-//   default.diff,
-//   diff-categories,
-//   (:),
-// )
+#let diff-spec = make-spec(
+  default
+    + (general: default.general + default.diff.general)
+    + diff-categories.map(c => (c, default.diff.at(c))).to-dict(),
+  uraw-spec.categories.keys() + diff-categories,
+  (
+    width: ("frame", "width"),
+    height: ("frame", "height"),
+    breakable: ("frame", "breakable"),
+    start: ("number", "start"),
+    end: ("number", "end"),
+    line-spacing: ("code", "line-spacing"),
+    indentation: ("code", "indentation"),
+  )
+    + (default.general + default.diff.general)
+      .keys()
+      .map(k => (k, ("general", k)))
+      .to-dict(),
+  ("follows", "precedes"),
+)
 
 #let pseudo-spec = make-spec(
   pseudo-default,
@@ -266,24 +269,6 @@
   }
 
   settings
-}
-
-/// Update the settings specific to diffs.
-///
-/// - args (dictionary): The settings, by section or flat.
-/// -> content
-#let update-diff(args) = {
-  let settings = normalize-settings(args, spec: diff-only-spec)
-  uraw-config-state.update(conf => {
-    for (key, value) in settings {
-      if key in diff-general {
-        conf.diff.insert(key, value)
-      } else {
-        conf.diff.insert(key, ut.filter-add-dict(conf.diff.at(key), value))
-      }
-    }
-    conf
-  })
 }
 
 // -----------------------------------------------------------------------------
@@ -474,3 +459,45 @@
 /// Reset the settings of pseudo code to their initial value.
 /// -> content
 #let uraw-pseudo-reset() = uraw-pseudo-config-state.update(initial-pseudo-config)
+
+// -----------------------------------------------------------------------------
+// Diff
+// -----------------------------------------------------------------------------
+
+// The settings of diffs are the ones of uraw, overridden by the ones stored for diffs
+#let diff-category-parser(category, args, lang) = ut.filter-add-dict(
+  (
+    if category in diff-categories { (:) } else {
+      uncontext-category-getter(category, lang)
+    }
+      + uraw-config-state.get().diff.at(category, default: (:))
+  ),
+  args.at(category, default: (:)),
+)
+
+/// Get the settings specific to diffs (in a context), the other ones being the ones of `uraw`.
+/// -> dictionary
+#let uraw-diff-get() = uraw-config-state.get().diff
+
+/// Set the settings of diffs, by category or flat, overriding the ones of `uraw` for diffs: the ones of `uraw` (see `uraw-set`), and the ones specific to diffs: \ **diff-marker**: **visible** (bool, also given by `diff-marker: bool`), **inset** (auto | relative | dictionary, only left and right, `auto` for the inset of the numbers), **unchanged** (content): the diff marker of the unchanged lines \ **old** and **new**: **diff-marker** (content): the diff marker of the changed lines, **number-color** and **number-fill**: the color and background of the numbers of the changed lines (`auto` for the ones of the numbers), **fill**: the background of the changes \ the general settings **line-reference** (function): how a reference to a line is displayed after "Listing n", a function of the number and of the version (`"old"` or `"new"`), **columns** (int | array): the widths of the codes, as for a grid: one column merges the codes, two columns separate them (`(auto, auto)` by default, which become `(1fr, 1fr)` when the codes are too large), **column-gutter** (relative): the space between the separated codes (with the separator at its center), **blank-fill**: the background of the space left by a line which is only in one version, **sep**: the separator between the separated codes.
+/// -> content
+#let uraw-diff-set(..args) = {
+  assert(
+    args.pos().len() == 0,
+    message: "The settings of diffs do not depend on a language.",
+  )
+  let settings = normalize-settings(args.named(), diff-spec)
+  uraw-config-state.update(config => {
+    for (category, value) in settings {
+      config.diff.at(category) = config.diff.at(category, default: (:)) + value
+    }
+    return config
+  })
+}
+
+/// Reset the settings of diffs to their initial value.
+/// -> content
+#let uraw-diff-reset() = uraw-config-state.update(config => {
+  config.diff = initial-config.diff
+  return config
+})

@@ -115,7 +115,7 @@
 ///
 /// - body (str, content): The code, as a string or an inline raw element (it can be used in a show rule on inline raw elements).
 /// - lang (none, str): The language of the code given as a string.
-/// - highlights (array): The manual highlights, with a `start` and an `end` (character positions of the code without delimiters, the end being excluded, the default ones being the start and the end of the code), and a `fill`, a `radius`, a `code-style`, or the `style` of a highlight defined in the settings.
+/// - highlights (array, dictionary): The manual highlights, with a `start` and an `end` (character positions of the code without delimiters, the end being excluded, the default ones being the start and the end of the code), and a `fill`, a `radius`, a `code-style`, or the `style` of a highlight defined in the settings. A single one can be given instead of an array.
 /// -> content
 #let uraw-inline(body, lang: none, highlights: ()) = {
   // The code displayed by this function is not displayed again (when it is used in a show rule)

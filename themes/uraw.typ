@@ -35,7 +35,7 @@
   ),
   number: (
     format: auto,
-    start: 1,
+    start: auto,
     end: none,
     color: none,
     fill: auto,
@@ -47,6 +47,8 @@
     inset: (x: .3em),
     line-spacing: .65em,
     indentation: gray,
+    indent-size: auto,
+    indented-line-return: false,
     fill: none,
   ),
   comment: (
@@ -58,6 +60,7 @@
     style: text.with(style: "italic"),
   ),
   jump: (
+    skip-lines: false,
     comment: none,
     comment-indent: "frame",
     comment-marker: none,

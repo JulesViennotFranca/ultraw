@@ -1,8 +1,23 @@
-#import "common.typ" as cm
+#import "config.typ" as cf
 #import "content.typ" as ct
 #import "highlight.typ" as hl
-#import "lang-tag.typ" as lt
 #import "utils.typ" as ut
+
+// -----------------------------------------------------------------------------
+// Style
+// -----------------------------------------------------------------------------
+
+/// Apply a style saved with `outside-style`.
+///
+/// - style (dictionary): The text, paragraph and block settings.
+/// - body (content):
+/// -> content
+#let with-style(style, body) = {
+  set text(..style.text)
+  set par(..style.par)
+  set block(..style.block)
+  body
+}
 
 // -----------------------------------------------------------------------------
 // Frame
@@ -65,10 +80,10 @@
   )
 
   if header.content != none {
-    header.content = cm.with-style(base-style(), header.content)
+    header.content = with-style(base-style(), header.content)
   }
   if footer.content != none {
-    footer.content = cm.with-style(base-style(), footer.content)
+    footer.content = with-style(base-style(), footer.content)
   }
 
   header.fill = if header.fill == auto {
@@ -156,7 +171,7 @@
 }
 
 #let add-line-label(n, line-reference, version: none) = {
-  let figure-label = cm.uraw-figure.get()
+  let figure-label = cf.uraw-figure.get()
   if figure-label != none and line-reference != none {
     [#metadata((
         uraw-line-ref: (
@@ -216,15 +231,31 @@
   return number
 }
 
+// The numbers of the shown lines, the index of a shown line number, and the indexes of the shown lines in the code (the lines skipped by the jumps not being shown)
 #let line-numbers(number, nbr-lines, jumps, jumps-map) = {
   let line-numbers = ()
-  for i in range(nbr-lines) {
-    line-numbers.push(if i == 0 {
-      number.start
+  let kept = ()
+  let (i, n) = (0, number.start)
+  while i < nbr-lines {
+    line-numbers.push(n)
+    kept.push(i)
+    let j = jumps-map.at(str(n), default: none)
+    if j == none {
+      (i, n) = (i + 1, n + 1)
     } else {
-      let prev = line-numbers.last()
-      if str(prev) in jumps-map { jumps-map.at(str(prev)).to } else { prev + 1 }
-    })
+      if j.skip-lines {
+        assert(
+          i + j.to - j.from < nbr-lines,
+          message: "The jump from line "
+            + str(j.from)
+            + " to line "
+            + str(j.to)
+            + " skips lines after the end of the code.",
+        )
+        i += j.to - j.from
+      } else { i += 1 }
+      n = j.to
+    }
   }
 
   for j in jumps {
@@ -245,7 +276,7 @@
     i
   }
 
-  return (line-numbers, line-index)
+  return (line-numbers, line-index, kept)
 }
 
 // -----------------------------------------------------------------------------
@@ -368,14 +399,194 @@
 // Lang tag
 // -----------------------------------------------------------------------------
 
+/// Check that the mode of the lang tag is correct.
+///
+/// - mode (str):
+/// -> none
+#let check-lang-tag-mode(mode) = assert(
+  mode == "icon" or mode == "name" or mode == "full",
+  message: "Wrong mode for the language tag.",
+)
+
+/// Check that the placement of the lang tag is correct.
+///
+/// - plcmt (str):
+/// -> none
+#let check-lang-tag-placement(plcmt) = assert(
+  plcmt == "code"
+    or plcmt == "header"
+    or plcmt == "inline"
+    or plcmt == "top-left"
+    or plcmt == "top"
+    or plcmt == "top-right"
+    or plcmt == "left-top"
+    or plcmt == "left"
+    or plcmt == "left-bottom"
+    or plcmt == "right-top"
+    or plcmt == "right"
+    or plcmt == "right-bottom"
+    or plcmt == "bottom-left"
+    or plcmt == "bottom"
+    or plcmt == "bottom-right",
+  message: "Wrong placement for the language tag.",
+)
+
+/// Return for every position wether the lang tag occupies it.
+///
+/// - lt (dictionary):
+/// -> array
+#let lang-tag-position(lt) = {
+  let is-top = (
+    lt.placement == "top-left"
+      or lt.placement == "top"
+      or lt.placement == "top-right"
+  )
+  let is-left = (
+    lt.placement == "left-top"
+      or lt.placement == "left"
+      or lt.placement == "left-bottom"
+  )
+  let is-right = (
+    lt.placement == "right-top"
+      or lt.placement == "right"
+      or lt.placement == "right-bottom"
+  )
+  let is-bottom = (
+    lt.placement == "bottom-left"
+      or lt.placement == "bottom"
+      or lt.placement == "bottom-right"
+  )
+
+  assert(
+    is-top or is-left or is-right or is-bottom,
+    message: "The placement of the language tag should be a string among the following: 'top-left', 'top', 'top-right', 'left-top', 'left', 'left-bottom', 'right-top', 'right', 'right-bottom', 'bottom-left', 'bottom' or 'bottom-right'.",
+  )
+
+  return (is-top, is-left, is-right, is-bottom)
+}
+
+/// Return a dictionary containing no or one field. If applied to a dictionary, it keeps the field of the dictionary if it was present, otherwise create a dictionary with that field and value the input.
+///
+/// - d ():
+/// - k (str): The name of the field.
+/// -> dictionary
+#let field-of(d, k) = if type(d) == dictionary {
+  if k in d { ((k): d.at(k)) } else { (:) }
+} else {
+  let nd = (:)
+  nd.insert(k, d)
+  nd
+}
+
+/// Create the content present inside of the lang tag.
+///
+/// - lang (str): The language of the raw code.
+/// - lt (dictionary): The lang tag parameters.
+/// -> box
+#let lang-tag-content(lang, lt) = box(
+  height: .8 * lt.size,
+  (lt.format)(text(lt.size, if lt.mode == "icon" and lt.icon != none {
+    lt.icon
+  } else if lt.mode == "icon" or lt.mode == "name" {
+    if lt.name != none { lt.name } else { lang }
+  } else {
+    (
+      if lt.icon != none { box(lt.icon) + h(.2em) }
+        + {
+          let name = if lt.name != none { lt.name } else { lang }
+          if (
+            (type(name) == str and not name.contains(regex("[A-Z0-9]")))
+              or (
+                type(name) == content
+                  and "text" in name.fields()
+                  and not name.text.contains(regex("[A-Z0-9]"))
+              )
+          ) { box(move(dy: -0.1 * lt.size, name)) } else { name }
+        }
+    )
+  })),
+)
+
+/// Create the lang tag.
+///
+/// - lang (str): The language of the raw code.
+/// - lt (dictionary): The lang tag parameters.
+/// - frame (dictionary): The frame parameters.
+/// -> block
+#let lang-tag-block(lang, lt, frame) = {
+  let ltc = lang-tag-content(lang, lt)
+
+  /// The stroke of the tag: `auto` for the stroke of the frame (on the given side), `none` for no stroke, a color for a thin stroke of this color.
+  let tag-stroke(frame-stroke) = if lt.stroke == auto {
+    frame-stroke
+  } else if type(lt.stroke) in (color, gradient, tiling) {
+    lt.at("stroke-thickness", default: .05em) + lt.stroke
+  } else {
+    lt.stroke
+  }
+
+  if lt.visible and lt.placement not in ("code", "inline", "header") {
+    let (is-top, is-left, is-right, is-bottom) = lang-tag-position(lt)
+
+    let r = lt.radius
+    let radius = (
+      if is-top {
+        field-of(r, "top-left") + field-of(r, "top-right")
+      } else if is-left {
+        field-of(r, "top-left") + field-of(r, "bottom-left")
+      } else if is-right {
+        field-of(r, "top-right") + field-of(r, "bottom-right")
+      } else if is-bottom {
+        field-of(r, "bottom-left") + field-of(r, "bottom-right")
+      }
+    )
+
+    let frame-stroke = (
+      if is-top { frame.stroke.top } else if is-left {
+        frame.stroke.left
+      } else if is-right { frame.stroke.right } else if is-bottom {
+        frame.stroke.bottom
+      }
+    )
+
+    let fill = if lt.fill == auto { frame.fill } else { lt.fill }
+
+    block(
+      stroke: tag-stroke(frame-stroke),
+      fill: fill,
+      radius: radius,
+      inset: .25em,
+      if is-left { rotate(-90deg, reflow: true, ltc) } else if is-right {
+        rotate(90deg, reflow: true, ltc)
+      } else { ltc },
+    )
+  } else if lt.visible {
+    block(
+      // The height of the tag for a text of size `.8em` is `1.1em`
+      height: 1.2 * lt.size,
+      // The first stroked side of the frame
+      stroke: tag-stroke(
+        ("top", "right", "bottom", "left")
+          .map(side => frame.stroke.at(side))
+          .find(s => s != none),
+      ),
+      // An automatic fill shows the fill of the code or of the header behind it
+      fill: if lt.fill == auto { none } else { lt.fill },
+      radius: lt.radius,
+      inset: 0.2 * lt.size,
+      ltc,
+    )
+  }
+}
+
 #let lang-tag(lang-tag, lang, frame, header, with-dst) = {
   lang-tag.format = if lang-tag.format == auto { it => it } else {
     lang-tag.format
   }
 
   if lang-tag.visible {
-    lt.check-lang-tag-mode(lang-tag.mode)
-    lt.check-lang-tag-placement(lang-tag.placement)
+    check-lang-tag-mode(lang-tag.mode)
+    check-lang-tag-placement(lang-tag.placement)
   }
 
   if lang-tag.placement == "header" and header.content == none {
@@ -393,7 +604,7 @@
   lang-tag.stroke = with-dst(lang-tag.stroke)
 
   lang-tag.block = if lang-tag.visible {
-    lt.lang-tag-block(lang, lang-tag, frame)
+    lang-tag-block(lang, lang-tag, frame)
   } else { none }
 
   return lang-tag
@@ -409,8 +620,14 @@
 /// - code (dictionary): The code parameters.
 /// -> array
 #let lines(it, code) = {
-  // The number of spaces of an indentation level is the tab size of the raw element
-  let indent-size = it.tab-size
+  // The number of spaces of an indentation level, inferred from the lines (or the tab size of the raw element when they are not indented)
+  let indent-size = if code.indent-size == auto {
+    ct.infer-indent-size(it.lines.map(l => l.text), it.tab-size)
+  } else { code.indent-size }
+  assert(
+    type(indent-size) == int and indent-size > 0,
+    message: "The `indent-size` of the code must be auto or a positive integer (a number of spaces).",
+  )
 
   let lines = it.lines.map(l => if ct.is-whitespace-line(l.text) {
     (line: [], text: "", pos-indent: (0,), line-end: 0)
@@ -443,25 +660,34 @@
 /// - code-width (length): The width of the code.
 /// - lang-tag (dictionary): The lang tag parameters, with its `width`.
 /// - char-width (length):
+/// - indented (bool): Wether the sub-lines after the first one start at the indentation of the line (when it leaves at least half of the width).
 /// -> array
-#let break-lines(lines, code-width, lang-tag, char-width) = {
+#let break-lines(lines, code-width, lang-tag, char-width, indented: false) = {
+  let width = (
+    code-width
+      + if lang-tag.visible and lang-tag.placement == "code" {
+        -lang-tag.width
+      }
+  )
   lines
     .enumerate()
-    .map(((i, l)) => (
-      line: l.line,
-      slines: ct.format-line(
-        l.line,
-        code-width
-          + if lang-tag.visible and lang-tag.placement == "code" {
-            -lang-tag.width
-          },
-        char-width,
-        l.line-end,
-        if lang-tag.placement == "inline" and i == 0 { lang-tag.width },
-      ),
-      pos-indent: l.pos-indent,
-      line-end: l.line-end,
-    ))
+    .map(((i, l)) => {
+      let indent = if indented { l.pos-indent.last() } else { 0 }
+      if indent * char-width > width / 2 { indent = 0 }
+      (
+        line: l.line,
+        slines: ct.format-line(
+          l.line,
+          width,
+          char-width,
+          l.line-end,
+          if lang-tag.placement == "inline" and i == 0 { lang-tag.width },
+          indent: indent,
+        ),
+        pos-indent: l.pos-indent,
+        line-end: l.line-end,
+      )
+    })
 }
 
 // -----------------------------------------------------------------------------
@@ -563,9 +789,9 @@
     }
   }
   // The comments look as they would outside of the raw block
-  comment.body = cm.with-style(base-style(), body)
+  comment.body = with-style(base-style(), body)
   if comment.marker != none {
-    comment.marker = cm.with-style(base-style(), comment.marker)
+    comment.marker = with-style(base-style(), comment.marker)
   }
 
   return comment
@@ -597,7 +823,10 @@
       if content != none {
         format(
           settings
-            + extra.keys().map(k => (k, j.at(k, default: extra.at(k)))).to-dict()
+            + extra
+              .keys()
+              .map(k => (k, j.at(k, default: extra.at(k))))
+              .to-dict()
             + (
               content: content,
               copy-before: true,
@@ -759,9 +988,8 @@
 // Jumps
 // -----------------------------------------------------------------------------
 
-#let jumps(jumps, number, nbr-lines) = {
-  // Jumps only have an effect when the numbers are visible
-  let jumps = if number.visible { jumps } else { () }
+// The jumps, checked, with wether they skip their lines (`skip-lines`, `none` when it is not supported), and stored by starting line
+#let jumps(jumps, number, skip-lines: false) = {
   jumps = ut
     .single-to-list(jumps)
     .map(j => {
@@ -789,8 +1017,21 @@
           + str(j.to)
           + " must go forward.",
       )
+      if skip-lines == none {
+        assert(
+          not "skip-lines" in j,
+          message: "The jumps of pseudo code cannot skip lines.",
+        )
+      }
+      j.skip-lines = j.at("skip-lines", default: skip-lines == true)
+      assert(
+        type(j.skip-lines) == bool,
+        message: "The `skip-lines` of a jump must be a boolean.",
+      )
       j
     })
+    // Without numbers, only the jumps skipping lines have an effect
+    .filter(j => number.visible or j.skip-lines)
 
   // Store jumps at their starting line
   let jumps-map = (:)
@@ -803,7 +1044,6 @@
   }
 
   // Sort the jumps and verify than none overlap
-  // TODO: overlapping are merged
   let sorted-jumps = jumps.sorted(key: j => j.from)
   for k in range(sorted-jumps.len() - 1) {
     let (j1, j2) = (sorted-jumps.at(k), sorted-jumps.at(k + 1))
@@ -824,9 +1064,69 @@
   return (jumps, jumps-map)
 }
 
+// The number of lines skipped by the jumps
+#let nbr-skipped(jumps) = (
+  jumps.filter(j => j.skip-lines).map(j => j.to - j.from - 1).sum(default: 0)
+)
+
+// The highlights of the kept lines (see `highlights-by-line`, on all the lines of the code), drawn as if the skipped lines were shown: their ends on skipped lines stay open
+#let kept-highlights(by-line, kept) = {
+  let index = kept.enumerate().map(((k, i)) => (str(i), k)).to-dict()
+  kept.map(i => by-line
+    .at(i)
+    .map(h => {
+      let ((l1, c1), (l2, c2)) = h.range
+      let k1 = kept.position(j => j >= l1)
+      let k2 = kept.len() - 1 - kept.rev().position(j => j <= l2)
+      h.open-start = kept.at(k1) != l1
+      h.open-end = kept.at(k2) != l2
+      h.range = ((k1, c1), (k2, c2))
+      // The blocks touching the ones of the kept lines can be on skipped lines
+      h.touches = h
+        .touches
+        .pairs()
+        .map(((key, t)) => {
+          let (j, k) = key.split("-")
+          if j in index { (hl.block-key(index.at(j), int(k)), t) }
+        })
+        .filter(p => p != none)
+        .to-dict()
+      h
+    }))
+}
+
 // -----------------------------------------------------------------------------
 // Pseudo code
 // -----------------------------------------------------------------------------
+
+/// Mark pseudo code, so that the figures containing it can be detected.
+///
+/// - algorithm-figure (auto, bool): Wether the figure is an algorithm, `auto` to use the configured setting.
+#let pseudo-marker(algorithm-figure) = metadata((
+  uraw-pseudo: (algorithm-figure: algorithm-figure),
+))
+
+/// The value of the pseudo code marker in some content, `none` if there is none.
+#let find-pseudo-marker(body) = {
+  if type(body) != content { return none }
+  if (
+    body.func() == metadata
+      and type(body.value) == dictionary
+      and "uraw-pseudo" in body.value
+  ) {
+    return body.value.uraw-pseudo
+  }
+  if body.has("children") {
+    for child in body.children {
+      let m = find-pseudo-marker(child)
+      if m != none { return m }
+    }
+    return none
+  }
+  if body.has("body") { return find-pseudo-marker(body.body) }
+  if body.has("child") { return find-pseudo-marker(body.child) }
+  none
+}
 
 /// The contents given to a pseudo code helper (`indent` or `no-number`), `none` if it is not one.
 ///
@@ -868,7 +1168,7 @@
 /// - jumps-map (dictionary): The jumps by starting line.
 /// -> array: the numbers of the lines (`none` for the lines without number), and the numbers used to color them (the one of the previous numbered line for the lines without number)
 #let pseudo-line-numbers(lines, number, jumps, jumps-map) = {
-  let (numbers, _) = line-numbers(
+  let (numbers, ..) = line-numbers(
     number,
     lines.filter(l => l.numbered).len(),
     jumps,
@@ -1141,21 +1441,35 @@
 )
 
 // The numbers of both versions: the jumps of both versions are given on the new numbers, and jump the same number of lines in the old code
-#let diff-numbers(diff-number, diff-jumps, nbr-lines, new-to-old, code, with-dst) = {
+#let diff-numbers(
+  diff-number,
+  diff-jumps,
+  nbr-lines,
+  first-lines,
+  new-to-old,
+  code,
+  with-dst,
+  skip-lines,
+) = {
   let numbers-of(version, version-jumps) = {
+    // The numbers start by default at the first line of the code (in its file)
+    let diff-number = diff-number
+    if diff-number.start == auto {
+      diff-number.start = first-lines.at(version)
+    }
     let (version-jumps, jumps-map) = jumps(
       version-jumps,
       diff-number,
-      nbr-lines.at(version),
+      skip-lines: skip-lines,
     )
     let version-number = number(
       diff-number,
-      nbr-lines.at(version),
+      nbr-lines.at(version) - nbr-skipped(version-jumps),
       version-jumps,
       code,
       with-dst,
     )
-    let (version-line-numbers, line-index) = line-numbers(
+    let (version-line-numbers, line-index, kept) = line-numbers(
       version-number,
       nbr-lines.at(version),
       version-jumps,
@@ -1166,34 +1480,42 @@
       jumps: version-jumps,
       line-numbers: version-line-numbers,
       line-index: line-index,
+      kept: kept,
     )
   }
 
   let both = of-version(diff-jumps, "both")
   let new = numbers-of("new", of-version(diff-jumps, "new") + both)
 
+  // (the lines are matched on all the lines of the codes)
   let old-jumps = of-version(diff-jumps, "old")
   for j in both.sorted(key: j => j.from) {
-    let i = new-to-old.at((new.line-index)(j.from))
-    if i >= 0 {
-      let from = numbers-of("old", old-jumps).line-numbers.at(i)
-      old-jumps.push((from: from, to: from + j.to - j.from))
+    let i = new-to-old.at(new.kept.at((new.line-index)(j.from)))
+    let old = numbers-of("old", old-jumps)
+    let k = old.kept.position(l => l == i)
+    if i >= 0 and k != none {
+      let from = old.line-numbers.at(k)
+      old-jumps.push((
+        from: from,
+        to: from + j.to - j.from,
+        skip-lines: j.at("skip-lines", default: skip-lines),
+      ))
     }
   }
 
   (old: numbers-of("old", old-jumps), new: new)
 }
 
-// The changed ranges of a version, as highlights
-#let diff-changes(diff, version, conf, defaults) = (
+// The changed ranges of a version, as highlights (on all the lines of its code)
+#let diff-changes(diff, version, conf, defaults, kept) = (
   diff
     .at(version)
     .ranges
     .enumerate()
     .map(((i, ranges)) => ranges.map(((s, e)) => hl.format-highlight(
       (
-        start: (i, s),
-        end: (i, e),
+        start: (kept.at(i), s),
+        end: (kept.at(i), e),
         expand: none,
         sticky: false,
         radius: 0mm,
@@ -1240,7 +1562,12 @@
     let (spans-after, spans-before) = (after(spans), before(spans))
 
     // The comments of both versions are paired: the ones after the lines from the top, the ones before the lines from the bottom
-    let (oa, ob, na, nb) = (after(olds), before(olds), after(news), before(news))
+    let (oa, ob, na, nb) = (
+      after(olds),
+      before(olds),
+      after(news),
+      before(news),
+    )
     let top = pairs(oa, na)
     let bottom = pairs(ob.rev(), nb.rev()).rev()
     let (oa, na) = (oa.slice(top.len()), na.slice(top.len()))

@@ -59,14 +59,13 @@
 /// - code-width (length):
 /// - lang-tag (dictionary): The parameters of the lang tag.
 /// - it-lines (array): The formatted lines of the document.
+/// - char-width (length):
 /// -> length
-#let tight-code-width(frame, code-width, lang-tag, it-lines) = {
+#let tight-code-width(frame, code-width, lang-tag, it-lines, char-width) = {
   if frame.width == auto {
-    let lines-width = it-lines.map(l => l.slines.map(sl => {
-      measure(
-        sl.body,
-      ).width
-    }))
+    let lines-width = it-lines.map(l => l.slines.map(sl => (
+      sl.offset * char-width + measure(sl.body).width
+    )))
 
     if lang-tag.placement == "inline" and lines-width.len() > 0 {
       lines-width.at(0).at(0) += lang-tag.width

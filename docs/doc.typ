@@ -180,8 +180,7 @@
       header: [*Algorithm* Merge],
       no-number[*Procedure* MERGE($L_1$, $L_2$)],
       no-number[*Input* $L_1$ and $L_2$ two sorted list to merge into a sorted one],
-      [$n <-$ the length of $L_1$],
-      [$n <- n +$ the length of $L_2$],
+      [$n <-$ the length of $L_1$ + the length of $L_2$],
       [$L_1 <- L_1 + [$_inf_$]$],
       [$L_2 <- L_2 + [$_inf_$]$],
       [$L <- []$],
@@ -282,10 +281,8 @@
 
   #uraw-diff(
     header: [`merge-sort` correction],
-    // columns: auto,
     columns: (1fr, auto),
-    // column-gutter: 1cm,
-    sep: 1pt + luma(230),
+    sep: black,
     comments: (
       (
         before: 2,
@@ -348,32 +345,6 @@
   return merge(l1, l2)
 }
 
-// #let merge-sort(l) = {
-//   if l.len() <= 1 {
-//     return l
-//   }
-
-//   let h = int(l.len() / 2)
-//   let l1 = l.slice(0, h)
-//   let l1 = merge-sort(l1)
-//   let l2 = l.slice(h)
-//   let l2 = merge-sort(l2)
-
-//   let new-l = ()
-//   for _ in l {
-//     let e = if (
-//       l2.len() == 0 or (l1.len() > 0 and l1.first() <= l2.first())
-//     ) {
-//       l1.remove(0)
-//     } else {
-//       l2.remove(0)
-//     }
-//     new-l.push(e)
-//   }
-
-//   return new-l
-// }
-
 // --- Guide -------------------------------------------------------------------
 
 #let ultraw = [*`ultraw`*]
@@ -422,32 +393,30 @@
 
   grid.cell(colspan: 2)[Change the raw blocks with the #f("uraw") show rule:],
 
-  [
-    #source(
-      follows: 1,
-      precedes: true,
-      ````typ
-      ```typ
-      #let my-box(body) = box(
-        stroke: purple,
-        body,
-      )
-      ```
+  source(
+    follows: 1,
+    precedes: true,
+    ````typ
+    ```typ
+    #let my-box(body) = box(
+      stroke: purple,
+      body,
+    )
+    ```
 
-      #show: uraw
+    #show: uraw
 
-      `#let my-text = text.with(purple)`
+    `#let my-text = text.with(purple)`
 
-      ```typ
-      #let my-box(body) = box(
-        stroke: purple,
-        body,
-      )
-      ```
-      ````,
-      width: 100%,
-    ) <show-rule-code>
-  ],
+    ```typ
+    #let my-box(body) = box(
+      stroke: purple,
+      body,
+    )
+    ```
+    ````,
+    width: 100%,
+  ),
 
   [
     ```typ
@@ -479,38 +448,34 @@
     colspan: 2,
   )[#f("uraw") can also be called locally for a specific raw block:],
 
-  [
-    #source(
-      follows: 18,
-      precedes: true,
-      ````typ
-      #set raw(tab-size: 4)
-      #uraw(
-        frame-stroke: luma(240),
-        frame-radius: 1mm,
+  source(
+    follows: 18,
+    precedes: true,
+    ````typ
+    #uraw(
+      frame-stroke: luma(240),
+      frame-radius: 1mm,
 
-        code-fill:
-          n => if calc.even(n) { luma(240) },
+      code-fill:
+        n => if calc.even(n) { luma(240) },
 
-        header: [Some Rust code],
-        header-fill: auto,
+      header: [Some Rust code],
+      header-fill: auto,
 
-        lang-tag-placement: "header",
-        lang-tag-fill: orange.lighten(75%),
+      lang-tag-placement: "header",
+      lang-tag-fill: orange.lighten(75%),
 
-        ```rs
-        fn main() {
-            println!("Hello World!");
-        }
-        ```,
-      )
-      ````,
-      width: 100%,
-    ) <local-use-code>
-  ],
+      ```rs
+      fn main() {
+          println!("Hello World!");
+      }
+      ```,
+    )
+    ````,
+    width: 100%,
+  ),
 
   [
-    #set raw(tab-size: 4)
     #uraw(
       frame-stroke: luma(240),
       frame-radius: 1mm,
@@ -526,46 +491,42 @@
       ```,
     )
 
-    #v(.5em)
+    #v(2.5em)
   ],
 
   grid.cell(
     colspan: 2,
   )[Global configurations can be set with the function #f("uraw-set"):],
 
-  [
-    #source(
-      follows: 38,
-      ````typ
-      #set raw(tab-size: 4)
-      #uraw-set(
-        width: 6.5cm,
-        frame-stroke: 1pt + purple,
-        frame-radius: (right: 2mm),
+  source(
+    follows: 38,
+    ````typ
+    #uraw-set(
+      width: 6.5cm,
+      frame-stroke: 1pt + purple,
+      frame-radius: (right: 2mm),
 
-        number-color: white,
-        number-fill: purple,
+      number-color: white,
+      number-fill: purple,
 
-        code-fill:
-          n => purple.lighten(80% + n * 5%),
+      code-fill:
+        n => purple.lighten(80% + n * 5%),
 
-        lang-tag: none,
-      )
+      lang-tag: none,
+    )
 
-      ```py
-      def main():
-          print("Hello")
-          print("World")
-      ```
-      ````,
-      width: 100%,
-    ) <uraw-set-code>
-  ],
+    ```py
+    def main():
+        print("Hello")
+        print("World")
+    ```
+    ````,
+    width: 100%,
+  ),
 
   [
     #show: uraw
 
-    #set raw(tab-size: 4)
     #uraw-set(
       width: 6.5cm,
       frame-stroke: 1pt + purple,
@@ -593,18 +554,10 @@
 #let frame-col = rgb("#2583c1")
 #let hf-col = rgb("#AC397E")
 #let num-col = rgb("#C5283D")
-#let marker-col(body) = box({
-  place(rect(
-    width: 100%,
-    height: 100%,
-    stroke: none,
-    outset: (x: .3em, y: .325em),
-    fill: rgb(black),
-  ))
-  body
-})
+#let comment-col = rgb("#9faf4e")
 #let code-col = rgb("#FFC857")
 #let lang-col = rgb("#E9724C")
+#let underline-col(col, body) = underline(offset: 2pt, stroke: 2pt + col, body)
 
 #figure(
   uraw(
@@ -622,7 +575,13 @@
     lang-tag: text.with(white),
     lang-tag-fill: lang-col,
     lang-tag-stroke: 2pt + lang-col,
-    markers: (2, marker-col(octique-marker("star-fill", color: white))),
+    markers: (2, octique-marker("star-fill", color: white)),
+    comments: (
+      after: 2,
+      content: [Add some color],
+      fill: comment-col,
+      indent: "line",
+    ),
     ```typ
     #let my-box(body) = box(
       stroke: purple,
@@ -633,7 +592,7 @@
   caption: [The differents components of an #f("uraw") block.],
 ) <uraw-block-components>
 
-A block of raw text formatted by #f("uraw") is made of several components. They are all colored differently in @uraw-block-components and their name will be underlined with the corresponding color. The #underline(offset: 2pt, stroke: 2pt + frame-col)[frame] is the box containg the whole block. It controls for example the dimension of the block or wether it can break from one page to another. The #underline(offset: 2pt, stroke: 2pt + code-col)[code] part contains the raw text and controls parameters such as the indentation lines or the line spacing. Numbers and their style are controled via the #underline(offset: 2pt, stroke: 2pt + num-col)[number] setting. A #underline(offset: 2pt, stroke: 2pt + hf-col)[header] and a #underline(offset: 2pt, stroke: 2pt + hf-col)[footer] for the block can be added. The #underline(offset: 2pt, stroke: 2pt + lang-col)[lang tag] indicates which coding language is used.
+A block of raw text formatted by #f("uraw") is made of several components. They are all colored differently in @uraw-block-components and their name will be underlined with the corresponding color. The raw text is shown inside of the #underline-col(code-col)[code] part. The #underline-col(num-col)[numbers] and #underline-col(num-col)[markers] are displayed in a gutter on the left. Some #underline-col(comment-col)[comments] may be added to the code, a #underline-col(hf-col)[header] and a #underline-col(hf-col)[footer] can be defined. The #underline-col(lang-col)[lang tag] indicates which coding language is used. Finally, the #underline-col(frame-col)[frame] is the box containg the whole block.
 
 The different parameters of the #f("uraw") function can be inspected #link(<uraw-lib>)[here].
 
@@ -641,13 +600,13 @@ The different parameters of the #f("uraw") function can be inspected #link(<uraw
 
 The #ultraw package provides a simple and efficient highlighting that enables one to define highlights directly inside the raw text.
 
-
-
 = Labels and reference
 
 = Pseudo code
 
 = Diffs
+
+= Good practices
 
 // --- Library -----------------------------------------------------------------
 
@@ -729,6 +688,8 @@ The #ultraw package provides a simple and efficient highlighting that enables on
   code: (
     fill...............................................................code-fill
     indentation......................................................indentation
+    indent-size......................................................indent-size
+    indented-line-return....................................indented-line-return
     inset.............................................................code-inset
     line-spacing....................................................line-spacing
   )
@@ -748,6 +709,7 @@ The #ultraw package provides a simple and efficient highlighting that enables on
     comment-marker-fill.................................jump-comment-marker-fill
     comment-placement.....................................jump-comment-placement
     comment-style.............................................jump-comment-style
+    skip-lines...................................................jump-skip-lines
   )
   highlight: (
     code-style..............................................highlight-code-style

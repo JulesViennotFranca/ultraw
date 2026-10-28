@@ -5,6 +5,56 @@
 #import "utils.typ" as ut
 
 // -----------------------------------------------------------------------------
+// Document states
+// -----------------------------------------------------------------------------
+
+/// The label of the figure being laid out, used to label the lines of the code it contains.
+#let uraw-figure = state("uraw-figure", none)
+
+/// The styles outside of the raw environments (one per nested uraw call), used by the headers, footers, and comments.
+#let uraw-style = state("uraw-style", ())
+
+/// The current text, paragraph and block settings that the raw blocks and `uraw` change, so that the headers, footers and comments look as they would outside of the raw block.
+///
+/// -> dictionary
+#let outside-style() = (
+  text: (
+    font: text.font,
+    size: text.size,
+    hyphenate: text.hyphenate,
+    overhang: text.overhang,
+  ),
+  par: (
+    leading: par.leading,
+    spacing: par.spacing,
+    justify: par.justify,
+    first-line-indent: par.first-line-indent,
+    hanging-indent: par.hanging-indent,
+  ),
+  block: (
+    above: block.above,
+    below: block.below,
+    width: block.width,
+    height: block.height,
+    fill: block.fill,
+    stroke: block.stroke,
+    inset: block.inset,
+    outset: block.outset,
+    radius: block.radius,
+  ),
+)
+
+/// The style of the headers, footers, comments: the one outside of the raw environment (the current one before the state is known).
+///
+/// -> dictionary
+#let base-style() = {
+  let styles = uraw-style.get()
+  if styles.len() > 0 { styles.last() } else {
+    (text: (:), par: (:), block: (:))
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Initialization
 // -----------------------------------------------------------------------------
 
@@ -92,6 +142,57 @@
   args.at(category, default: (:)),
 )
 
+/// Read some code from a file, to display it with `uraw` or `uraw-diff`: its lines are numbered from the first line read (when the `start` of the numbers is `auto`).
+///
+/// - file (path): The file, given with `path` (a string would be read relative to the package).
+/// - from (int): The first line read.
+/// - to (none, int): The last line read, `none` for the end of the file.
+/// - lang (auto, none, str): The language of the code, `auto` for the extension of the file.
+/// -> dictionary
+#let read-code(file, from: 1, to: none, lang: auto) = {
+  if type(file) == str {
+    panic(
+      "A file of code must be given by its path, as `path(\""
+        + file
+        + "\")` (a string would be read relative to the package).",
+    )
+  }
+  assert(type(file) == path, message: "A file of code must be a path.")
+
+  // (the line break ending the file does not start a new line)
+  let lines = read(file).trim("\n", at: end, repeat: false).split("\n")
+  let to = if to == none { lines.len() } else { to }
+  assert(
+    type(from) == int
+      and type(to) == int
+      and 1 <= from
+      and from <= to
+      and to <= lines.len(),
+    message: "The lines read must be between 1 and "
+      + str(lines.len())
+      + ", the first one being before the last one.",
+  )
+
+  let lang = if lang != auto { lang } else {
+    let ext = repr(file).find(regex("\\.[^./\"]+\"\\)$"))
+    if ext != none { ext.slice(1, -2) }
+  }
+  (
+    uraw-code: (
+      raw: raw(lines.slice(from - 1, to).join("\n"), lang: lang, block: true),
+      first-line: from,
+    ),
+  )
+}
+
+/// The raw block of some code (given as a raw block, a path or read with `read-code`) and the number of its first line, any other content being returned with the first line 1.
+#let code-input(it) = {
+  let it = if type(it) in (str, path) { read-code(it) } else { it }
+  if type(it) == dictionary and "uraw-code" in it {
+    (it.uraw-code.raw, it.uraw-code.first-line)
+  } else { (it, 1) }
+}
+
 #let parse-markers-entry(m) = if type(m) == array and m.len() == 2 {
   let pl = hl.parse-line(m.first())
   if pl != none { (pl, m.last()) }
@@ -173,6 +274,8 @@
     end: ("number", "end"),
     line-spacing: ("code", "line-spacing"),
     indentation: ("code", "indentation"),
+    indent-size: ("code", "indent-size"),
+    indented-line-return: ("code", "indented-line-return"),
   )
     + default.general.keys().map(k => (k, ("general", k))).to-dict(),
   ("markers", "comments", "jumps", "highlights", "follows", "precedes"),
@@ -193,6 +296,7 @@
     end: ("number", "end"),
     line-spacing: ("code", "line-spacing"),
     indentation: ("code", "indentation"),
+    indent-size: ("code", "indent-size"),
   )
     + (default.general + default.diff.general)
       .keys()
@@ -373,7 +477,7 @@
 // Set the uraw configurations, specific to a language if one is mentioned.
 ///
 /// - lang (none, str): The language name. If set to `none`, the default configurations are updated.
-/// - args (arguments): uraw settings, by category: **frame**, **header**, **footer**, **number**, **marker** (`marker: bool` for its visibility), **code**, **comment**, **jump**, **lang-tag**, **highlights**, **diff** (the settings specific to diffs, see `uraw-diff-set`) (e.g. `header: (fill: red)`), or flat as `category-key` (e.g. `header-fill: red`), except for `width`, `height`, `breakable` (frame), `start`, `end` (number), `line-spacing`, `indentation` (code), the format of the numbers given by `number: format`, and the visibility of the lang tag given by `lang-tag: bool`, and the general settings: **coloring-follow-number** (bool): when the numbers are visible, wether the fill and color functions (of the code and of the number) are applied to the displayed line number (which can jump) or to the position of the line \ **line-reference** (none | auto | function): how a reference to the line `k` of a labelled figure (`@label.k`) is displayed after "Listing n": `none` for no line references, `auto` for "Listing n.k", or a function of `k` giving the text to add (", line k" by default) \ **default-stroke-thickness** (length): the length of the strokes and separators given without one (as a color), `.05em` by default
+/// - args (arguments): uraw settings, by category: **frame**, **header**, **footer**, **number**, **marker** (`marker: bool` for its visibility), **code**, **comment**, **jump**, **lang-tag**, **highlights**, **diff** (the settings specific to diffs, see `uraw-diff-set`) (e.g. `header: (fill: red)`), or flat as `category-key` (e.g. `header-fill: red`), except for `width`, `height`, `breakable` (frame), `start`, `end` (number), `line-spacing`, `indentation`, `indent-size` (code), the format of the numbers given by `number: format`, and the visibility of the lang tag given by `lang-tag: bool`. The code settings include **indent-size** (auto | int): the number of spaces of an indentation level, `auto` to infer it from the code (the most frequent increase of the leading spaces between consecutive lines, the tab size of the raw block when no line is indented) \ **indented-line-return** (bool): wether the parts of a line broken because it is too long start at the indentation of the line (when it leaves at least half of the width) rather than at the start of the code. And the general settings: **coloring-follow-number** (bool): when the numbers are visible, wether the fill and color functions (of the code and of the number) are applied to the displayed line number (which can jump) or to the position of the line \ **line-reference** (none | auto | function): how a reference to the line `k` of a labelled figure (`@label.k`) is displayed after "Listing n": `none` for no line references, `auto` for "Listing n.k", or a function of `k` giving the text to add (", line k" by default) \ **default-stroke-thickness** (length): the length of the strokes and separators given without one (as a color), `.05em` by default
 /// -> content
 #let uraw-set(..args) = {
   // The language, if one is given
@@ -458,7 +562,9 @@
 
 /// Reset the settings of pseudo code to their initial value.
 /// -> content
-#let uraw-pseudo-reset() = uraw-pseudo-config-state.update(initial-pseudo-config)
+#let uraw-pseudo-reset() = uraw-pseudo-config-state.update(
+  initial-pseudo-config,
+)
 
 // -----------------------------------------------------------------------------
 // Diff

@@ -1,8 +1,8 @@
 #import "src/config.typ": (
-  uraw-add-highlights, uraw-diff-get, uraw-diff-reset, uraw-diff-set, uraw-get,
-  uraw-list-highlights, uraw-pseudo-get,
-  uraw-pseudo-reset, uraw-pseudo-set, uraw-remove-highlights, uraw-reset,
-  uraw-reset-highlights, uraw-set, uraw-set-highlights,
+  read-code, uraw-add-highlights, uraw-diff-get, uraw-diff-reset, uraw-diff-set, uraw-get,
+  uraw-list-highlights, uraw-pseudo-get, uraw-pseudo-reset, uraw-pseudo-set,
+  uraw-remove-highlights, uraw-reset, uraw-reset-highlights, uraw-set,
+  uraw-set-highlights,
 )
 #import "themes/highlights.typ" as highlights
 #import "themes/icons.typ": icons

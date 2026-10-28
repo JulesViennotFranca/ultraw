@@ -22,6 +22,28 @@
 /// -> bool
 #let is-whitespace-line(line) = line.trim().len() == 0
 
+/// The size of an indentation level: the most frequent increase of the leading spaces between consecutive lines (the smallest one among the most frequent).
+///
+/// - texts (array): The texts of the lines.
+/// - default (int): The size when no line is more indented than the previous one.
+/// -> int
+#let infer-indent-size(texts, default) = {
+  let spaces = texts
+    .filter(t => not is-whitespace-line(t))
+    .map(t => t.len() - t.trim(" ", at: start).len())
+  let counts = (:)
+  for (a, b) in spaces.zip(spaces.slice(1, spaces.len())) {
+    if b > a { counts.insert(str(b - a), counts.at(str(b - a), default: 0) + 1) }
+  }
+  if counts.len() == 0 { return default }
+  let (size, _) = counts
+    .pairs()
+    .map(((k, n)) => (int(k), n))
+    .sorted(key: ((k, n)) => (-n, k))
+    .first()
+  size
+}
+
 /// Return the number of indentations of the text of a line.
 ///
 /// - text (str):
@@ -360,32 +382,31 @@
 /// - char-width (length):
 /// - line-end (int): The last position of the line.
 /// - end-offset (none, length): The length of some object at the end of the line, none if there is none.]
+/// - indent (int): The position (in characters) where the sub-lines after the first one start.
 /// -> array
-#let sub-lines(line, max-width, char-width, line-end, end-offset) = {
+#let sub-lines(line, max-width, char-width, line-end, end-offset, indent: 0) = {
   let sub-lines = ()
   let prev-start = 0
 
-  if end-offset != none {
-    let max-pos = get-max-pos(max-width - end-offset, char-width)
-    if line-end - prev-start >= max-pos {
-      let (l1, l1-end, l2-start, l2) = (
-        clean-content-split-word-pos(line, max-pos)
-      )
-      sub-lines.push((start: prev-start, body: l1, end: prev-start + l1-end))
-      prev-start += l2-start
-      line = l2
-    }
-  }
-
-  let max-pos = get-max-pos(max-width, char-width)
+  // The first sub-line leaves room for the object at its end, the next ones start at the indentation
+  let max-pos(first) = get-max-pos(
+    max-width
+      - if not first { indent * char-width } else if end-offset != none {
+        end-offset
+      } else { 0pt },
+    char-width,
+  )
   // Each sub-line must contain at least one character
   assert(
-    max-pos >= 1,
+    max-pos(false) >= 1,
     message: "The code is too narrow: no character fits in its width.",
   )
 
-  while line-end - prev-start >= max-pos {
-    let (l1, l1-end, l2-start, l2) = clean-content-split-word-pos(line, max-pos)
+  while line-end - prev-start >= max-pos(sub-lines.len() == 0) {
+    let (l1, l1-end, l2-start, l2) = clean-content-split-word-pos(
+      line,
+      max-pos(sub-lines.len() == 0),
+    )
     sub-lines.push((start: prev-start, body: l1, end: prev-start + l1-end))
     prev-start += l2-start
     line = l2
@@ -403,9 +424,17 @@
 /// - char-width (length):
 /// - line-end (int): The last position of the line.
 /// - end-offset (none, length): The length of some object at the end of the line, none if there is none.]
-/// -> array
-#let format-line(line, max-width, char-width, line-end, end-offset) = {
-  let slines = sub-lines(line, max-width, char-width, line-end, end-offset)
+/// - indent (int): The position (in characters) where the sub-lines after the first one start.
+/// -> array: the sub-lines, with their `start` and `end` in the line, their `body`, and the position where they are shown (`offset`)
+#let format-line(line, max-width, char-width, line-end, end-offset, indent: 0) = {
+  let slines = sub-lines(
+    line,
+    max-width,
+    char-width,
+    line-end,
+    end-offset,
+    indent: indent,
+  )
   slines = slines
     .enumerate()
     .map(((i, sl)) => {
@@ -416,11 +445,19 @@
       }
 
       let (c, i_e, e_e) = content-trim-end(c)
-      (start: sl.start + i_s, body: c, end: sl.end - i_e, emptied: e_e)
+      (
+        start: sl.start + i_s,
+        body: c,
+        end: sl.end - i_e,
+        offset: if i > 0 { indent } else { 0 },
+        emptied: e_e,
+      )
     })
     .filter(l => not l.emptied)
 
-  if slines.len() == 0 { ((start: 0, body: [], end: 1),) } else { slines }
+  if slines.len() == 0 { ((start: 0, body: [], end: 1, offset: 0),) } else {
+    slines
+  }
 }
 
 /// Insert some content in another content at a specified position.

@@ -1,20 +1,18 @@
-#import "common.typ" as cm
 #import "content.typ" as ct
 #import "formatting.typ" as formatting
 #import "highlight.typ" as hl
-#import "../src/lang-tag.typ" as lt
 #import "measure.typ" as me
 #import "rendering.typ" as re
 #import "config.typ" as cf
 #import "utils.typ" as ut
 
 
-#let uraw-figure = cm.uraw-figure
+#let uraw-figure = cf.uraw-figure
 
 /// Wether a figure is turned into an algorithm: it is a figure of image kind (the kind of figures whose kind cannot be detected) containing pseudo code with the `algorithm-figure` setting.
 #let is-algorithm-figure(fig, at: none) = {
   if fig.func() != figure or fig.kind != image { return false }
-  let marker = cm.find-pseudo-marker(fig.body)
+  let marker = formatting.find-pseudo-marker(fig.body)
   if marker == none { return false }
   if marker.algorithm-figure != auto { return marker.algorithm-figure }
   let conf = if at == none { cf.uraw-pseudo-config-state.get() } else {
@@ -38,6 +36,7 @@
   comments,
   jumps,
   base-style,
+  first-line,
   it,
 ) = {
   // The blocks of uraw (including the one of `layout`) do not take the block settings of the document
@@ -58,360 +57,389 @@
   let id-counter = counter("uraw-block-id")
   id-counter.step()
 
-  layout(layout-size => {
-  let id = id-counter.get().first()
-  let general = cf.category-parser("general", args, it.lang)
-  let with-default-thickness(stroke) = ut.with-default-thickness(
-    stroke,
-    general.default-stroke-thickness,
-  )
-
-  let frame = cf.category-parser("frame", args, it.lang)
-  frame = formatting.frame-width(frame, layout-size)
-  let header = cf.category-parser("header", args, it.lang)
-  let footer = cf.category-parser("footer", args, it.lang)
-  let number = cf.category-parser("number", args, it.lang)
-  let code = cf.category-parser("code", args, it.lang)
-  let lang-tag = cf.category-parser("lang-tag", args, it.lang)
-  let comment = cf.category-parser("comment", args, it.lang)
-  let jump = cf.category-parser("jump", args, it.lang)
-
-  set par(leading: code.line-spacing)
-
-  // The measures (of the comments, headers, ...) only take the settings above into account in a new context
+  // The states (settings, outside style, identifier) are read outside of `layout`, whose content can be laid out without them (as when measuring an auto column of a grid)
   context {
-    // (the settings are modified below)
-    let (frame, header, footer, number, code, lang-tag, comment, jump) = (
-      frame,
-      header,
-      footer,
-      number,
-      code,
-      lang-tag,
-      comment,
-      jump,
+    let id = id-counter.get().first()
+    let style = base-style()
+    let base-style() = style
+    let general = cf.category-parser("general", args, it.lang)
+    let with-default-thickness(stroke) = ut.with-default-thickness(
+      stroke,
+      general.default-stroke-thickness,
     )
 
-    // Continuation: the block follows or precedes another one, as at a page break
-    let follows = args.at("follows", default: false)
-    let precedes = args.at("precedes", default: false)
-    assert(
-      type(follows) in (bool, int),
-      message: "`follows` must be a boolean, or the number of the last line of the preceding block.",
-    )
-    assert(
-      type(precedes) in (bool, int, str, content),
-      message: "`precedes` must be a boolean, the largest line number of the following blocks, or their widest number (as content).",
-    )
-    // The widest number of the following blocks, the number column being wide enough for it
-    let widest-number = if type(precedes) == int {
-      formatting.shown-number(number, precedes)
-    } else if type(precedes) in (str, content) { precedes }
-    let precedes = precedes != false
-    // An integer is the last line of the preceding block, the lines are numbered from the next one
-    if type(follows) == int { number.start = follows + 1 }
-    let follows = follows != false
+    let frame = cf.category-parser("frame", args, it.lang)
+    let header = cf.category-parser("header", args, it.lang)
+    let footer = cf.category-parser("footer", args, it.lang)
+    let number = cf.category-parser("number", args, it.lang)
+    let code = cf.category-parser("code", args, it.lang)
+    let lang-tag = cf.category-parser("lang-tag", args, it.lang)
+    let comment = cf.category-parser("comment", args, it.lang)
+    let jump = cf.category-parser("jump", args, it.lang)
 
-    // Basic formatting
-    lang-tag.visible = it.lang != none and lang-tag.format != none
-    // The lang tag is removed from the open sides
-    if (
-      follows
-        and (
-          lang-tag.placement in ("code", "inline", "header")
-            or lang-tag.placement.starts-with("top")
+    set par(leading: code.line-spacing)
+
+    layout(layout-size => {
+      let frame = formatting.frame-width(frame, layout-size)
+
+      // The measures (of the comments, headers, ...) only take the settings above into account in a new context
+      context {
+        // (the settings are modified below)
+        let (frame, header, footer, number, code, lang-tag, comment, jump) = (
+          frame,
+          header,
+          footer,
+          number,
+          code,
+          lang-tag,
+          comment,
+          jump,
         )
-    ) { lang-tag.visible = false }
-    if precedes and lang-tag.placement.starts-with("bottom") {
-      lang-tag.visible = false
-    }
-    frame = formatting.frame(frame, lang-tag, with-default-thickness)
-    lang-tag = formatting.lang-tag(
-      lang-tag,
-      it.lang,
-      frame,
-      header,
-      with-default-thickness,
-    )
-    let (is-top, is-left, is-right, is-bottom) = {
-      if lang-tag.visible and lang-tag.on-frame {
-        lt.lang-tag-position(lang-tag)
-      } else {
-        (none, none, none, none)
-      }
-    }
-    code = formatting.code(code, with-default-thickness)
 
-    // Numbers and markers
-    let nbr-lines = it.lines.len()
-    number.visible = number.format != none
-    let (jumps, jumps-map) = formatting.jumps(jumps, number, nbr-lines)
-    number = formatting.number(
-      number,
-      nbr-lines,
-      jumps,
-      code,
-      with-default-thickness,
-    )
-    let (line-numbers, line-index) = formatting.line-numbers(
-      number,
-      nbr-lines,
-      jumps,
-      jumps-map,
-    )
-    // Comments
-    let single-comment(c, g, k) = (
-      formatting.single-comment(c, g, k, number, base-style)
-    )
-    let jump-comments = formatting.jump-comments(
-      jumps,
-      jump,
-      comment,
-      line-index,
-      single-comment,
-    )
-    let comments = formatting.comments(
-      comments,
-      comment,
-      line-numbers,
-      single-comment,
-    )
-    comments = jump-comments + comments
+        // Continuation: the block follows or precedes another one, as at a page break
+        let follows = args.at("follows", default: false)
+        let precedes = args.at("precedes", default: false)
+        assert(
+          type(follows) in (bool, int),
+          message: "`follows` must be a boolean, or the number of the last line of the preceding block.",
+        )
+        assert(
+          type(precedes) in (bool, int, str, content),
+          message: "`precedes` must be a boolean, the largest line number of the following blocks, or their widest number (as content).",
+        )
+        // The widest number of the following blocks, the number column being wide enough for it
+        let widest-number = if type(precedes) == int {
+          formatting.shown-number(number, precedes)
+        } else if type(precedes) in (str, content) { precedes }
+        let precedes = precedes != false
+        // An integer is the last line of the preceding block, the lines are numbered from the next one
+        if type(follows) == int { number.start = follows + 1 }
+        let follows = follows != false
+        // The numbers start by default at the first line of the code (in its file)
+        if number.start == auto { number.start = first-line }
 
-    // Markers
-    let marker = formatting.marker(general, number, code)
-    let (number-markers, markers, marker) = formatting.markers(
-      cf.parse-markers(markers, line-index, line-numbers),
-      comments,
-      marker,
-    )
-    number = formatting.number-cells(
-      number,
-      general,
-      number-markers,
-      line-numbers,
-    )
+        // Basic formatting
+        lang-tag.visible = it.lang != none and lang-tag.format != none
+        // The lang tag is removed from the open sides
+        if (
+          follows
+            and (
+              lang-tag.placement in ("code", "inline", "header")
+                or lang-tag.placement.starts-with("top")
+            )
+        ) { lang-tag.visible = false }
+        if precedes and lang-tag.placement.starts-with("bottom") {
+          lang-tag.visible = false
+        }
+        frame = formatting.frame(frame, lang-tag, with-default-thickness)
+        lang-tag = formatting.lang-tag(
+          lang-tag,
+          it.lang,
+          frame,
+          header,
+          with-default-thickness,
+        )
+        let (is-top, is-left, is-right, is-bottom) = {
+          if lang-tag.visible and lang-tag.on-frame {
+            formatting.lang-tag-position(lang-tag)
+          } else {
+            (none, none, none, none)
+          }
+        }
+        code = formatting.code(code, with-default-thickness)
 
-    // Coloring
-    (number, code) = formatting.coloring(
-      number,
-      code,
-      general,
-      frame,
-      line-numbers,
-      nbr-lines,
-    )
+        // Numbers and markers (the lines skipped by the jumps are not shown)
+        number.visible = number.format != none
+        let (jumps, jumps-map) = formatting.jumps(
+          jumps,
+          number,
+          skip-lines: jump.skip-lines,
+        )
+        let nbr-lines = it.lines.len() - formatting.nbr-skipped(jumps)
+        number = formatting.number(
+          number,
+          nbr-lines,
+          jumps,
+          code,
+          with-default-thickness,
+        )
+        let (line-numbers, line-index, kept) = formatting.line-numbers(
+          number,
+          it.lines.len(),
+          jumps,
+          jumps-map,
+        )
+        // Comments
+        let single-comment(c, g, k) = (
+          formatting.single-comment(c, g, k, number, base-style)
+        )
+        let jump-comments = formatting.jump-comments(
+          jumps,
+          jump,
+          comment,
+          line-index,
+          single-comment,
+        )
+        let comments = formatting.comments(
+          comments,
+          comment,
+          line-numbers,
+          single-comment,
+        )
+        comments = jump-comments + comments
 
-    // Header & footer
-    (header, footer) = formatting.header-footer(
-      header,
-      footer,
-      frame,
-      code,
-      lang-tag,
-      base-style,
-      nbr-lines,
-      with-default-thickness,
-    )
+        // Markers
+        let marker = formatting.marker(general, number, code)
+        let (number-markers, markers, marker) = formatting.markers(
+          cf.parse-markers(markers, line-index, line-numbers),
+          comments,
+          marker,
+        )
+        number = formatting.number-cells(
+          number,
+          general,
+          number-markers,
+          line-numbers,
+        )
 
-    // The open sides have no radius and no stroke, the header and footer are only shown if they repeat
-    if follows {
-      if not header.repeat { header.content = none }
-      header.radius = (:)
-      frame.radius.top-left = 0pt
-      frame.radius.top-right = 0pt
-      frame.stroke.top = none
-    }
-    if precedes {
-      if not footer.repeat { footer.content = none }
-      footer.radius = (:)
-      frame.radius.bottom-left = 0pt
-      frame.radius.bottom-right = 0pt
-      frame.stroke.bottom = none
-    }
+        // Coloring
+        (number, code) = formatting.coloring(
+          number,
+          code,
+          general,
+          frame,
+          line-numbers,
+          nbr-lines,
+        )
 
-    // Lines & highlights
-    let it-lines = formatting.lines(it, code)
-    let highlights = formatting.highlights(
-      manual-highlights,
-      highlights,
-      it-lines,
-      line-index,
-      with-default-thickness,
-    )
+        // Header & footer
+        (header, footer) = formatting.header-footer(
+          header,
+          footer,
+          frame,
+          code,
+          lang-tag,
+          base-style,
+          nbr-lines,
+          with-default-thickness,
+        )
 
-    // Available width
+        // The open sides have no radius and no stroke, the header and footer are only shown if they repeat
+        if follows {
+          if not header.repeat { header.content = none }
+          header.radius = (:)
+          frame.radius.top-left = 0pt
+          frame.radius.top-right = 0pt
+          frame.stroke.top = none
+        }
+        if precedes {
+          if not footer.repeat { footer.content = none }
+          footer.radius = (:)
+          frame.radius.bottom-left = 0pt
+          frame.radius.bottom-right = 0pt
+          frame.stroke.bottom = none
+        }
 
-    let char-width = measure("#").width
+        // Lines & highlights (the highlights are on all the lines of the code, the shown ones being kept)
+        let code-lines = formatting.lines(it, code)
+        let it-lines = kept.map(i => code-lines.at(i))
+        let highlights = formatting.highlights(
+          manual-highlights,
+          highlights,
+          code-lines,
+          n => kept.at(line-index(n)),
+          with-default-thickness,
+        )
 
-    let (numbers-width, markers-width) = me.numbers-markers-width(
-      number,
-      marker,
-      widest: widest-number,
-      monotonic: type(number.format) != function,
-    )
+        // Available width
 
-    // The width of the columns before the code
-    let pre-width = numbers-width + markers-width
+        let char-width = measure("#").width
 
-    lang-tag.insert(
-      "width",
-      if lang-tag.visible and lang-tag.in-code {
-        measure(lang-tag.block).width + lang-tag.code-spacing.to-absolute()
-      },
-    )
+        let (numbers-width, markers-width) = me.numbers-markers-width(
+          number,
+          marker,
+          widest: widest-number,
+          monotonic: type(number.format) != function,
+        )
 
-    let code-width = me.available-code-width(
-      layout-size,
-      frame,
-      code,
-      pre-width,
-    )
-    let max-code-width = code-width
+        // The width of the columns before the code
+        let pre-width = numbers-width + markers-width
 
-    // Comments position
-    comments = formatting.comments-position(
-      comments,
-      it-lines,
-      code,
-      pre-width,
-      marker.inset,
-      char-width,
-    )
+        lang-tag.insert(
+          "width",
+          if lang-tag.visible and lang-tag.in-code {
+            measure(lang-tag.block).width + lang-tag.code-spacing.to-absolute()
+          },
+        )
 
-    // Break lines in sub-lines
-    it-lines = formatting.break-lines(it-lines, code-width, lang-tag, char-width)
+        let code-width = me.available-code-width(
+          layout-size,
+          frame,
+          code,
+          pre-width,
+        )
+        let max-code-width = code-width
 
-    // Width
+        // Comments position
+        comments = formatting.comments-position(
+          comments,
+          it-lines,
+          code,
+          pre-width,
+          marker.inset,
+          char-width,
+        )
 
-    (header, footer) = formatting.align-header-footer(header, footer, pre-width)
+        // Break lines in sub-lines
+        code-lines = formatting.break-lines(
+          code-lines,
+          code-width,
+          lang-tag,
+          char-width,
+          indented: code.indented-line-return,
+        )
+        it-lines = kept.map(i => code-lines.at(i))
 
-    let header-width = if header.content != none {
-      (
-        measure(block(inset: header.inset, header.content)).width
-          + if header.tag != none {
-            measure(header.tag).width + lang-tag.code-spacing.to-absolute()
-          } else { 0pt }
-      )
-    } else { 0mm }
-    let footer-width = if footer.content != none {
-      measure(block(inset: footer.inset, footer.content)).width
-    } else { 0mm }
+        // Width
 
-    code-width = me.tight-code-width(frame, code-width, lang-tag, it-lines)
-    code-width = me.hf-code-width(
-      header-width,
-      pre-width,
-      code,
-      code-width,
-      footer-width,
-    )
-    code-width = me.comments-code-width(
-      frame,
-      comments,
-      code,
-      code-width,
-      max-code-width,
-    )
-    if frame.width == auto {
-      frame.width = (
-        pre-width + code.inset.left + code-width + code.inset.right
-      )
-    }
+        (header, footer) = formatting.align-header-footer(header, footer, pre-width)
 
-    // Height
+        let header-width = if header.content != none {
+          (
+            measure(block(inset: header.inset, header.content)).width
+              + if header.tag != none {
+                measure(header.tag).width + lang-tag.code-spacing.to-absolute()
+              } else { 0pt }
+          )
+        } else { 0mm }
+        let footer-width = if footer.content != none {
+          measure(block(inset: footer.inset, footer.content)).width
+        } else { 0mm }
 
-    let char-height = measure("#").height
-    let it-lines-height = it-lines.map(l => (
-      l.slines.len() * (char-height + code.line-spacing)
-    ))
+        code-width = me.tight-code-width(
+          frame,
+          code-width,
+          lang-tag,
+          it-lines,
+          char-width,
+        )
+        code-width = me.hf-code-width(
+          header-width,
+          pre-width,
+          code,
+          code-width,
+          footer-width,
+        )
+        code-width = me.comments-code-width(
+          frame,
+          comments,
+          code,
+          code-width,
+          max-code-width,
+        )
+        if frame.width == auto {
+          frame.width = (
+            pre-width + code.inset.left + code-width + code.inset.right
+          )
+        }
 
-    // Comments size
-    let comments-map = formatting.comments-by-gap(
-      comments,
-      code,
-      code-width,
-      number,
-      numbers-width,
-      marker,
-      markers-width,
-      nbr-lines,
-    )
+        // Height
 
-    // Highlights by line
-    let highlights-map = formatting.highlights-by-line(
-      highlights,
-      it-lines,
-      code-width,
-      code,
-      char-width,
-    )
+        let char-height = measure("#").height
+        let it-lines-height = it-lines.map(l => (
+          l.slines.len() * (char-height + code.line-spacing)
+        ))
 
-    // Rendering
+        // Comments size
+        let comments-map = formatting.comments-by-gap(
+          comments,
+          code,
+          code-width,
+          number,
+          numbers-width,
+          marker,
+          markers-width,
+          nbr-lines,
+        )
 
-    let frame-content = re.render(
-      nbr-lines,
-      number,
-      numbers-width,
-      code,
-      it-lines,
-      code-width,
-      it-lines-height,
-      frame,
-      header,
-      footer,
-      lang-tag,
-      lang-tag.block,
-      char-width,
-      char-height,
-      highlights-map,
-      comments-map,
-      marker: marker,
-      markers-width: markers-width,
-      markers: markers,
-      id: id,
-    )
+        // Highlights by line
+        let highlights-map = formatting.kept-highlights(
+          formatting.highlights-by-line(
+            highlights,
+            code-lines,
+            code-width,
+            code,
+            char-width,
+          ),
+          kept,
+        )
 
-    let frame-block = block(
-      fill: frame.fill,
-      width: frame.width,
-      height: frame.height,
-      breakable: frame.breakable,
-      frame-content,
-    )
+        // Rendering
 
-    if lang-tag.visible and lang-tag.on-frame {
-      if is-left or is-right {
-        block({
-          lt.place-frame-lang-tag(lang-tag, lang-tag.block)
-          frame-block
-        })
-      } else {
-        let alignment = lt.lang-tag-alignment(lang-tag)
-        lang-tag.block = block(
+        let frame-content = re.render(
+          nbr-lines,
+          number,
+          numbers-width,
+          code,
+          it-lines,
+          code-width,
+          it-lines-height,
+          frame,
+          header,
+          footer,
+          lang-tag,
+          lang-tag.block,
+          char-width,
+          char-height,
+          highlights-map,
+          comments-map,
+          marker: marker,
+          markers-width: markers-width,
+          markers: markers,
+          id: id,
+        )
+
+        let frame-block = block(
+          fill: frame.fill,
           width: frame.width,
-          align(alignment, lang-tag.block),
+          height: frame.height,
+          breakable: frame.breakable,
+          frame-content,
         )
-        if is-top {
-          stack(dir: ttb, lang-tag.block, frame-block)
+
+        if lang-tag.visible and lang-tag.on-frame {
+          if is-left or is-right {
+            block({
+              re.place-frame-lang-tag(lang-tag, lang-tag.block)
+              frame-block
+            })
+          } else {
+            let alignment = re.lang-tag-alignment(lang-tag)
+            lang-tag.block = block(
+              width: frame.width,
+              align(alignment, lang-tag.block),
+            )
+            if is-top {
+              stack(dir: ttb, lang-tag.block, frame-block)
+            } else {
+              stack(dir: ttb, frame-block, lang-tag.block)
+            }
+          }
         } else {
-          stack(dir: ttb, frame-block, lang-tag.block)
+          frame-block
         }
       }
-    } else {
-      frame-block
-    }
+    })
   }
-})
 }
 
 /// Display raw code.
 ///
-/// - args (arguments): The settings (see `uraw-set`), and the content whose raw blocks are displayed.
-/// - markers (array): The markers of the lines, shown in the marker column (when it is visible), as `(line, content)` or `(line: line, content: content)` on the displayed line numbers.
-/// - highlights (array): The highlights of the code.
-/// - comments (array): The comments of the code, as `(line, content)` (after the line) or a dictionary with `after` or `before` (a line), `content`, and any `comment` setting except `style` (the content being styled directly). The comment starts (`indent`) at the left of the frame (`"frame"`), at the start of the code (`"code"`), at the indentation of the commented line (`"line"`), or there with the indentation guides (`"guideline"`). The marker of a comment (`marker`) is shown in the gutter, in the marker column or the number column (`placement`: `"marker"` or `"number"`, the marker column when the numbers are hidden). An empty marker (`marker: []`) keeps the gutter beside the comment, so that its separator is not interrupted. The fill of the gutter beside the comment (`marker-fill`) is the one of the comment when `auto`, and the number fill of the commented line when `none`.
-/// - jumps (array): The jumps of the number.
+/// - args (arguments): The settings (see `uraw-set`), and the content whose raw blocks are displayed, or some code read from a file with `read-code` (or given by its `path`).
+/// - markers (array, dictionary): The markers of the lines, shown in the marker column (when it is visible), as `(line, content)` or `(line: line, content: content)` on the displayed line numbers. A single one can be given instead of an array.
+/// - highlights (array, dictionary): The highlights of the code. A single one can be given instead of an array.
+/// - comments (array, dictionary): The comments of the code, as `(line, content)` (after the line) or a dictionary with `after` or `before` (a line), `content`, and any `comment` setting except `style` (the content being styled directly). The comment starts (`indent`) at the left of the frame (`"frame"`), at the start of the code (`"code"`), at the indentation of the commented line (`"line"`), or there with the indentation guides (`"guideline"`). The marker of a comment (`marker`) is shown in the gutter, in the marker column or the number column (`placement`: `"marker"` or `"number"`, the marker column when the numbers are hidden). An empty marker (`marker: []`) keeps the gutter beside the comment, so that its separator is not interrupted. The fill of the gutter beside the comment (`marker-fill`) is the one of the comment when `auto`, and the number fill of the commented line when `none`. A single one can be given instead of an array.
+/// - jumps (array, dictionary): The jumps of the number, as `(from, to)` or a dictionary with `from`, `to`, `skip-lines`, and any `jump` setting except `comment-style`. A jump skipping its lines (`skip-lines: true`) does not show the lines between `from` and `to` (which are in the code), instead of only jumping their numbers. A single one can be given instead of an array.
 /// - follows (bool, int): Wether the block continues a previous one, as after a page break: its top has no radius and no stroke, the header is only shown if it repeats, and the lang tag is removed if it is on the top (in the header, in the first line of code, or on the top of the frame). An integer is the number of the last line of the preceding block, the lines of this block being numbered from the next one (overriding `start`).
 /// - precedes (bool, int, content): Wether the block is continued by a next one, as before a page break: its bottom has no radius and no stroke, the footer is only shown if it repeats, and the lang tag is removed if it is on the bottom of the frame. An integer is the largest line number of the following blocks (the number format being applied to it) and content is their widest number (or marker): the number column is made wide enough for it, so that it has the same width in the following blocks.
 /// -> content
@@ -423,6 +451,7 @@
   jumps: (),
   doc,
 ) = {
+  let (doc, first-line) = cf.code-input(doc)
   // Settings given by section or flat (e.g. `header-fill`)
   let args = cf.normalize-settings(args.named(), cf.uraw-spec)
 
@@ -573,6 +602,7 @@
         comments,
         jumps,
         base-style,
+        first-line,
         code-it,
       )
 
@@ -587,14 +617,14 @@
   // - for a raw block (which can be the body of a figure, whose kind is detected only if the raw block is not in a context), it is stored in a state
   if type(doc) == content and doc.func() == raw {
     context {
-      let style = cm.outside-style()
-      cm.uraw-style.update(styles => styles + (style,))
+      let style = cf.outside-style()
+      cf.uraw-style.update(styles => styles + (style,))
     }
-    with-base-style(cm.base-style)
-    cm.uraw-style.update(styles => styles.slice(0, -1))
+    with-base-style(cf.base-style)
+    cf.uraw-style.update(styles => styles.slice(0, -1))
   } else {
     context {
-      let style = cm.outside-style()
+      let style = cf.outside-style()
       with-base-style(() => style)
     }
   }

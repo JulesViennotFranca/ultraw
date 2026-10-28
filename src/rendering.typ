@@ -97,7 +97,10 @@
       )
     }
 
-    l.slines.map(sl => sl.body).join("\n", default: [])
+    l
+      .slines
+      .map(sl => h(sl.offset * char-width) + sl.body)
+      .join("\n", default: [])
 
     // Lang tag
     if lang-tag != none {
@@ -109,17 +112,21 @@
       )
     }
 
-    // Indentation
+    // Indentation (over the sub-lines shown at the indentation, only over the first one otherwise)
     if indentation != none {
+      let rows = if l.slines.any(sl => sl.offset > 0) { l.slines.len() } else {
+        1
+      }
       for p in l.pos-indent.slice(0, -1) {
         let x = p * char-width
         place(left + top, line(
           start: (x, -inset.top - extra.top),
           end: (
             x,
-            char-height
+            (rows - 1) * (inset.top + char-height + inset.bottom)
+              + char-height
               + inset.bottom
-              + if l.slines.len() == 1 { extra.bottom } else { 0pt },
+              + if rows == l.slines.len() { extra.bottom } else { 0pt },
           ),
           stroke: indentation,
         ))
@@ -261,7 +268,7 @@
     radius: radius,
     stroke: stroke,
     fill: c.fill,
-    align(horizon, c.body),
+    align(left + horizon, c.body),
   )
 
   // Add indentation if needed
@@ -293,7 +300,9 @@
 /// - kind (str): `"start"` or `"end"`.
 /// -> bool
 #let on-anchor-page(id, kind) = {
-  let anchors = query(metadata.where(value: (uraw-anchor: (id: id, kind: kind))))
+  let anchors = query(metadata.where(value: (
+    uraw-anchor: (id: id, kind: kind),
+  )))
   anchors.len() == 0 or anchors.first().location().page() == here().page()
 }
 
@@ -452,8 +461,7 @@
 
   let is-filled(row) = if row.kind == "code" {
     (
-      (has-side and (number.fill)(row.i) != none)
-        or (code.fill)(row.i) != none
+      (has-side and (number.fill)(row.i) != none) or (code.fill)(row.i) != none
     )
   } else {
     row.comment.fill != none
@@ -547,7 +555,11 @@
   // The separator between the gutter and the code, drawn on the left edge of the code cell (above its content)
   let with-sep(cell, height) = if has-side and number.sep != none {
     cell
-    place(left + top, line(start: (0pt, 0pt), end: (0pt, height), stroke: number.sep))
+    place(left + top, line(
+      start: (0pt, 0pt),
+      end: (0pt, height),
+      stroke: number.sep,
+    ))
   } else { cell }
 
   // The cells of the gutter of a row: the number column then the marker column (when visible)
@@ -1178,7 +1190,9 @@
           (
             width-between(first-key("old"), "old-code")
               + gutter
-              + if c.marker != none { pre-width("new") - pre-width("old") } else {
+              + if c.marker != none {
+                pre-width("new") - pre-width("old")
+              } else {
                 0pt
               }
           )
@@ -1214,4 +1228,47 @@
   }
 
   grid(columns: column-widths, rows: heights, ..cells)
+}
+
+// -----------------------------------------------------------------------------
+// Lang tag on the frame
+// -----------------------------------------------------------------------------
+
+/// Return the vertical alignment of the lang tag.
+///
+/// - lt (dictionary):
+/// -> alignment
+#let lang-tag-alignment(lt) = {
+  if lt.placement == "top-left" or lt.placement == "bottom-left" {
+    left
+  } else if lt.placement == "top" or lt.placement == "bottom" {
+    center
+  } else if lt.placement == "top-right" or lt.placement == "bottom-right" {
+    right
+  }
+}
+
+/// Return a placed object containing the lang tag.
+///
+/// - lt (dictionary):
+/// - lt-block (block):
+/// -> place
+#let place-frame-lang-tag(lt, lt-block) = {
+  place(
+    if lt.placement == "left-top" { left + top } else if lt.placement
+      == "left" { left + horizon } else if lt.placement == "left-bottom" {
+      left + bottom
+    } else if lt.placement == "right-top" { right + top } else if lt.placement
+      == "right" { right + horizon } else if lt.placement == "right-bottom" {
+      right + bottom
+    },
+
+    dx: if (
+      lt.placement == "left-top"
+        or lt.placement == "left"
+        or lt.placement == "left-bottom"
+    ) { -1.1em } else { 1.1em },
+
+    lt-block,
+  )
 }

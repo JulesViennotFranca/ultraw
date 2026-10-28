@@ -5,6 +5,10 @@
 // Checks
 // -----------------------------------------------------------------------------
 
+// The ends of a highlight on lines skipped by a jump (see `kept-highlights`)
+#let open-start(hl) = hl.at("open-start", default: false)
+#let open-end(hl) = hl.at("open-end", default: false)
+
 /// Check that the highlight range are correct.
 #let check-highlight(hl) = if not hl.is-line {
   let (i_s, j_s) = hl.range.first()
@@ -83,7 +87,10 @@
     type(hl.style) == str and hl.style in hls,
     message: "The style of a highlight must be a string referring to the name of an existing highlight.",
   )
-  hls.at(hl.style) + hl
+  // (only the style of the referred highlight, not its delimiters)
+  let style = hls.at(hl.style)
+  for k in ("ldel", "rdel") { let _ = style.remove(k, default: none) }
+  style + hl
 } else {
   hl
 }
@@ -372,25 +379,30 @@
 // Rendering
 // -----------------------------------------------------------------------------
 
+// Wether a highlight continues before (or after) the line `i` of its range, its ends on lines skipped by a jump being open (`open-start`, `open-end`)
+#let continues-before(hl, i) = hl.range.first().first() < i or open-start(hl)
+#let continues-after(hl, i) = i < hl.range.last().first() or open-end(hl)
+
 /// Determine wether a highlight span on a sub-line.
 #let highlight-on-sub-line(i, line-end, sl, hl) = {
   if hl.is-line { return true }
 
   let valid-start = (
-    hl.range.first().first() < i or hl.range.first().last() < sl.end
+    continues-before(hl, i) or hl.range.first().last() < sl.end
   )
   let valid-end = (
-    hl.range.last().first() > i or hl.range.last().last() > sl.start
+    continues-after(hl, i) or hl.range.last().last() > sl.start
   )
   let is-empty = line-end == 0 and not hl.expand.right
   return valid-start and valid-end and not is-empty
 }
 
-/// Return the starting position of a sub-line.
+/// Return the starting position of a sub-line (in its content).
 #let sub-line-start-pos(i, pos-indent, k, sl, hl) = {
   if hl.is-line {
-    if not hl.expand.left { pos-indent.last() } else { 0 }
-  } else if hl.range.first().first() < i {
+    // (a sub-line shown at the indentation starts after it)
+    if not hl.expand.left and sl.offset == 0 { pos-indent.last() } else { 0 }
+  } else if continues-before(hl, i) {
     if not hl.expand.left and k == 0 { pos-indent.last() } else { 0 }
   } else if hl.range.first().last() < sl.start {
     0
@@ -403,21 +415,29 @@
 #let sub-line-end-pos(i, sl, hl, max-width, char-width) = {
   if hl.is-line {
     if not hl.expand.right { sl.end - sl.start } else { max-width / char-width }
-  } else if hl.range.last().first() > i or hl.range.last().last() > sl.end {
+  } else if continues-after(hl, i) or hl.range.last().last() > sl.end {
     if hl.expand.right { max-width / char-width } else { sl.end - sl.start }
   } else {
     hl.range.last().last() - sl.start
   }
 }
 
+/// The horizontal range of a highlight block on a sub-line (in characters, from the start of the code): the sub-line is shown at its `offset`, and a highlight expanding on the left from the start of a sub-line reaches the start of the code.
+#let block-span(hl, sl, start, end, spaning-start) = (
+  if hl.expand.left and (spaning-start or hl.is-line) and start == 0 { 0 } else {
+    start + sl.offset
+  },
+  if type(end) == int { end + sl.offset } else { end },
+)
+
 /// Check if a highlight is spanning at the start of the sub-line.
 #let is-spaning-start(i, m, hl) = {
-  hl.range.first().first() < i or 0 < m
+  continues-before(hl, i) or 0 < m
 }
 
 /// Check if a highlight is spanning at the end of the sub-line.
 #let is-spaning-end(i, m, sl-len, hl) = {
-  i < hl.range.last().first() or m < sl-len - 1
+  continues-after(hl, i) or m < sl-len - 1
 }
 
 /// The blocks of a highlight on a line, as `(k, start, end)` for each sub-line `k`.
@@ -463,6 +483,15 @@
   for i in range(hl.range.first().first(), hl.range.last().first() + 1) {
     let l = lines.at(i)
     for (m, b) in line-spans(i, l, hl, width, inset, char-width).enumerate() {
+      let (start, end) = block-span(
+        hl,
+        b.sl,
+        b.start,
+        b.end,
+        is-spaning-start(i, m, hl),
+      )
+      b.start = start
+      b.end = end
       blocks.push((
         i: i,
         k: b.k,
@@ -651,6 +680,8 @@
       let touches = hl
         .at("touches", default: (:))
         .at(block-key(i, k), default: no-touches)
+
+      let (start, end) = block-span(hl, sl, start, end, spaning-start)
 
       let hl-block = move(
         dy: .24em - block-top-pad(hl, inset),

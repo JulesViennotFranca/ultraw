@@ -37,7 +37,7 @@
     let frame = cf.diff-category-parser("frame", args, lang)
     let header = cf.diff-category-parser("header", args, lang)
     let footer = cf.diff-category-parser("footer", args, lang)
-    let number = cf.diff-category-parser("number", args, lang)
+    let number = cf.diff-category-parser("numbers", args, lang)
     let code = cf.diff-category-parser("code", args, lang)
     let lang-tag = cf.diff-category-parser("lang-tag", args, lang)
     let comment = cf.diff-category-parser("comment", args, lang)
@@ -95,7 +95,7 @@
         let follows = follows != false
 
         // Basic formatting
-        lang-tag.visible = lang != none and lang-tag.format != none
+        lang-tag.visible = lang-tag.visible and lang != none
         // The lang tag is removed from the open sides
         if (
           follows
@@ -135,7 +135,7 @@
 
         // Numbers (the colors follow the rows)
         number.visible = number.format != none
-        general.coloring-follow-number = false
+        general.coloring-follow-numbers = false
         let numbers = formatting.diff-numbers(
           number,
           entries.jumps,
@@ -161,13 +161,17 @@
           (),
           calc.max(..nbr-lines.values()),
         )
+        // (the lang tag being in the color of the code of the first line by default)
+        if lang-tag.color == auto { lang-tag.color = (colored-code.color)(0) }
+        lang-tag.block = formatting.lang-tag-block(lang, lang-tag, frame)
 
         // The comments of each version, the ones of the jumps of both versions spanning over both codes (on the new numbers)
         let comments = (:)
         for v in ("old", "new") {
           let n = numbers.at(v)
           let single-comment(c, g, k) = (
-            formatting.single-comment(c, g, k, n.number, base-style) + (version: v)
+            formatting.single-comment(c, g, k, n.number, colored-code, base-style)
+              + (version: v)
           )
           // (without numbers, only the jumps skipping lines have an effect)
           let jumps-of(version) = formatting
@@ -290,6 +294,7 @@
           frame.radius.bottom-right = 0pt
           frame.stroke.bottom = none
         }
+        (frame, header, footer) = formatting.frame-block(frame, header, footer)
 
         // Widths before the codes
 
@@ -536,7 +541,10 @@
         )
 
         let frame-block = block(
-          fill: frame.fill,
+          fill: frame.block.fill,
+          radius: frame.block.radius,
+          stroke: frame.block.stroke,
+          clip: not frame.sharp-page-break,
           width: frame.width,
           height: frame.height,
           breakable: frame.breakable,
@@ -632,9 +640,14 @@
         )))
         entries.highlights.insert(v, formatting
           .of-version(highlights, v)
-          .map(h => hl.format-highlight-style(h, pre-highlights))
           .map(h => hl.format-highlight(h, highlight)))
       }
+
+      // (`auto` keeps the theme of each original raw element, a theme set with `set raw` applying when it has none)
+      let code-theme = cf.diff-category-parser("code", args, lang).theme
+      let theme(it) = if code-theme == auto {
+        if it.has("theme") { (theme: it.theme) } else { (:) }
+      } else { (theme: code-theme) }
 
       // The two codes are shown as raw elements, to get their highlighted lines
       set text(1.25em)
@@ -648,9 +661,9 @@
           (old: first-lines.first(), new: first-lines.last()),
         )
         set text(1.25em)
-        [#raw(texts.old, lang: lang, block: true)<uraw-diff-old>]
+        [#raw(texts.old, lang: lang, block: true, ..theme(old))<uraw-diff-old>]
       }
-      [#raw(texts.new, lang: lang, block: true)<uraw-diff-new>]
+      [#raw(texts.new, lang: lang, block: true, ..theme(new))<uraw-diff-new>]
     }
     [#raw(new.text, lang: lang, block: true)<uraw-diff-src>]
   }

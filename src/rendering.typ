@@ -32,12 +32,13 @@
   inset: inset,
   radius: radius,
   stroke: stroke,
+  outset: ut.seam-outset(stroke, fill),
   fill: fill,
   {
     align(alignment, body)
 
-    if sep != none or fill != none {
-      let s = std.stroke(if sep != none { sep } else { fill })
+    if sep != none {
+      let s = std.stroke(sep)
       let thickness = if s.thickness == auto { 1pt } else { s.thickness }
       // The line is inside the cell, which clips its content
       place(right + top, dx: inset.right - thickness / 2, dy: -inset.top, line(
@@ -73,6 +74,7 @@
   radius,
   stroke,
   fill,
+  color,
   lang-tag,
   char-width,
   char-height,
@@ -85,6 +87,7 @@
   inset: ut.grow-inset(inset, extra),
   radius: radius,
   stroke: stroke,
+  outset: ut.seam-outset(stroke, fill),
   fill: fill,
   align(left, {
     // Place highlights blocks
@@ -97,10 +100,13 @@
       )
     }
 
-    l
-      .slines
-      .map(sl => h(sl.offset * char-width) + sl.body)
-      .join("\n", default: [])
+    ut.colored(
+      color,
+      l
+        .slines
+        .map(sl => h(sl.offset * char-width) + sl.body)
+        .join("\n", default: []),
+    )
 
     // Lang tag
     if lang-tag != none {
@@ -160,6 +166,7 @@
   radius,
   stroke,
   fill,
+  color,
   lang-tag,
   char-width,
   char-height,
@@ -187,6 +194,7 @@
     radius,
     stroke,
     fill,
+    color,
     lang-tag,
     char-width,
     char-height,
@@ -216,6 +224,7 @@
   radius,
   stroke,
   fill,
+  color,
   extra,
 ) = {
   let inset = ut.grow-inset(code.inset, extra)
@@ -226,6 +235,7 @@
     inset: inset,
     radius: radius,
     stroke: stroke,
+    outset: ut.seam-outset(stroke, fill),
     fill: fill,
     align(left, {
       // Indentation
@@ -240,7 +250,7 @@
         }
       }
 
-      body
+      ut.colored(color, body)
     }),
   )
 }
@@ -267,6 +277,7 @@
     inset: c.inset,
     radius: radius,
     stroke: stroke,
+    outset: ut.seam-outset(stroke, c.fill),
     fill: c.fill,
     align(left + horizon, c.body),
   )
@@ -343,10 +354,11 @@
           radius: if first { header.radius } else { (:) },
           inset: header.inset,
           stroke: header.stroke,
+          outset: ut.seam-outset(header.stroke, header.fill),
           fill: header.fill,
           breakable: false,
           {
-            align(header.alignment, header.content)
+            align(header.align, header.content)
             // The lang tag placed in the header
             if first and header.at("tag", default: none) != none {
               place(right + horizon, header.tag)
@@ -379,9 +391,10 @@
         } else { (:) },
         inset: footer.inset,
         stroke: footer.stroke,
+        outset: ut.seam-outset(footer.stroke, footer.fill),
         fill: footer.fill,
         breakable: false,
-        align(footer.alignment, footer.content),
+        align(footer.align, footer.content),
       ),
     ),
   )
@@ -405,7 +418,8 @@
 /// - char-height (length):
 /// - highlights (array): The list of highlights per line.
 /// - comments (array): The list of comments placed before the first line, then after each line.
-/// - line-cell (none, function): The function creating the cell of a line from its index, height, radius, stroke, fill and extra space (top and bottom), instead of a code cell.
+/// - line-cell (none, function): The function creating the cell of a line from its index, height, radius, stroke, fill, color and extra space (top and bottom), instead of a code cell.
+/// - spanning (array): For each line, wether its cell (made by `line-cell`) spans over the gutter and the code.
 /// - marker (dictionary): The marker column parameters (formatted, see `format-marker`), only its visibility is needed when it is not visible.
 /// - markers-width (length): The width of the marker column.
 /// - markers (array): For each line, its marker (`none` if it has none).
@@ -429,6 +443,7 @@
   highlights,
   comments,
   line-cell: none,
+  spanning: (),
   marker: (visible: false),
   markers-width: 0pt,
   markers: (),
@@ -497,39 +512,43 @@
   let is-first(r) = r == 0 and header.content == none
   let is-last(r) = r == nr - 1 and footer.content == none
 
-  // The radius and stroke of a column beside the code, `leftmost` when it is the first column
-  let side-radius(r, leftmost) = if not leftmost { (:) } else if is-first(r) {
-    (top-left: frame.radius.top-left)
-  } else if is-last(r) {
-    (bottom-left: frame.radius.bottom-left)
-  } else { (:) }
-
-  let side-stroke(r, leftmost) = (
-    top: if is-first(r) { frame.stroke.top },
-    left: if leftmost { frame.stroke.left },
-    bottom: if is-last(r) { frame.stroke.bottom },
-  )
-
-  let code-radius(r) = if is-first(r) {
+  // The radius and stroke of a column beside the code, `leftmost` when it is the first column (a single row being both the first and the last one)
+  let side-radius(r, leftmost) = if not leftmost { (:) } else {
     (
-      (top-right: frame.radius.top-right)
-        + if not has-side { (top-left: frame.radius.top-left) }
+      (if is-first(r) { (top-left: frame.radius.top-left) } else { (:) })
+        + if is-last(r) { (bottom-left: frame.radius.bottom-left) } else { (:) }
     )
-  } else if is-last(r) {
-    (
-      (bottom-right: frame.radius.bottom-right)
-        + if not has-side { (bottom-left: frame.radius.bottom-left) }
-    )
-  } else {
-    (:)
   }
 
-  let code-stroke(r) = (
-    top: if is-first(r) { frame.stroke.top },
-    left: if not has-side { frame.stroke.left },
-    right: frame.stroke.right,
-    bottom: if is-last(r) { frame.stroke.bottom },
+  // The stroke of the sides of a cell which are sides of the grid (the other ones being absent)
+  let edge-stroke(r, left: true, right: true) = (
+    (top: is-first(r), left: left, right: right, bottom: is-last(r))
+      .pairs()
+      .filter(((_, edge)) => edge)
+      .map(((side, _)) => (side, frame.stroke.at(side)))
+      .to-dict()
   )
+
+  let side-stroke(r, leftmost) = edge-stroke(r, left: leftmost, right: false)
+
+  let code-radius(r) = (
+    (
+      if is-first(r) {
+        (
+          (top-right: frame.radius.top-right)
+            + if not has-side { (top-left: frame.radius.top-left) }
+        )
+      } else { (:) }
+    )
+      + if is-last(r) {
+        (
+          (bottom-right: frame.radius.bottom-right)
+            + if not has-side { (bottom-left: frame.radius.bottom-left) }
+        )
+      } else { (:) }
+  )
+
+  let code-stroke(r) = edge-stroke(r, left: not has-side)
 
   let full-radius(r) = (
     (
@@ -545,12 +564,7 @@
       } else { (:) }
   )
 
-  let full-stroke(r) = (
-    top: if is-first(r) { frame.stroke.top },
-    left: frame.stroke.left,
-    right: frame.stroke.right,
-    bottom: if is-last(r) { frame.stroke.bottom },
-  )
+  let full-stroke(r) = edge-stroke(r)
 
   // The separator between the gutter and the code, drawn on the left edge of the code cell (above its content)
   let with-sep(cell, height) = if has-side and number.sep != none {
@@ -575,7 +589,7 @@
         side-stroke(r, true),
         fill,
         none,
-        number.alignment,
+        number.align,
       ))
     }
     if marker.visible {
@@ -588,7 +602,7 @@
         side-stroke(r, not number.visible),
         fill,
         none,
-        number.alignment.y + right,
+        number.align.y + right,
       ))
     }
     cells
@@ -600,7 +614,21 @@
       let height = row-heights.at(r)
       let extra = edge(r)
 
-      if row.kind == "code" {
+      if row.kind == "code" and spanning.at(row.i, default: false) {
+        // A line over the gutter and the code (with the fill and color of the code)
+        let i = row.i
+        (
+          grid.cell(colspan: nbr-columns, line-cell(
+            i,
+            height,
+            full-radius(r),
+            full-stroke(r),
+            (code.fill)(i),
+            (code.color)(i),
+            extra,
+          )),
+        )
+      } else if row.kind == "code" {
         let i = row.i
         let code-cell = if line-cell != none {
           line-cell(
@@ -609,6 +637,7 @@
             code-radius(r),
             code-stroke(r),
             (code.fill)(i),
+            (code.color)(i),
             extra,
           )
         } else {
@@ -621,6 +650,7 @@
             code-radius(r),
             code-stroke(r),
             (code.fill)(i),
+            (code.color)(i),
             if i == 0 and lang-tag.visible and lang-tag.in-code {
               lang-tag-block
             },
@@ -638,7 +668,7 @@
             height,
             extra,
             (number.color)(i, number.cells.at(i)),
-            markers.at(i, default: none),
+            ut.colored((code.color)(i), markers.at(i, default: none)),
             (number.fill)(i),
           )
             + (with-sep(code-cell, height),)
@@ -670,7 +700,7 @@
             let k = if c.copy-before { c.gap - 1 } else { c.gap }
             (number.fill)(calc.clamp(k, 0, nl - 1))
           } else { c.marker-fill }
-          let in-number = c.placement == "number"
+          let in-number = c.placement == "numbers"
           (
             gutter-cells(
               r,
@@ -703,10 +733,9 @@
   let header-cell = header-cell(header, frame, nbr-columns, id)
 
   let cells = if header-cell != none {
-    let sep-thickness = if header.stroke.bottom == none {
-      0mm
-    } else if type(header.stroke.bottom) == stroke {
-      header.stroke.bottom.thickness
+    let sep = header.stroke.at("bottom", default: none)
+    let sep-thickness = if sep == none { 0mm } else if type(sep) == stroke {
+      sep.thickness
     } else {
       1pt
     }
@@ -753,6 +782,7 @@
   radius,
   stroke,
   fill,
+  color,
   lang-tag,
   char-width,
   char-height,
@@ -782,6 +812,7 @@
     radius,
     stroke,
     fill,
+    color,
     lang-tag,
     char-width,
     char-height,
@@ -811,8 +842,8 @@
   let columns = ()
   for v in ("old", "new") {
     let side = (
-      (number.visible, "number"),
-      (versions.at(v).marker.visible, "marker"),
+      (number.visible, "numbers"),
+      (versions.at(v).marker.visible, "markers"),
       (diff-marker.visible, "diff-marker"),
       (true, "code"),
     )
@@ -820,12 +851,12 @@
       columns.push(("new-gutter", gutter))
     }
     for (visible, key) in side {
-      let shared = same-code and key != "number"
+      let shared = same-code and key != "numbers"
       if visible and not (shared and v == "old") {
         columns.push((
           if shared { key } else { v + "-" + key },
-          if key == "number" { versions.at(v).numbers-width } else if (
-            key == "marker"
+          if key == "numbers" { versions.at(v).numbers-width } else if (
+            key == "markers"
           ) { versions.at(v).markers-width } else if key == "diff-marker" {
             diff-marker.width
           } else {
@@ -841,7 +872,7 @@
   }
   let keys = columns.map(c => c.first())
   let column-widths = columns.map(c => c.last())
-  let key(v, name) = if same-code and name != "number" { name } else {
+  let key(v, name) = if same-code and name != "numbers" { name } else {
     v + "-" + name
   }
   let has(k) = k in keys
@@ -876,9 +907,11 @@
         bottom-left: corner("bottom", "left"),
         bottom-right: corner("bottom", "right"),
       ),
+      // (only the sides of the grid, the other ones having a seam outset)
       stroke: sides
         .keys()
-        .map(side => (side, if sides.at(side) { frame.stroke.at(side) }))
+        .filter(side => sides.at(side))
+        .map(side => (side, frame.stroke.at(side)))
         .to-dict(),
     )
   }
@@ -917,6 +950,16 @@
     versions.at(v).conf.fill
   } else { (code.fill)(k) }
 
+  // A cell over the fill of the frame (when the cells take it), for the fills which do not cover it (as the blank fill)
+  let over-frame(f, cell) = if code.frame-fill == none { cell } else {
+    block(
+      fill: code.frame-fill,
+      outset: ut.seam-outset(f.stroke, code.frame-fill),
+      radius: f.radius,
+      cell,
+    )
+  }
+
   let side(body, width, inset, fill, alignment, height, extra, f) = side-cell(
     body,
     width,
@@ -931,22 +974,20 @@
 
   let number-cell(v, i, k, height, extra, f) = {
     let conf = versions.at(v).conf
-    let changed = i != none and versions.at(v).status.at(i) != "same"
-    let body = if i == none { [] } else {
-      let n = versions.at(v).number.cells.at(i)
-      if changed and conf.number-color != auto {
-        text(fill: conf.number-color, n)
-      } else { (versions.at(v).number.color)(k, n) }
-    }
-    let fill = if i == none { general.blank-fill } else if (
-      changed and conf.number-fill != auto
-    ) { conf.number-fill } else { (versions.at(v).number.fill)(k) }
+    let changed = versions.at(v).status.at(i) != "same"
+    let n = versions.at(v).number.cells.at(i)
+    let body = if changed and conf.numbers-color != auto {
+      text(fill: conf.numbers-color, n)
+    } else { (versions.at(v).number.color)(k, n) }
+    let fill = if changed and conf.numbers-fill != auto {
+      conf.numbers-fill
+    } else { (versions.at(v).number.fill)(k) }
     side(
       body,
       versions.at(v).numbers-width,
       number.inset,
       fill,
-      number.alignment,
+      number.align,
       height,
       extra,
       f,
@@ -958,7 +999,7 @@
     versions.at(v).markers-width,
     versions.at(v).marker.inset,
     fill,
-    number.alignment.y + right,
+    number.align.y + right,
     height,
     extra,
     f,
@@ -978,7 +1019,7 @@
         diff-marker.width,
         diff-marker.inset,
         fill,
-        center + number.alignment.y,
+        center + number.align.y,
         height,
         extra,
         framing(r, key(v, "diff-marker"), key(v, "diff-marker")),
@@ -997,6 +1038,7 @@
       f.radius,
       f.stroke,
       fill,
+      (code.color)(k),
       if (if same-code { k == 0 } else { v == "new" and i == 0 }) {
         lang-tag-block
       },
@@ -1009,20 +1051,46 @@
     cells
   }
 
-  // A blank cell (or the gutter of the separated new code when `fill` is given), separated from the old code
-  let blank(a, b, r, height, fill: general.blank-fill) = {
-    let f = framing(r, a, b)
-    cell(a, b, block(
-      width: width-between(a, b),
-      height: height,
-      radius: f.radius,
-      stroke: f.stroke + if a == "new-gutter" { (left: general.sep) },
-      fill: fill,
-    ))
+  // A blank cell over the columns `a`-`b`, merged with the ones of the same columns in the next rows (see `blank-cell`)
+  let blank(a, b) = (a: a, b: b)
+
+  // The cell of a blank of the row `r` spanning over `n` rows (so that its tiling is continuous), or of the gutter of the separated new code (with the `fill` of its row, separated from the old code)
+  let blank-cell(c, r, n, fill: general.blank-fill) = {
+    let (top, bottom) = (framing(r, c.a, c.b), framing(r + n - 1, c.a, c.b))
+    let f = (
+      radius: (
+        top-left: top.radius.top-left,
+        top-right: top.radius.top-right,
+        bottom-left: bottom.radius.bottom-left,
+        bottom-right: bottom.radius.bottom-right,
+      ),
+      stroke: top
+        .stroke
+        .pairs()
+        .filter(((side, _)) => side != "bottom")
+        .to-dict()
+        + bottom
+          .stroke
+          .pairs()
+          .filter(((side, _)) => side == "bottom")
+          .to-dict(),
+    )
+    grid.cell(
+      colspan: keys.position(k => k == c.b) - keys.position(k => k == c.a) + 1,
+      rowspan: n,
+      over-frame(f, block(
+        width: width-between(c.a, c.b),
+        height: row-heights.slice(r, r + n).sum(),
+        radius: f.radius,
+        stroke: f.stroke + if c.a == "new-gutter" { (left: general.sep) },
+        outset: ut.seam-outset(f.stroke, fill),
+        fill: fill,
+      )),
+    )
   }
 
   // The width of the gutter of a version
-  let pre-width(v) = ("number", "marker")
+  let pre-width(v) = ("numbers", "markers")
     .map(name => key(v, name))
     .filter(has)
     .map(k => width-between(k, k))
@@ -1056,30 +1124,35 @@
     ) { (number.fill)(k) } else { c.marker-fill }
     let cells = ()
     if from == "new-gutter" {
-      cells.push(blank("new-gutter", "new-gutter", r, height, fill: fill))
+      cells.push(blank-cell(
+        blank("new-gutter", "new-gutter"),
+        r,
+        1,
+        fill: fill,
+      ))
     }
     for gv in if same-code { ("old", "new") } else { (v,) } {
       if number.visible {
         cells.push(side(
-          if gv == v and c.placement == "number" { c.marker } else { [] },
+          if gv == v and c.placement == "numbers" { c.marker } else { [] },
           versions.at(gv).numbers-width,
           number.inset,
           fill,
-          number.alignment,
+          number.align,
           height,
           extra,
-          framing(r, key(gv, "number"), key(gv, "number")),
+          framing(r, key(gv, "numbers"), key(gv, "numbers")),
         ))
       }
     }
     if versions.at(v).marker.visible {
       cells.push(marker-cell(
         v,
-        if c.placement == "marker" { c.marker },
+        if c.placement == "markers" { c.marker },
         fill,
         height,
         extra,
-        framing(r, key(v, "marker"), key(v, "marker")),
+        framing(r, key(v, "markers"), key(v, "markers")),
       ))
     }
     let first-code-key = if diff-marker.visible { key(v, "diff-marker") } else {
@@ -1108,14 +1181,10 @@
         let v = if row.new != none { "new" } else { "old" }
         if number.visible {
           for nv in ("old", "new") {
-            cells.push(number-cell(
-              nv,
-              row.at(nv),
-              k,
-              height,
-              extra,
-              framing(r, key(nv, "number"), key(nv, "number")),
-            ))
+            let nk = key(nv, "numbers")
+            cells.push(if row.at(nv) == none { blank(nk, nk) } else {
+              number-cell(nv, row.at(nv), k, height, extra, framing(r, nk, nk))
+            })
           }
         }
         if versions.new.marker.visible {
@@ -1125,11 +1194,11 @@
             .find(m => m != none)
           cells.push(marker-cell(
             "new",
-            m,
+            ut.colored((code.color)(k), m),
             (number.fill)(k),
             height,
             extra,
-            framing(r, "marker", "marker"),
+            framing(r, "markers", "markers"),
           ))
         }
         cells += code-side-cells(v, row, k, r, height, extra)
@@ -1139,16 +1208,15 @@
             first-key(v)
           }
           if from == "new-gutter" and row.new != none {
-            cells.push(blank(
-              "new-gutter",
-              "new-gutter",
+            cells.push(blank-cell(
+              blank("new-gutter", "new-gutter"),
               r,
-              height,
+              1,
               fill: code-fill("new", row.new, k),
             ))
           }
           if row.at(v) == none {
-            cells.push(blank(from, key(v, "code"), r, height))
+            cells.push(blank(from, key(v, "code")))
             continue
           }
           if number.visible {
@@ -1158,17 +1226,17 @@
               k,
               height,
               extra,
-              framing(r, key(v, "number"), key(v, "number")),
+              framing(r, key(v, "numbers"), key(v, "numbers")),
             ))
           }
           if versions.at(v).marker.visible {
             cells.push(marker-cell(
               v,
-              versions.at(v).markers.at(row.at(v)),
+              ut.colored((code.color)(k), versions.at(v).markers.at(row.at(v))),
               (versions.at(v).number.fill)(k),
               height,
               extra,
-              framing(r, key(v, "marker"), key(v, "marker")),
+              framing(r, key(v, "markers"), key(v, "markers")),
             ))
           }
           cells += code-side-cells(v, row, k, r, height, extra)
@@ -1207,12 +1275,27 @@
           first-key(v)
         }
         cells += if row.at(v) == none {
-          (blank(from, key(v, "code"), r, height),)
+          (blank(from, key(v, "code")),)
         } else { comment-cells(v, row.at(v), k, from, r, height, extra) }
       }
     }
     row-cells.push(cells)
   }
+
+  // The blank cells, merged with the ones of the same columns in the next rows
+  let is-blank(c) = type(c) == dictionary
+  let blanks = row-cells.map(cells => cells.filter(is-blank))
+  let continues(c, r) = c in blanks.at(r)
+  row-cells = row-cells
+    .enumerate()
+    .map(((r, cells)) => cells
+      // (a blank continuing the one of the previous row is in its cell)
+      .filter(c => not (is-blank(c) and r > 0 and continues(c, r - 1)))
+      .map(c => if is-blank(c) {
+        let n = 1
+        while r + n < row-cells.len() and continues(c, r + n) { n += 1 }
+        blank-cell(c, r, n)
+      } else { c }))
 
   let cells = anchor-rows(row-cells, id)
   let heights = row-heights

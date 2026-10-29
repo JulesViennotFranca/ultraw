@@ -60,6 +60,25 @@
   return frame
 }
 
+/// Draw the frame by its block (`frame.block`, which clips the cells), or with sharp page breaks (no radius at the page breaks) by its cells: the cells on the sides of the grid take its stroke and radius (`frame.stroke` and `frame.radius`), and the cells without fill its fill (see `coloring`).
+///
+/// -> array: the frame, the header and the footer
+#let frame-block(frame, header, footer) = {
+  if frame.sharp-page-break {
+    frame.block = (fill: none, radius: (:), stroke: none)
+  } else {
+    frame.block = (fill: frame.fill, radius: frame.radius, stroke: frame.stroke)
+    // (the sides of the cells stay the sides of the grid, without stroke)
+    frame.radius = frame.radius.keys().map(k => (k, 0pt)).to-dict()
+    frame.stroke = frame.stroke.keys().map(k => (k, none)).to-dict()
+    header.radius = (:)
+    footer.radius = (:)
+    for side in ("top", "left", "right") { header.stroke.insert(side, none) }
+    for side in ("bottom", "left", "right") { footer.stroke.insert(side, none) }
+  }
+  (frame, header, footer)
+}
+
 // -----------------------------------------------------------------------------
 // Header & Footer
 // -----------------------------------------------------------------------------
@@ -79,23 +98,28 @@
     if lang-tag.visible and lang-tag.placement == "header" { lang-tag.block },
   )
 
+  // (`auto` for the color of the code of the first or last line)
+  let color(c, i) = if c == auto { (code.color)(i) } else { c }
   if header.content != none {
-    header.content = with-style(base-style(), header.content)
+    header.content = ut.colored(
+      color(header.color, -1),
+      with-style(base-style(), header.content),
+    )
   }
   if footer.content != none {
-    footer.content = with-style(base-style(), footer.content)
+    footer.content = ut.colored(
+      color(footer.color, nbr-lines),
+      with-style(base-style(), footer.content),
+    )
   }
 
+  // (`none` for the fill of the frame, when it is not filled itself)
   header.fill = if header.fill == auto {
     (code.fill)(-1)
-  } else {
-    header.fill
-  }
+  } else if header.fill == none { code.frame-fill } else { header.fill }
   footer.fill = if footer.fill == auto {
     (code.fill)(nbr-lines)
-  } else {
-    footer.fill
-  }
+  } else if footer.fill == none { code.frame-fill } else { footer.fill }
 
   header.inset = ut.full-inset(header.inset)
   footer.inset = ut.full-inset(footer.inset)
@@ -116,6 +140,7 @@
     right: frame.stroke.right,
     bottom: if header.sep == auto { frame.stroke.top } else { header.sep },
   )
+  if header.stroke.bottom == none { let _ = header.stroke.remove("bottom") }
   if header.content != none { let _ = header.remove("sep") }
   footer.sep = with-dst(footer.sep)
   footer.stroke = (
@@ -145,6 +170,10 @@
 // -----------------------------------------------------------------------------
 
 #let number(number, nbr-lines, jumps, code, with-dst) = {
+  assert(
+    number.format in (none, auto) or type(number.format) in (str, function),
+    message: "The `format` of the numbers must be `none` (hidden), `auto`, a string or a function.",
+  )
   assert(
     type(number.start) == int,
     message: "The `start` of the number must be an integer.",
@@ -267,8 +296,13 @@
     )
   }
 
+  // The index of each line number (its first one), computed once
+  let indexes = (:)
+  for (i, d) in line-numbers.enumerate() {
+    if d != none and str(d) not in indexes { indexes.insert(str(d), i) }
+  }
   let line-index(n) = {
-    let i = line-numbers.position(d => d == n)
+    let i = if type(n) == int { indexes.at(str(n), default: none) }
     assert(
       i != none,
       message: "The line " + str(n) + " is not displayed in the code block.",
@@ -285,7 +319,7 @@
 
 #let marker(general, number, code) = {
   let marker = (:)
-  marker.over-number = general.marker-over-number and number.visible
+  marker.over-numbers = general.markers-over-numbers and number.visible
 
   marker.inset = if number.visible { number.inset } else { code.inset }
   marker.inset = ut.line-inset(marker.inset, code.line-spacing)
@@ -305,13 +339,13 @@
     .map(c => c.marker)
 
   // The markers in the number column (by line), and all of them
-  let number-markers = line-markers.map(m => if marker.over-number { m })
+  let number-markers = line-markers.map(m => if marker.over-numbers { m })
   let all-number-markers = (
-    number-markers.filter(m => m != none) + comment-markers("number")
+    number-markers.filter(m => m != none) + comment-markers("numbers")
   )
   // The markers in the marker column (by line), and all of them
-  let markers = line-markers.map(m => if not marker.over-number { m })
-  let all-markers = markers.filter(m => m != none) + comment-markers("marker")
+  let markers = line-markers.map(m => if not marker.over-numbers { m })
+  let all-markers = markers.filter(m => m != none) + comment-markers("markers")
 
   marker.visible = all-markers.len() > 0
   marker.number-markers = all-number-markers
@@ -327,6 +361,8 @@
 #let code(code, with-dst) = {
   code.indentation = with-dst(code.indentation)
 
+  code.color = if code.color != auto { code.color }
+
   let edge = ut.vertical-inset(code.inset)
   code.edge = (
     top: edge.top.to-absolute(),
@@ -341,15 +377,6 @@
 // Coloring
 // -----------------------------------------------------------------------------
 
-#let apply-color(color, n, it) = if color == auto {
-  it
-} else if type(color) == function {
-  let c = color(n)
-  if c != none { text(fill: c, it) } else { it }
-} else {
-  text(fill: color, it)
-}
-
 #let coloring(
   number,
   code,
@@ -360,7 +387,7 @@
 ) = {
   number.true-number = i => if (
     number.visible
-      and general.coloring-follow-number
+      and general.coloring-follow-numbers
       and nbr-lines > 0
       and line-numbers.len() > 0
   ) {
@@ -373,23 +400,26 @@
     }
   } else { i + 1 }
 
-  code.fill = if type(code.fill) == function {
-    i => (code.fill)((number.true-number)(i))
-  } else { i => code.fill }
-  number.fill = if type(number.fill) == function {
-    i => (number.fill)((number.true-number)(i))
-  } else { i => number.fill }
+  // The fills and colors given as functions of the line number
+  let per-line(f) = if type(f) == function {
+    i => f((number.true-number)(i))
+  } else { i => f }
+  // With sharp page breaks, the frame is not filled (its fill would be rounded at the page breaks): the cells without fill take its fill
+  code.frame-fill = if frame.sharp-page-break { frame.fill }
+  let or-frame(c) = if c == none { code.frame-fill } else { c }
+  let code-fill = per-line(code.fill)
+  code.fill = i => or-frame(code-fill(i))
+  code.color = per-line(code.color)
+  // (`auto` for the ones of the code)
+  let numbers-fill = per-line(number.fill)
   number.fill = i => {
-    let c = (number.fill)(i)
-    if c == auto { (code.fill)(i) } else { c }
+    let c = numbers-fill(i)
+    if c == auto { (code.fill)(i) } else { or-frame(c) }
   }
-
-  number.color = if type(number.color) == function {
-    i => (number.color)((number.true-number)(i))
-  } else { i => number.color }
+  let numbers-color = per-line(number.color)
   number.color = (i, it) => {
-    let c = (number.color)(i)
-    if c == none { it } else { text(fill: c, it) }
+    let c = numbers-color(i)
+    ut.colored(if c == auto { (code.color)(i) } else { c }, it)
   }
 
   return (number, code)
@@ -485,7 +515,7 @@
 /// -> box
 #let lang-tag-content(lang, lt) = box(
   height: .8 * lt.size,
-  (lt.format)(text(lt.size, if lt.mode == "icon" and lt.icon != none {
+  ut.colored(lt.color, text(lt.size, if lt.mode == "icon" and lt.icon != none {
     lt.icon
   } else if lt.mode == "icon" or lt.mode == "name" {
     if lt.name != none { lt.name } else { lang }
@@ -514,6 +544,7 @@
 /// - frame (dictionary): The frame parameters.
 /// -> block
 #let lang-tag-block(lang, lt, frame) = {
+  if not lt.visible { return none }
   let ltc = lang-tag-content(lang, lt)
 
   /// The stroke of the tag: `auto` for the stroke of the frame (on the given side), `none` for no stroke, a color for a thin stroke of this color.
@@ -580,10 +611,6 @@
 }
 
 #let lang-tag(lang-tag, lang, frame, header, with-dst) = {
-  lang-tag.format = if lang-tag.format == auto { it => it } else {
-    lang-tag.format
-  }
-
   if lang-tag.visible {
     check-lang-tag-mode(lang-tag.mode)
     check-lang-tag-placement(lang-tag.placement)
@@ -602,10 +629,6 @@
   )
 
   lang-tag.stroke = with-dst(lang-tag.stroke)
-
-  lang-tag.block = if lang-tag.visible {
-    lang-tag-block(lang, lang-tag, frame)
-  } else { none }
 
   return lang-tag
 }
@@ -740,21 +763,15 @@
 #let highlights-by-line(highlights, lines, code-width, code, char-width) = {
   let by-line = lines.map(_ => ())
   for h in highlights {
-    let h = (
-      h
-        + (
-          touches: hl.compute-touches(
-            h,
-            lines,
-            code-width,
-            code.inset,
-            char-width,
-          ),
-        )
+    let (first, last) = (h.range.first().first(), h.range.last().first())
+    h.touches = hl.compute-touches(
+      h,
+      lines.slice(first, last + 1),
+      code-width,
+      code.inset,
+      char-width,
     )
-    for i in range(h.range.first().first(), h.range.last().first() + 1) {
-      by-line.at(i).push(h)
-    }
+    for i in range(first, last + 1) { by-line.at(i).push(h) }
   }
   return by-line
 }
@@ -763,7 +780,7 @@
 // Comments
 // -----------------------------------------------------------------------------
 
-#let single-comment(comment, gap, key, number, base-style) = {
+#let single-comment(comment, gap, key, number, code, base-style) = {
   let comment = comment + (gap: gap, key: key)
 
   assert(
@@ -771,15 +788,18 @@
     message: "The `indent` of a comment must be \"frame\", \"code\", \"line\" or \"guideline\".",
   )
   assert(
-    comment.placement in ("number", "marker"),
-    message: "The `placement` of a comment marker must be \"number\" or \"marker\".",
+    comment.placement in ("numbers", "markers"),
+    message: "The `placement` of a comment marker must be \"numbers\" or \"markers\".",
   )
   // Without numbers, the marker is in the marker column
-  if not number.visible { comment.placement = "marker" }
+  if not number.visible { comment.placement = "markers" }
   // A comment with a marker starts after the gutter, so at the start of the code
   comment.in-code = comment.indent != "frame" or comment.marker != none
   comment.to-indent = comment.indent == "guideline"
   comment.indented = comment.indent in ("line", "guideline")
+
+  // (`none` for the fill of the frame, when it is not filled itself)
+  if comment.fill == none { comment.fill = code.frame-fill }
 
   let body = comment.content
   if comment.style != none {
@@ -788,10 +808,11 @@
       comment.marker = (comment.style)(comment.marker)
     }
   }
-  // The comments look as they would outside of the raw block
-  comment.body = with-style(base-style(), body)
+  // The comments look as they would outside of the raw block, in the color of the code of the line before them (which their style overrides)
+  let color = (code.color)(gap - 1)
+  comment.body = ut.colored(color, with-style(base-style(), body))
   if comment.marker != none {
-    comment.marker = with-style(base-style(), comment.marker)
+    comment.marker = ut.colored(color, with-style(base-style(), comment.marker))
   }
 
   return comment
@@ -841,50 +862,58 @@
 
 // The comments (the style of a comment being given by its content, a comment has no `style`), with their `extra` keys (with their default value)
 #let comments(comments, comment, line-numbers, format, extra: (:)) = {
-  ut
-    .single-to-list(comments)
-    .map(c => {
-      let c = c
-      if type(c) == array {
-        assert(
-          c.len() == 2,
-          message: "A comment given as an array must be of the form `(line, content)`.",
-        )
-        c = (after: c.at(0), content: c.at(1))
-      }
+  // (a for loop rather than a closure, whose captured line numbers would be hashed at each call)
+  let formatted = ()
+  for c in ut.single-to-list(comments) {
+    let c = c
+    if type(c) == array {
       assert(
-        type(c) == dictionary
-          and ("after" in c or "before" in c)
-          and "content" in c,
-        message: "A comment must have an `after` or `before` line and a `content`.",
+        c.len() == 2,
+        message: "A comment given as an array must be of the form `(line, content)`.",
       )
-      ut.check-keys(
-        c,
-        comment.keys().filter(k => k != "style")
-          + ("after", "before", "content")
-          + extra.keys(),
-        "a comment",
-      )
+      c = (after: c.at(0), content: c.at(1))
+    }
+    assert(
+      type(c) == dictionary
+        and ("after" in c or "before" in c)
+        and "content" in c,
+      message: "A comment must have an `after` or `before` line and a `content`.",
+    )
+    ut.check-keys(
+      c,
+      comment.keys().filter(k => k != "style")
+        + ("after", "before", "content")
+        + extra.keys(),
+      "a comment",
+    )
 
-      let after = "after" in c
-      let n = if after { c.after } else { c.before }
-      assert(
-        type(n) == int,
-        message: "The `after` or `before` line of a comment must be an integer.",
-      )
+    let after = "after" in c
+    let n = if after { c.after } else { c.before }
+    assert(
+      type(n) == int,
+      message: "The `after` or `before` line of a comment must be an integer.",
+    )
 
-      format(
-        ut.filter-add-dict(comment, c)
-          + extra.keys().map(k => (k, c.at(k, default: extra.at(k)))).to-dict()
-          + (
-            content: c.content,
-            copy-before: after,
-          ),
-        line-numbers.filter(d => if after { d <= n } else { d < n }).len(),
-        if after { 2 * n } else { 2 * n - 1 },
-      )
-    })
-    .sorted(key: c => c.key)
+    // The number of lines before the comment, by binary search (the line numbers increasing)
+    let (lo, hi) = (0, line-numbers.len())
+    while lo < hi {
+      let mid = calc.quo(lo + hi, 2)
+      let d = line-numbers.at(mid)
+      if d < n or (after and d == n) { lo = mid + 1 } else { hi = mid }
+    }
+
+    formatted.push(format(
+      ut.filter-add-dict(comment, c)
+        + extra.keys().map(k => (k, c.at(k, default: extra.at(k)))).to-dict()
+        + (
+          content: c.content,
+          copy-before: after,
+        ),
+      lo,
+      if after { 2 * n } else { 2 * n - 1 },
+    ))
+  }
+  formatted.sorted(key: c => c.key)
 }
 
 /// Place the comments horizontally: their indentation and their insets.
@@ -971,7 +1000,7 @@
     )).height
     // The marker of a comment is in the number or the marker column
     c.height = if c.marker != none {
-      let (width, inset) = if c.placement == "number" {
+      let (width, inset) = if c.placement == "numbers" {
         (numbers-width, number.inset)
       } else { (markers-width, marker.inset) }
       calc.max(
@@ -1072,27 +1101,37 @@
 // The highlights of the kept lines (see `highlights-by-line`, on all the lines of the code), drawn as if the skipped lines were shown: their ends on skipped lines stay open
 #let kept-highlights(by-line, kept) = {
   let index = kept.enumerate().map(((k, i)) => (str(i), k)).to-dict()
-  kept.map(i => by-line
-    .at(i)
-    .map(h => {
+  // For each line, the index of the first kept line from it and of the last kept line up to it (computed once, the kept lines being sorted)
+  let (first-from, last-upto) = ((), ())
+  let k = 0
+  for l in range(by-line.len()) {
+    while k < kept.len() and kept.at(k) < l { k += 1 }
+    first-from.push(k)
+    last-upto.push(if k < kept.len() and kept.at(k) == l { k } else { k - 1 })
+  }
+  // (for loops rather than closures, whose captured arrays would be hashed at each call)
+  let kept-by-line = ()
+  for i in kept {
+    let hls = ()
+    for h in by-line.at(i) {
       let ((l1, c1), (l2, c2)) = h.range
-      let k1 = kept.position(j => j >= l1)
-      let k2 = kept.len() - 1 - kept.rev().position(j => j <= l2)
+      let k1 = first-from.at(l1)
+      let k2 = last-upto.at(l2)
       h.open-start = kept.at(k1) != l1
       h.open-end = kept.at(k2) != l2
       h.range = ((k1, c1), (k2, c2))
       // The blocks touching the ones of the kept lines can be on skipped lines
-      h.touches = h
-        .touches
-        .pairs()
-        .map(((key, t)) => {
-          let (j, k) = key.split("-")
-          if j in index { (hl.block-key(index.at(j), int(k)), t) }
-        })
-        .filter(p => p != none)
-        .to-dict()
-      h
-    }))
+      let touches = (:)
+      for (key, t) in h.touches {
+        let (j, k) = key.split("-")
+        if j in index { touches.insert(hl.block-key(index.at(j), int(k)), t) }
+      }
+      h.touches = touches
+      hls.push(h)
+    }
+    kept-by-line.push(hls)
+  }
+  kept-by-line
 }
 
 // -----------------------------------------------------------------------------
@@ -1143,18 +1182,27 @@
 /// Split the arguments of pseudo code in lines, with their indentation level.
 ///
 /// - args (array): The positional arguments: each content starts a new line, the contents of indented blocks (`indent`) are indented by one level, and the ones of `no-number` have no number.
-/// -> array: the lines, as dictionaries with a `body` (content), a `level` (int), and wether they are `numbered`
+/// -> array: the lines, as dictionaries with a `body` (content), a `level` (int), wether they are `numbered`, and wether they span over the numbers and the code (`spanning`, without indentation)
 #let pseudo-lines(args) = {
   let lines = ()
   for it in args {
     let indented = pseudo-helper-contents(it, "uraw-indent")
     let unnumbered = pseudo-helper-contents(it, "uraw-no-number")
     if indented != none {
-      for l in pseudo-lines(indented) { lines.push(l + (level: l.level + 1)) }
+      for l in pseudo-lines(indented) {
+        lines.push(l + (level: if l.spanning { 0 } else { l.level + 1 }))
+      }
     } else if unnumbered != none {
-      for l in pseudo-lines(unnumbered) { lines.push(l + (numbered: false)) }
+      let spanning = not it.value.indent
+      for l in pseudo-lines(unnumbered) {
+        lines.push(
+          l
+            + (numbered: false, spanning: l.spanning or spanning)
+            + if l.spanning or spanning { (level: 0) },
+        )
+      }
     } else {
-      lines.push((body: it, level: 0, numbered: true))
+      lines.push((body: it, level: 0, numbered: true, spanning: false))
     }
   }
   return lines

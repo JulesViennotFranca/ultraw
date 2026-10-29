@@ -20,11 +20,10 @@
 ///
 /// - manual (array): The manual highlights.
 /// - delimited (array): The highlights read from delimiters.
-/// - pre-highlights (dictionary): The highlights defined in the settings.
 /// - defaults (dictionary): The `highlight` settings, giving the missing style fields of the manual highlights.
 /// - length (int): The length of the code.
 /// -> array
-#let inline-highlights(manual, delimited, pre-highlights, defaults, length) = {
+#let inline-highlights(manual, delimited, defaults, length) = {
   let simplify(h, start, end) = (
     start: calc.max(0, start),
     end: calc.min(length, end),
@@ -42,7 +41,7 @@
   let manual = ut
     .single-to-list(manual)
     .map(h => {
-      let h = defaults + hl.format-highlight-style(h, pre-highlights)
+      let h = defaults + h
       simplify(
         h,
         inline-position(h.at("start", default: auto), 0),
@@ -115,7 +114,7 @@
 ///
 /// - body (str, content): The code, as a string or an inline raw element (it can be used in a show rule on inline raw elements).
 /// - lang (none, str): The language of the code given as a string.
-/// - highlights (array, dictionary): The manual highlights, with a `start` and an `end` (character positions of the code without delimiters, the end being excluded, the default ones being the start and the end of the code), and a `fill`, a `radius`, a `code-style`, or the `style` of a highlight defined in the settings. A single one can be given instead of an array.
+/// - highlights (array, dictionary): The manual highlights, with a `start` and an `end` (character positions of the code without delimiters, the end being excluded, the default ones being the start and the end of the code), and a `fill`, a `radius`, a `stroke`, a `code-style` (a predefined highlight can be spread in it, e.g. `..highlights.alert()`, its delimiters being ignored). A single one can be given instead of an array.
 /// -> content
 #let uraw-inline(body, lang: none, highlights: ()) = {
   // The code displayed by this function is not displayed again (when it is used in a show rule)
@@ -156,7 +155,6 @@
       let hls = inline-highlights(
         highlights,
         delimited,
-        pre-highlights,
         highlight,
         ct.text-len(code),
       )

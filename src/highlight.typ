@@ -81,20 +81,6 @@
   (ldel: phl.ldel, rdel: phl.rdel) + style
 }
 
-/// Import the style of a manually defined highlight.
-#let format-highlight-style(hl, hls) = if "style" in hl {
-  assert(
-    type(hl.style) == str and hl.style in hls,
-    message: "The style of a highlight must be a string referring to the name of an existing highlight.",
-  )
-  // (only the style of the referred highlight, not its delimiters)
-  let style = hls.at(hl.style)
-  for k in ("ldel", "rdel") { let _ = style.remove(k, default: none) }
-  style + hl
-} else {
-  hl
-}
-
 /// Read the starting and end position of an highlight.
 #let normalize-position(pos, name) = {
   if type(pos) == int {
@@ -127,13 +113,13 @@
 
 /// Fix the range of the highlight, and complete it with the default highlight settings.
 ///
-/// - hl (dictionary): The highlight, given by `line`, `range`, or `start` and `end`, and some style fields.
+/// - hl (dictionary): The highlight, given by `line`, `range`, or `start` and `end`, and some style fields (delimiters being ignored, so that a predefined highlight can be spread in it).
 /// - defaults (dictionary): The `highlight` settings, giving the value of the missing style fields.
 /// -> dictionary
 #let format-highlight(hl, defaults) = {
   ut.check-keys(
     hl,
-    defaults.keys() + ("line", "range", "start", "end", "style"),
+    defaults.keys() + ("line", "range", "start", "end", "ldel", "rdel"),
     "a highlight",
   )
   let style = ut.filter-add-dict(defaults, hl)
@@ -208,28 +194,10 @@
 // Parsing
 // -----------------------------------------------------------------------------
 
-/// Indicate wether a delimiter is inside a forbidden range.
-#let in-forbid-list(del, forbidden) = {
-  forbidden.any(r => (
-    (r.first() <= del.start and del.end <= r.last())
-      or (del.start <= r.first() and r.first() < del.end)
-      or (del.start < r.last() and r.last() <= del.end)
-      or (del.start <= r.first() and r.last() <= del.end)
-  ))
-}
-
-/// Transform a position into a string into coordinates.
-#let pos-to-coord(p, lines-len) = {
-  let i = 0
-  let s = 0
-  while i < lines-len.len() and s <= p {
-    s += lines-len.at(i)
-    i += 1
-  }
-  i -= 1
-  s -= lines-len.at(i)
-  (i, p - s)
-}
+/// Indicate wether a delimiter is forbidden: before the end of the last chosen left delimiter, or over a chosen right delimiter (whose positions are the keys of `taken`).
+#let is-forbidden(del, last-end, taken) = (
+  del.start < last-end or range(del.start, del.end).any(p => str(p) in taken)
+)
 
 #let parse-delimiters(lines, phls) = {
   let bline = lines.join("\n", default: "")
@@ -254,13 +222,14 @@
   let dels-map = phls.map(_ => ())
   let dels-order = ()
   let il = 0
-  let forbidden = ((-1, -1),)
+  let last-end = -1
+  let taken = (:)
 
   while il < ldels-sort.len() {
     let ldel = ldels-sort.at(il)
 
     // Check that we are not after already chosen left delimiters
-    if not in-forbid-list(ldel, forbidden) {
+    if not is-forbidden(ldel, last-end, taken) {
       let i = ldel.hl-idx
       let ir = rdels-c.at(i)
 
@@ -269,11 +238,13 @@
         let rdel = rdels.at(i).at(ir)
 
         // Check that the left delimiter is before the right one
-        if ldel.end <= rdel.start and not in-forbid-list(rdel, forbidden) {
+        if (
+          ldel.end <= rdel.start and not is-forbidden(rdel, last-end, taken)
+        ) {
           dels-map.at(i).push((left: ldel, right: rdel))
           dels-order.push(i)
-          forbidden.at(0).last() = ldel.end
-          forbidden.push((rdel.start, rdel.end))
+          last-end = ldel.end
+          for p in range(rdel.start, rdel.end) { taken.insert(str(p), true) }
 
           il += 1
         }
@@ -311,14 +282,15 @@
     .flatten()
     .sorted(key: d => d.start)
 
-  // Reconstruct the text without delimiters
-  let new-bline = ""
+  // Reconstruct the text without delimiters (its parts being joined once)
+  let parts = ()
   let prev = 0
   for d in dels-pos {
-    new-bline += bline.slice(prev, d.start)
+    parts.push(bline.slice(prev, d.start))
     prev = d.end
   }
-  new-bline += bline.slice(prev)
+  parts.push(bline.slice(prev))
+  let new-bline = parts.join()
 
   // Reconstruct the lines without delimiters
   let new-lines = new-bline.split("\n")
@@ -333,16 +305,22 @@
     pre-dels.push(d + (pos: pos))
   }
 
-  // Compute the final delimited text list
+  // Compute the final delimited text list (the positions being increasing, their line is found in one pass)
   let dels = range(int(pre-dels.len() / 2)).map(_ => (:))
+  let (l, line-start) = (0, 0)
   for d in pre-dels {
     let i = d.idx
 
     if "hl-idx" in d { dels.at(i).insert("idx", d.hl-idx) }
 
+    while (
+      l + 1 < new-lines-len.len() and line-start + new-lines-len.at(l) <= d.pos
+    ) {
+      line-start += new-lines-len.at(l)
+      l += 1
+    }
     // The column is counted in characters
-    let (l, col) = pos-to-coord(d.pos, new-lines-len)
-    let c = (l, ct.text-len(new-lines.at(l).slice(0, col)))
+    let c = (l, ct.text-len(new-lines.at(l).slice(0, d.pos - line-start)))
     if d.left { dels.at(i).insert("start", c) } else {
       dels.at(i).insert("end", c)
     }
@@ -471,7 +449,7 @@
 /// For each block of a sticky highlight, the horizontal ranges (as lengths, from the start of the code) of the blocks of the same highlight touching it from above and below.
 ///
 /// - hl (dictionary): The highlight.
-/// - lines (array): The formatted code lines.
+/// - lines (array): The formatted code lines of the highlight, from its first one (only them, as the arguments of a call are hashed).
 /// - width (length): The code width.
 /// - inset (dictionary): The code inset.
 /// - char-width (length):
@@ -481,7 +459,7 @@
 
   let blocks = ()
   for i in range(hl.range.first().first(), hl.range.last().first() + 1) {
-    let l = lines.at(i)
+    let l = lines.at(i - hl.range.first().first())
     for (m, b) in line-spans(i, l, hl, width, inset, char-width).enumerate() {
       let (start, end) = block-span(
         hl,

@@ -5,15 +5,15 @@
 /// - number (dictionary): The number parameters, with its cells (which contain the line markers placed over the numbers).
 /// - marker (dictionary): The marker column parameters, with all the markers of the number column (`number-markers`) and of the marker column (`markers`).
 /// - widest (none, str, content): Some content the number column must be wide enough for (the widest number of the following blocks).
-/// - monotonic (bool): Wether the widest numbers are the first and the last ones (as for the numbers themselves), so that only them are measured.
+/// - monotonic (bool): Wether the widest numbers are the first and the last shown ones (as for the numbers themselves), so that only them are measured.
 /// -> array
 #let numbers-markers-width(number, marker, widest: none, monotonic: false) = {
   let max-width(contents) = calc.max(0pt, ..contents.map(c => measure(c).width))
 
   let numbers-width = if number.visible {
-    let cells = if monotonic and number.cells.len() > 2 {
-      (number.cells.first(), number.cells.last())
-    } else { number.cells }
+    // (the lines without number having empty cells)
+    let cells = number.cells.filter(c => c != [])
+    if monotonic and cells.len() > 2 { cells = (cells.first(), cells.last()) }
     (
       number.inset.left
         + calc.max(
@@ -145,23 +145,39 @@
 /// - frame (dictionary): The frame parameters.
 /// - code-width (length): The available code width.
 /// - bodies (array): The contents of the lines (see `pseudo-line-body`).
+/// - lines (array): The lines (see `pseudo-lines`).
+/// - pre-width (length): The width of the columns before the code, over which the spanning lines are.
 /// -> length
-#let pseudo-code-width(frame, code-width, bodies) = if frame.width == auto {
-  calc.min(code-width, calc.max(0pt, ..bodies.map(b => measure(b).width)))
+#let pseudo-code-width(frame, code-width, bodies, lines, pre-width) = if (
+  frame.width == auto
+) {
+  calc.min(code-width, calc.max(0pt, ..bodies
+    .zip(lines)
+    .map(((b, l)) => measure(b).width - if l.spanning { pre-width.to-absolute() } else { 0pt })))
 } else { code-width }
 
 /// Return the height of each line of pseudo code.
 ///
 /// - bodies (array): The contents of the lines (see `pseudo-line-body`).
+/// - lines (array): The lines (see `pseudo-lines`).
 /// - code (dictionary): The code parameters.
 /// - code-width (length):
+/// - pre-width (length): The width of the columns before the code, over which the spanning lines are.
 /// - char-height (length): The height of a line of text.
 /// -> array
-#let pseudo-lines-height(bodies, code, code-width, char-height) = bodies.map(
-  b => (
-    calc.max(char-height, measure(block(width: code-width, b)).height)
-      + code.line-spacing.to-absolute()
-  ),
+#let pseudo-lines-height(bodies, lines, code, code-width, pre-width, char-height) = (
+  bodies
+    .zip(lines)
+    .map(((b, l)) => (
+      calc.max(
+        char-height,
+        measure(block(
+          width: code-width + if l.spanning { pre-width.to-absolute() } else { 0pt },
+          b,
+        )).height,
+      )
+        + code.line-spacing.to-absolute()
+    ))
 )
 
 // The widths of the codes of a diff, from the `columns` setting and the natural widths of the codes: the automatic ones take their natural width, the fractions share the rest (too large automatic separated codes sharing the available width), and the automatic ones share the rest of a fixed width

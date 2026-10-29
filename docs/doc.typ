@@ -28,7 +28,7 @@
   column-gutter: 1cm,
   outline(
     title: text(22pt)[Guide],
-    target: selector(heading).before(<library>),
+    target: selector(heading).before(<library>, inclusive: false),
     depth: 1,
     indent: 2mm,
   ),
@@ -86,9 +86,9 @@
 
   grid(
     columns: 30,
-    column-gutter: (2mm, 0mm),
+    column-gutter: (4mm, 0mm),
     align: bottom,
-    stack(dir: ttb, spacing: 2mm, [$L_1$:], [$L_2$:], [$L$:]),
+    stack(dir: ttb, spacing: 2mm, [`l1`], [`l2`], [`l`]),
     ss(),
     ss(),
     sl(),
@@ -150,6 +150,7 @@
 ))
 
 #page(margin: 1cm)[
+  #set align(horizon)
 
   #uraw-add-highlights(
     safety: (
@@ -158,55 +159,87 @@
       ..highlights.default-style(olive),
       sticky: true,
     ),
-  )
-
-  #uraw-set(
-    "typ",
-    frame-stroke: black,
-    frame-radius: 1mm,
-    number-sep: black,
-    header-fill: luma(245),
-    comment-fill: luma(245),
-    line-spacing: 0.8em,
-    lang-tag-size: 1em,
-    lang-tag-fill: teal.lighten(80%),
+    red-code: (
+      ldel: "*r",
+      rdel: "r*",
+      code-style: text.with(red),
+    ),
   )
 
   #grid(
     columns: (1fr, auto),
     column-gutter: 1cm,
 
-    uraw-pseudo(
-      header: [*Algorithm* Merge],
-      no-number[*Procedure* MERGE($L_1$, $L_2$)],
-      no-number[*Input* $L_1$ and $L_2$ two sorted list to merge into a sorted one],
-      [$n <-$ the length of $L_1$ + the length of $L_2$],
-      [$L_1 <- L_1 + [$_inf_$]$],
-      [$L_2 <- L_2 + [$_inf_$]$],
-      [$L <- []$],
-      [*for* \_ $= 1$ *to* $n$ *do*],
-      indent(
-        [*if* $L_1."first"() <= L_2."first"()$ *then*],
-        indent[$L <- L + [L_1."pop"(0)]$],
-        [*else*],
-        indent[$L <- L + [L_2."pop"(0)]$],
+    [
+      #uraw-pseudo(
+        width: 100%,
+        header: [*Algorithm* Merge Sort],
+        no-number[*Procedure* MERGE($L_1$, $L_2$)],
+        no-number[*Input* $L_1$ and $L_2$ two sorted list],
+        [$n <-$ the length of $L_1$ + the length of $L_2$],
+        [$L_1 <- L_1 + [$_inf_$]$],
+        [$L_2 <- L_2 + [$_inf_$]$],
+        [$L <- []$],
+        [*for* \_ $= 1$ *to* $n$ *do*],
+        indent(
+          [*if* $L_1[0] <= L_2[0]$ *then*],
+          indent[$L <- L + [L_1."pop"(0)]$],
+          [*else*],
+          indent[$L <- L + [L_2."pop"(0)]$],
+          [*end if*],
+        ),
+        [*end for*],
+        [*return* $L$],
+        no-number[],
+        no-number[*Procedure* MERGE-SORT($L$)],
+        no-number[*Input* $L$ the list to sort],
+        [$n <-$ the length of $L$],
+        [*if* $n <= 1$ *then*],
+        indent[*return* $L$],
         [*end if*],
-      ),
-      [*end for*],
-      [*return* $L$],
-    ),
+        [$h <- n / 2$],
+        [$L_1 <- L[{0, 1, ..., h-1}]$],
+        [$L_2 <- L[{h, h + 1, ..., n-1}]$ ],
+        [$L_1 <-$ MERGE-SORT($L_1$)],
+        [$L_2 <-$ MERGE-SORT($L_2$)],
+      )
+
+      #set par(spacing: 1cm)
+
+      #uraw(
+        width: 100%,
+        frame-radius: 0mm,
+        frame-stroke: black,
+        numbers: none,
+        header: [#box(height: 1em, icons.py) `Python IDE`],
+        header-fill: silver,
+        ```
+        *r>>>r* merge_sort([3, 4, 1, 6, 0, 2, 5])
+        ... [0, 1, 2, 3, 4, 5, 6]
+        ```,
+      )
+    ],
 
     uraw(
-      header: [The Merge Sort algorithm],
+      frame-stroke: black,
+      numbers-sep: black,
+      header: [The Merge Sort algorithm implementation in python.],
+      header-fill: luma(245),
+      comment-fill: luma(245),
+      line-spacing: 0.8em,
+      lang-tag-size: 1em,
+      lang-tag-fill: blue.lighten(80%),
       highlights: (
         (
-          line: (7, 11),
-          ..highlights.default-style(orange),
-          expand: left,
-          stroke: none,
+          line: (7, 10),
+          ..highlights.default(color: orange),
+          fill: orange.transparentize(80%),
+          // expand: left,
+          // stroke: none,
+          // TODO: test how the highlight separation is with stroke on a less perfomant screen + how are strokes not spanning on the whole length created again?
         ),
       ),
-      markers: (17, octique-marker("alert", color: red)),
+      markers: (15, octique-marker("alert", color: red)),
       comments: (
         (
           after: 4,
@@ -219,131 +252,110 @@
           fill: none,
         ),
         (
-          before: 5,
-          content: [Construction of $L$: #merge-diagram],
+          after: 5,
+          content: [Construction of `l`: #merge-diagram],
           indent: "code",
         ),
         (
-          after: 14,
+          after: 11,
           content: [$O($`l1.len()` $+$ `l2.len()`$)$],
           marker: octique-inline("stopwatch"),
         ),
         (
+          after: 19,
+          content: [$O(h dot log(h))$],
+          marker: octique-inline("stopwatch"),
+          indent: "guideline",
+        ),
+        (
+          after: 20,
+          content: [$O(h dot log(h))$],
+          marker: octique-inline("stopwatch"),
+          indent: "guideline",
+        ),
+        (
           after: 21,
-          content: [$O(h dot log(h))$],
-          marker: octique-inline("stopwatch"),
-          indent: "guideline",
-        ),
-        (
-          after: 22,
-          content: [$O(h dot log(h))$],
-          marker: octique-inline("stopwatch"),
-          indent: "guideline",
-        ),
-        (
-          after: 24,
           content: [$O(2 h dot log(h) + (h + h)) = O(n dot log(n))$ #text(
               olive,
             )[*✓*]],
           marker: octique-inline("stopwatch"),
         ),
       ),
-      ```typ
-      #let merge(l1, l2) = {
-        let n = l1.len() + l2.len()
-        *$l1.push(calc.inf)
-        l2.push(calc.inf)$*
-        let l = ()
-        for _ in range(n) {
-          if l1.first() <= l2.first() {
-            l.push(l1.remove(0))
-          } else {
-            l.push(l2.remove(0))
-          }
-        }
-        return l
-      }
+      ```py
+      def merge(l1, l2):
+          n = len(l1) + len(l2)
+          *$l1.append(float("inf"))
+          l2.append(float("inf"))$*
+          l = []
+          for _ in range(n):
+              if l1[0] <= l2[0]:
+                  l.append(l1.pop(0))
+              else:
+                  l.append(l2.pop(0))
+          return l
 
-      #let merge-sort(l) = {
-        if l.len() <= 1  { *!return l!* }
-        let h = int(l.len() / 2)
-        let l1 = l.slice(0, h)
-        let l2 = l.slice(h)
-        l1 = merge-sort(l1)
-        l2 = merge-sort(l2)
-        return merge(l1, l2)
-      }
+      def merge_sort(l):
+          if len(l) <= 1:
+              *!return l!*
+          h = int(len(l) / 2)
+          l1 = l[:h]
+          l2 = l[h:]
+          l1 = merge_sort(l1)
+          l2 = merge_sort(l2)
+          return merge(l1, l2)
       ```,
     ),
   )
 
-  #uraw-reset-highlights()
+  #set par(spacing: 1cm)
 
   #uraw-diff(
-    header: [`merge-sort` correction],
-    columns: (1fr, auto),
-    sep: black,
+    ..themes.diff-dark,
+    header: [`merge_sort` correction],
+    comment-fill: luma(80),
+    code-fill: luma(50),
+    numbers-fill: luma(25),
+    numbers-sep: none,
+    sep: none,
+    line-spacing: 0.8em,
+    lang-tag-size: 1em,
+    lang-tag-fill: blue.darken(30%),
+    columns: (1fr, 1fr),
     comments: (
       (
         before: 2,
-        content: [test a1],
+        content: [`l` is returned directly when `merge` returns a copy:],
         version: "old",
-        indent: "guideline",
+        indent: "line",
       ),
     ),
-    ```typ
-    #let merge-sort(l) = {
-      if l.len() <= 1 { return l }
-      let h = int(l.len() / 2)
-      let l1 = l.slice(0, h)
-      let l2 = l.slice(h)
-      l1 = merge-sort(l1)
-      l2 = merge-sort(l2)
-      return merge(l1, l2)
-    }
+    ```py
+    def merge_sort(l):
+        if len(l) <= 1:
+            return l
+        h = int(len(l) / 2)
+        l1 = l[:h]
+        l2 = l[h:]
+        l1 = merge_sort(l1)
+        l2 = merge_sort(l2)
+        return merge(l1, l2)
     ```,
-    ```typ
-    #let merge-sort(l) = {
-      if l.len() == 0 { return () }
-      if l.len() == 1 { return (l.first()) }
-      let h = int(l.len() / 2)
-      let l1 = l.slice(0, h)
-      let l2 = l.slice(h)
-      l1 = merge-sort(l1)
-      l2 = merge-sort(l2)
-      return merge(l1, l2)
-    }
+    ```py
+    def merge_sort(l):
+        if len(l) == 0:
+            return []
+        elif len(l) == 1:
+            return [l[0]]
+        h = int(len(l) / 2)
+        l1 = l[:h]
+        l2 = l[h:]
+        l1 = merge_sort(l1)
+        l2 = merge_sort(l2)
+        return merge(l1, l2)
     ```,
   )
 
 ]
-
-#uraw-reset("typ")
-
-#let merge(l1, l2) = {
-  let n = l1.len() + l2.len()
-  l1.push(calc.inf)
-  l2.push(calc.inf)
-  let l = ()
-  for _ in range(n) {
-    if l1.first() <= l2.first() {
-      l.push(l1.remove(0))
-    } else {
-      l.push(l2.remove(0))
-    }
-  }
-  return l
-}
-
-#let merge-sort(l) = {
-  if l.len() <= 1 { return l }
-  let h = int(l.len() / 2)
-  let l1 = l.slice(0, h)
-  let l2 = l.slice(h)
-  l1 = merge-sort(l1)
-  l2 = merge-sort(l2)
-  return merge(l1, l2)
-}
 
 // --- Guide -------------------------------------------------------------------
 
@@ -359,7 +371,7 @@
   frame-fill: luma(250),
   frame-stroke: .05em + black,
   code-inset: (x: 1.6mm, y: 0.25em),
-  number-sep: .05em + black,
+  numbers-sep: .05em + black,
   lang-tag-fill: auto,
   lang-tag-stroke: auto,
   lang-tag-placement: "top-right",
@@ -496,23 +508,23 @@
 
   grid.cell(
     colspan: 2,
-  )[Global configurations can be set with the function #f("uraw-set"):],
+  )[Global configurations can be set with the function #f("set-uraw"):],
 
   source(
     follows: 38,
     ````typ
-    #uraw-set(
+    #set-uraw(
       width: 6.5cm,
       frame-stroke: 1pt + purple,
       frame-radius: (right: 2mm),
 
-      number-color: white,
-      number-fill: purple,
+      numbers-color: white,
+      numbers-fill: purple,
 
       code-fill:
         n => purple.lighten(80% + n * 5%),
 
-      lang-tag: none,
+      lang-tag: false,
     )
 
     ```py
@@ -527,14 +539,14 @@
   [
     #show: uraw
 
-    #uraw-set(
+    #set-uraw(
       width: 6.5cm,
       frame-stroke: 1pt + purple,
       frame-radius: (right: 2mm),
-      number-color: white,
-      number-fill: purple,
+      numbers-color: white,
+      numbers-fill: purple,
       code-fill: n => purple.lighten(80% + n * 5%),
-      lang-tag: none,
+      lang-tag: false,
     )
 
     ```py
@@ -543,7 +555,7 @@
         print("World")
     ```
 
-    #uraw-reset()
+    #reset-uraw()
 
     #v(1.35em)
   ],
@@ -551,12 +563,12 @@
 
 = Raw blocks
 
-#let frame-col = rgb("#2583c1")
-#let hf-col = rgb("#AC397E")
-#let num-col = rgb("#C5283D")
-#let comment-col = rgb("#9faf4e")
-#let code-col = rgb("#FFC857")
-#let lang-col = rgb("#E9724C")
+#let frame-col = purple
+#let hf-col = rgb("#6877A1")
+#let num-col = rgb("#D88C9A")
+#let comment-col = rgb("#99C1B9")
+#let code-col = rgb("#F2D0A9")
+#let lang-col = rgb("#AF92C9")
 #let underline-col(col, body) = underline(offset: 2pt, stroke: 2pt + col, body)
 
 #figure(
@@ -568,16 +580,16 @@
     footer: text(white)[Footer],
     footer-fill: hf-col,
     footer-sep: none,
-    number-color: white,
-    number-fill: num-col,
+    numbers-color: white,
+    numbers-fill: num-col,
     code-fill: code-col,
     indentation: code-col.darken(20%),
-    lang-tag: text.with(white),
+    lang-tag-color: white,
     lang-tag-fill: lang-col,
     lang-tag-stroke: 2pt + lang-col,
     markers: (2, octique-marker("star-fill", color: white)),
     comments: (
-      after: 2,
+      before: 2,
       content: [Add some color],
       fill: comment-col,
       indent: "line",
@@ -596,15 +608,17 @@ A block of raw text formatted by #f("uraw") is made of several components. They 
 
 The different parameters of the #f("uraw") function can be inspected #link(<uraw-lib>)[here].
 
-= Highlighting
+= Highlights
 
 The #ultraw package provides a simple and efficient highlighting that enables one to define highlights directly inside the raw text.
 
-= Labels and reference
+= Comments and jumps
 
 = Pseudo code
 
 = Diffs
+
+= Themes
 
 = Good practices
 
@@ -621,7 +635,7 @@ The #ultraw package provides a simple and efficient highlighting that enables on
 )
 
 #alert[
-  Before going any further, a note about arguments of functions of this package (#f("uraw"), #f("uraw-set"), etc) must be made. Most arguments are grouped by categories (`frame`, `number`, etc) to which they refer to. Such arguments can be given under two form: a *grouped form* or a *direct form*. The grouped form groups arguments of the same category together while the direct form points to the arguments directly as follow:
+  Before going any further, a note about arguments of functions of this package (#f("uraw"), #f("set-uraw"), etc) must be made. Most arguments are grouped by categories (`frame`, `numbers`, etc) to which they refer to. Such arguments can be given under two form: a *grouped form* or a *direct form*. The grouped form groups arguments of the same category together while the direct form points to the arguments directly as follow:
 
   #align(center, grid(
     columns: 2,
@@ -629,8 +643,8 @@ The #ultraw package provides a simple and efficient highlighting that enables on
     row-gutter: 5mm,
     align: center,
     [*Grouped form*], [*Direct form*],
-    uraw-inline(`#uraw-set(*|frgame|*: (*|fill|*: purple))`),
-    uraw-inline(`#uraw-set(*|frame-fill|*: purple)`),
+    uraw-inline(`#set-uraw(*|frame|*: (*|fill|*: purple))`),
+    uraw-inline(`#set-uraw(*|frame-fill|*: purple)`),
   ))
 
   Look at the #link(<args-forms-table>)[Arguments forms table] for a precise correspondence between grouped and direct forms of arguments.
@@ -645,7 +659,7 @@ The #ultraw package provides a simple and efficient highlighting that enables on
 #stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
 
 #align(center, uraw(
-  number: none,
+  numbers: none,
   code-inset: 0mm,
   indentation: none,
   ```
@@ -654,12 +668,14 @@ The #ultraw package provides a simple and efficient highlighting that enables on
     fill..............................................................frame-fill
     height................................................................height
     radius..........................................................frame-radius
+    sharp-page-break............................................sharp-page-break
     stroke..........................................................frame-stroke
     width..................................................................width
   )
   header: (
     alignment...................................................header-alignment
     code-aligned.............................................header-code-aligned
+    color...........................................................header-color
     fill.............................................................header-fill
     height.........................................................header-height
     inset...........................................................header-inset
@@ -669,29 +685,32 @@ The #ultraw package provides a simple and efficient highlighting that enables on
   footer: (
     alignment...................................................footer-alignment
     code-aligned.............................................footer-code-aligned
+    color...........................................................footer-color
     fill.............................................................footer-fill
     height.........................................................footer-height
     inset...........................................................footer-inset
     repeat.........................................................footer-repeat
     sep...............................................................footer-sep
   )
-  number: (
-    alignment................................................number-alignment
-    color........................................................number-color
+  numbers: (
+    alignment..................................................numbers-alignment
+    color..........................................................numbers-color
     end......................................................................end
-    fill..........................................................number-fill
-    format.............................................................number
-    inset........................................................number-inset
-    sep............................................................number-sep
+    fill............................................................numbers-fill
+    format...............................................................numbers
+    inset..........................................................numbers-inset
+    sep..............................................................numbers-sep
     start..................................................................start
   )
   code: (
+    color.............................................................code-color
     fill...............................................................code-fill
     indentation......................................................indentation
     indent-size......................................................indent-size
     indented-line-return....................................indented-line-return
     inset.............................................................code-inset
     line-spacing....................................................line-spacing
+    theme..................................................................theme
   )
   comment: (
     fill............................................................comment-fill
@@ -721,26 +740,27 @@ The #ultraw package provides a simple and efficient highlighting that enables on
   )
   lang-tag: (
     code-spacing...........................................lang-tag-code-spacing
+    color.........................................................lang-tag-color
     fill...........................................................lang-tag-fill
-    format..............................................................lang-tag
     mode...........................................................lang-tag-mode
     name...........................................................lang-tag-name
     placement.................................................lang-tag-placement
     radius.......................................................lang-tag-radius
     size...........................................................lang-tag-size
     stroke.......................................................lang-tag-stroke
+    visible.............................................................lang-tag
   )
   ```,
 ))
 
 == #f("uraw-diff")
 
-Arguments from `frame`, `header`, `footer`, `number`, `code`, `comment`, `jump`, `highlight`, and `lang-tag` follow the same pattern as the #link(<uraw-args-forms-table>)[#f("uraw") table], the general ones adding the following ones.
+Arguments from `frame`, `header`, `footer`, `numbers`, `code`, `comment`, `jump`, `highlight`, and `lang-tag` follow the same pattern as the #link(<uraw-args-forms-table>)[#f("uraw") table], the general ones adding the following ones.
 
 #stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
 
 #align(center, uraw(
-  number: none,
+  numbers: none,
   code-inset: 0mm,
   indentation: none,
   ```
@@ -759,26 +779,26 @@ Arguments from `frame`, `header`, `footer`, `number`, `code`, `comment`, `jump`,
   old: (
     diff-marker..................................................old-diff-marker
     fill................................................................old-fill
-    number-color................................................old-number-color
-    number-fill..................................................old-number-fill
+    numbers-color..............................................old-numbers-color
+    numbers-fill................................................old-numbers-fill
   )
   new: (
     diff-marker..................................................new-diff-marker
     fill................................................................new-fill
-    number-color................................................new-number-color
-    number-fill..................................................new-number-fill
+    numbers-color..............................................new-numbers-color
+    numbers-fill................................................new-numbers-fill
   )
   ```,
 ))
 
 == #f("uraw-pseudo")
 
-Arguments from `frame`, `header`, `footer`, `number`, and `code` follow the same pattern as the #link(<uraw-args-forms-table>)[#f("uraw") table], except for a specific argument of `code`.
+Arguments from `frame`, `header`, `footer`, `numbers`, and `code` follow the same pattern as the #link(<uraw-args-forms-table>)[#f("uraw") table], except for a specific argument of `code`.
 
 #stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
 
 #align(center, uraw(
-  number: none,
+  numbers: none,
   code-inset: 0mm,
   indentation: none,
   ```

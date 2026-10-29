@@ -202,3 +202,21 @@
   s
 }
 
+
+/// Some content in a color (`none` for the color of the text).
+#let colored(color, it) = if color == none or it == none { it } else {
+  text(fill: color, it)
+}
+
+/// The outset of a cell with a fill on its inner sides (the ones absent from its stroke, the sides of the grid being present even without stroke): its fill covers the seam with the next cells (drawn over it: the next row below and the next column on the right).
+///
+/// - stroke (none, dictionary): The sides of the stroke.
+/// - fill (none, color, gradient, tiling):
+/// -> dictionary
+#let seam-outset(stroke, fill) = if fill == none { (:) } else {
+  let stroke = if stroke == none { (:) } else { stroke }
+  ("bottom", "right")
+    .filter(side => type(stroke) == dictionary and side not in stroke)
+    .map(side => (side, .5pt))
+    .to-dict()
+}

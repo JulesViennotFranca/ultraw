@@ -71,7 +71,7 @@
     let frame = cf.category-parser("frame", args, it.lang)
     let header = cf.category-parser("header", args, it.lang)
     let footer = cf.category-parser("footer", args, it.lang)
-    let number = cf.category-parser("number", args, it.lang)
+    let number = cf.category-parser("numbers", args, it.lang)
     let code = cf.category-parser("code", args, it.lang)
     let lang-tag = cf.category-parser("lang-tag", args, it.lang)
     let comment = cf.category-parser("comment", args, it.lang)
@@ -119,7 +119,7 @@
         if number.start == auto { number.start = first-line }
 
         // Basic formatting
-        lang-tag.visible = it.lang != none and lang-tag.format != none
+        lang-tag.visible = lang-tag.visible and it.lang != none
         // The lang tag is removed from the open sides
         if (
           follows
@@ -169,9 +169,22 @@
           jumps,
           jumps-map,
         )
+        // Coloring
+        (number, code) = formatting.coloring(
+          number,
+          code,
+          general,
+          frame,
+          line-numbers,
+          nbr-lines,
+        )
+        // (the lang tag being in the color of the code of the first line by default)
+        if lang-tag.color == auto { lang-tag.color = (code.color)(0) }
+        lang-tag.block = formatting.lang-tag-block(it.lang, lang-tag, frame)
+
         // Comments
         let single-comment(c, g, k) = (
-          formatting.single-comment(c, g, k, number, base-style)
+          formatting.single-comment(c, g, k, number, code, base-style)
         )
         let jump-comments = formatting.jump-comments(
           jumps,
@@ -202,16 +215,6 @@
           line-numbers,
         )
 
-        // Coloring
-        (number, code) = formatting.coloring(
-          number,
-          code,
-          general,
-          frame,
-          line-numbers,
-          nbr-lines,
-        )
-
         // Header & footer
         (header, footer) = formatting.header-footer(
           header,
@@ -239,6 +242,7 @@
           frame.radius.bottom-right = 0pt
           frame.stroke.bottom = none
         }
+        (frame, header, footer) = formatting.frame-block(frame, header, footer)
 
         // Lines & highlights (the highlights are on all the lines of the code, the shown ones being kept)
         let code-lines = formatting.lines(it, code)
@@ -302,7 +306,11 @@
 
         // Width
 
-        (header, footer) = formatting.align-header-footer(header, footer, pre-width)
+        (header, footer) = formatting.align-header-footer(
+          header,
+          footer,
+          pre-width,
+        )
 
         let header-width = if header.content != none {
           (
@@ -400,7 +408,10 @@
         )
 
         let frame-block = block(
-          fill: frame.fill,
+          fill: frame.block.fill,
+          radius: frame.block.radius,
+          stroke: frame.block.stroke,
+          clip: not frame.sharp-page-break,
           width: frame.width,
           height: frame.height,
           breakable: frame.breakable,
@@ -437,8 +448,8 @@
 ///
 /// - args (arguments): The settings (see `uraw-set`), and the content whose raw blocks are displayed, or some code read from a file with `read-code` (or given by its `path`).
 /// - markers (array, dictionary): The markers of the lines, shown in the marker column (when it is visible), as `(line, content)` or `(line: line, content: content)` on the displayed line numbers. A single one can be given instead of an array.
-/// - highlights (array, dictionary): The highlights of the code. A single one can be given instead of an array.
-/// - comments (array, dictionary): The comments of the code, as `(line, content)` (after the line) or a dictionary with `after` or `before` (a line), `content`, and any `comment` setting except `style` (the content being styled directly). The comment starts (`indent`) at the left of the frame (`"frame"`), at the start of the code (`"code"`), at the indentation of the commented line (`"line"`), or there with the indentation guides (`"guideline"`). The marker of a comment (`marker`) is shown in the gutter, in the marker column or the number column (`placement`: `"marker"` or `"number"`, the marker column when the numbers are hidden). An empty marker (`marker: []`) keeps the gutter beside the comment, so that its separator is not interrupted. The fill of the gutter beside the comment (`marker-fill`) is the one of the comment when `auto`, and the number fill of the commented line when `none`. A single one can be given instead of an array.
+/// - highlights (array, dictionary): The highlights of the code, given by `line`, `range`, or `start` and `end`, and some `highlight` settings (a predefined highlight can be spread in it, e.g. `..highlights.alert()`, its delimiters being ignored). A single one can be given instead of an array.
+/// - comments (array, dictionary): The comments of the code, as `(line, content)` (after the line) or a dictionary with `after` or `before` (a line), `content`, and any `comment` setting except `style` (the content being styled directly). The comment starts (`indent`) at the left of the frame (`"frame"`), at the start of the code (`"code"`), at the indentation of the commented line (`"line"`), or there with the indentation guides (`"guideline"`). The marker of a comment (`marker`) is shown in the gutter, in the marker column or the number column (`placement`: `"markers"` or `"numbers"`, the marker column when the numbers are hidden). An empty marker (`marker: []`) keeps the gutter beside the comment, so that its separator is not interrupted. The fill of the gutter beside the comment (`marker-fill`) is the one of the comment when `auto`, and the number fill of the commented line when `none`. A single one can be given instead of an array.
 /// - jumps (array, dictionary): The jumps of the number, as `(from, to)` or a dictionary with `from`, `to`, `skip-lines`, and any `jump` setting except `comment-style`. A jump skipping its lines (`skip-lines: true`) does not show the lines between `from` and `to` (which are in the code), instead of only jumping their numbers. A single one can be given instead of an array.
 /// - follows (bool, int): Wether the block continues a previous one, as after a page break: its top has no radius and no stroke, the header is only shown if it repeats, and the lang tag is removed if it is on the top (in the header, in the first line of code, or on the top of the frame). An integer is the number of the last line of the preceding block, the lines of this block being numbered from the next one (overriding `start`).
 /// - precedes (bool, int, content): Wether the block is continued by a next one, as before a page break: its bottom has no radius and no stroke, the footer is only shown if it repeats, and the lang tag is removed if it is on the bottom of the frame. An integer is the largest line number of the following blocks (the number format being applied to it) and content is their widest number (or marker): the number column is made wide enough for it, so that it has the same width in the following blocks.
@@ -590,7 +601,6 @@
       ))
       let manual-highlights = ut
         .single-to-list(highlights)
-        .map(h => hl.format-highlight-style(h, pre-highlights))
         .map(h => hl.format-highlight(h, highlight))
 
       // The raw element without the highlights delimiters is the one displayed
@@ -606,7 +616,14 @@
         code-it,
       )
 
-      [#raw(lang: it.lang, lines.join("\n", default: ""))<uraw-code>]
+      // (`auto` keeps the theme of the original raw element)
+      let theme = cf.category-parser("code", args, it.lang).theme
+      if theme == auto { theme = it.theme }
+      [#raw(
+        lang: it.lang,
+        theme: theme,
+        lines.join("\n", default: ""),
+      )<uraw-code>]
     }
 
     doc

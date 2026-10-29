@@ -20,16 +20,21 @@
   metadata((uraw-indent: contents.pos()))
 }
 
-/// Write lines of pseudo code without numbers (they are not counted, but are indented as the other lines).
+/// Write lines of pseudo code without numbers (they are not counted).
 ///
 /// - contents (arguments): The contents, each one starting a new line.
+/// - indent (bool): Wether the lines are indented as the other lines (in the code), otherwise they span over the numbers and the code (from the left of the frame, without indentation).
 /// -> content
-#let no-number(..contents) = {
+#let no-number(..contents, indent: true) = {
   assert(
     contents.named().len() == 0 and contents.pos().len() > 0,
     message: "`no-number` takes the contents of the lines without numbers.",
   )
-  metadata((uraw-no-number: contents.pos()))
+  assert(
+    type(indent) == bool,
+    message: "The `indent` of `no-number` must be a bool.",
+  )
+  metadata((uraw-no-number: contents.pos(), indent: indent))
 }
 
 // -----------------------------------------------------------------------------
@@ -67,7 +72,7 @@
     let frame = cf.pseudo-category-parser("frame", args)
     let header = cf.pseudo-category-parser("header", args)
     let footer = cf.pseudo-category-parser("footer", args)
-    let number = cf.pseudo-category-parser("number", args)
+    let number = cf.pseudo-category-parser("numbers", args)
     let code = cf.pseudo-category-parser("code", args)
 
     set par(leading: code.line-spacing)
@@ -117,7 +122,7 @@
 
         // Pseudo code has no markers
         let marker = formatting.marker(
-          general + (marker-over-number: false),
+          general + (markers-over-numbers: false),
           number,
           code,
         )
@@ -154,6 +159,7 @@
           nbr-lines,
           with-default-thickness,
         )
+        (frame, header, footer) = formatting.frame-block(frame, header, footer)
 
         // Lines
         let bodies = lines.map(l => formatting.pseudo-line-body(l, code))
@@ -191,7 +197,13 @@
           measure(block(inset: footer.inset, footer.content)).width
         } else { 0mm }
 
-        code-width = me.pseudo-code-width(frame, code-width, bodies)
+        code-width = me.pseudo-code-width(
+          frame,
+          code-width,
+          bodies,
+          lines,
+          pre-width,
+        )
         code-width = me.hf-code-width(
           header-width,
           pre-width,
@@ -210,23 +222,27 @@
         let char-height = measure("#").height
         let lines-height = me.pseudo-lines-height(
           bodies,
+          lines,
           code,
           code-width,
+          pre-width,
           char-height,
         )
 
         // Rendering
 
-        let line-cell(i, height, radius, stroke, fill, extra) = (
+        let line-cell(i, height, radius, stroke, fill, color, extra) = (
           re.pseudo-line-cell(
             lines.at(i),
             bodies.at(i),
             code,
-            code-width,
+            // (a spanning line is also over the columns before the code)
+            code-width + if lines.at(i).spanning { pre-width } else { 0pt },
             height,
             radius,
             stroke,
             fill,
+            color,
             extra,
           )
         )
@@ -249,6 +265,7 @@
           range(nbr-lines).map(_ => ()),
           range(nbr-lines + 1).map(_ => ()),
           line-cell: line-cell,
+          spanning: lines.map(l => l.spanning),
           marker: marker,
           markers-width: markers-width,
           markers: markers,
@@ -256,7 +273,10 @@
         )
 
         block(
-          fill: frame.fill,
+          fill: frame.block.fill,
+          radius: frame.block.radius,
+          stroke: frame.block.stroke,
+          clip: not frame.sharp-page-break,
           width: frame.width,
           height: frame.height,
           breakable: frame.breakable,

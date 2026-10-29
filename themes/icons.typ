@@ -26,5 +26,7 @@
   (("rocq",), (icon: image("icons/rocq.png"))),
 )
 
+#let pre-icons = ut.keys-value-to-dict(pre-icons)
+
 /// A list of icons for common languages.
-#let icons = ut.keys-value-to-dict(pre-icons)
+#let icons = pre-icons.map(i => i.icon)

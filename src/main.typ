@@ -184,7 +184,15 @@
 
         // Comments
         let single-comment(c, g, k) = (
-          formatting.single-comment(c, g, k, number, code, base-style)
+          formatting.single-comment(
+            c,
+            g,
+            k,
+            number,
+            code,
+            base-style,
+            with-default-thickness,
+          )
         )
         let jump-comments = formatting.jump-comments(
           jumps,
@@ -412,6 +420,7 @@
           radius: frame.block.radius,
           stroke: frame.block.stroke,
           clip: not frame.sharp-page-break,
+          sticky: lang-tag.visible and lang-tag.on-frame and is-bottom,
           width: frame.width,
           height: frame.height,
           breakable: frame.breakable,
@@ -428,12 +437,17 @@
             let alignment = re.lang-tag-alignment(lang-tag)
             lang-tag.block = block(
               width: frame.width,
+              sticky: is-top,
+              above: if is-bottom { 0mm } else { auto },
+              below: if is-top { 0mm } else { auto },
               align(alignment, lang-tag.block),
             )
             if is-top {
-              stack(dir: ttb, lang-tag.block, frame-block)
+              lang-tag.block
+              frame-block
             } else {
-              stack(dir: ttb, frame-block, lang-tag.block)
+              frame-block
+              lang-tag.block
             }
           }
         } else {
@@ -449,7 +463,7 @@
 /// - args (arguments): The settings (see `uraw-set`), and the content whose raw blocks are displayed, or some code read from a file with `read-code` (or given by its `path`).
 /// - markers (array, dictionary): The markers of the lines, shown in the marker column (when it is visible), as `(line, content)` or `(line: line, content: content)` on the displayed line numbers. A single one can be given instead of an array.
 /// - highlights (array, dictionary): The highlights of the code, given by `line`, `range`, or `start` and `end`, and some `highlight` settings (a predefined highlight can be spread in it, e.g. `..highlights.alert()`, its delimiters being ignored). A single one can be given instead of an array.
-/// - comments (array, dictionary): The comments of the code, as `(line, content)` (after the line) or a dictionary with `after` or `before` (a line), `content`, and any `comment` setting except `style` (the content being styled directly). The comment starts (`indent`) at the left of the frame (`"frame"`), at the start of the code (`"code"`), at the indentation of the commented line (`"line"`), or there with the indentation guides (`"guideline"`). The marker of a comment (`marker`) is shown in the gutter, in the marker column or the number column (`placement`: `"markers"` or `"numbers"`, the marker column when the numbers are hidden). An empty marker (`marker: []`) keeps the gutter beside the comment, so that its separator is not interrupted. The fill of the gutter beside the comment (`marker-fill`) is the one of the comment when `auto`, and the number fill of the commented line when `none`. A single one can be given instead of an array.
+/// - comments (array, dictionary): The comments of the code, as `(line, content)` (after the line) or a dictionary with `after` or `before` (a line), `content`, and any `comment` setting except `style` (the content being styled directly). The comment starts (`indent`) at the left of the frame (`"frame"`), at the start of the code (`"code"`), at the indentation of the commented line (`"line"`), or there with the indentation guides (`"guideline"`). The marker of a comment (`marker`) is shown in the gutter, in the marker column or the number column (`placement`: `"markers"` or `"numbers"`, the marker column when the numbers are hidden). An empty marker (`marker: []`) keeps the gutter beside the comment, so that its separator is not interrupted. The separators of the comment (`sep`: a stroke, `(top: stroke, bottom: stroke)` or `none`) are drawn inside its top and bottom sides, against code lines and comments without separator on this side (not between two comments with separators, nor against the frame, the header or the footer). The fill of the gutter beside the comment (`marker-fill`) is the number fill of the commented line when `none`, and when `auto`, the fill of the comment, or the number fill of the commented line if the comment has no fill. A single one can be given instead of an array.
 /// - jumps (array, dictionary): The jumps of the number, as `(from, to)` or a dictionary with `from`, `to`, `skip-lines`, and any `jump` setting except `comment-style`. A jump skipping its lines (`skip-lines: true`) does not show the lines between `from` and `to` (which are in the code), instead of only jumping their numbers. A single one can be given instead of an array.
 /// - follows (bool, int): Wether the block continues a previous one, as after a page break: its top has no radius and no stroke, the header is only shown if it repeats, and the lang tag is removed if it is on the top (in the header, in the first line of code, or on the top of the frame). An integer is the number of the last line of the preceding block, the lines of this block being numbered from the next one (overriding `start`).
 /// - precedes (bool, int, content): Wether the block is continued by a next one, as before a page break: its bottom has no radius and no stroke, the footer is only shown if it repeats, and the lang tag is removed if it is on the bottom of the frame. An integer is the largest line number of the following blocks (the number format being applied to it) and content is their widest number (or marker): the number column is made wide enough for it, so that it has the same width in the following blocks.

@@ -780,8 +780,27 @@
 // Comments
 // -----------------------------------------------------------------------------
 
-#let single-comment(comment, gap, key, number, code, base-style) = {
+#let single-comment(comment, gap, key, number, code, base-style, with-dst) = {
   let comment = comment + (gap: gap, key: key)
+
+  // The separators above and below the comment (drawn only against code lines)
+  let sep = comment.at("sep", default: none)
+  let per-side = (
+    type(sep) == dictionary
+      and sep.len() > 0
+      and sep.keys().all(k => k in ("top", "bottom"))
+  )
+  if not per-side { sep = (top: sep, bottom: sep) }
+  comment.sep = (
+    top: with-dst(sep.at("top", default: none)),
+    bottom: with-dst(sep.at("bottom", default: none)),
+  )
+  for s in comment.sep.values() {
+    assert(
+      s == none or type(s) == stroke,
+      message: "The `sep` of a comment must be `none`, a stroke or a dictionary with a `top` and a `bottom` stroke.",
+    )
+  }
 
   assert(
     comment.indent in ("frame", "code", "line", "guideline"),
@@ -798,6 +817,8 @@
   comment.to-indent = comment.indent == "guideline"
   comment.indented = comment.indent in ("line", "guideline")
 
+  // Without fill, the comment looks like the code, so its marker like the numbers
+  if comment.fill == none and comment.marker-fill == auto { comment.marker-fill = none }
   // (`none` for the fill of the frame, when it is not filled itself)
   if comment.fill == none { comment.fill = code.frame-fill }
 
@@ -811,8 +832,9 @@
   // The comments look as they would outside of the raw block, in the color of the code of the line before them (which their style overrides)
   let color = (code.color)(gap - 1)
   comment.body = ut.colored(color, with-style(base-style(), body))
+  // (the marker being colored as the numbers when rendered)
   if comment.marker != none {
-    comment.marker = ut.colored(color, with-style(base-style(), comment.marker))
+    comment.marker = with-style(base-style(), comment.marker)
   }
 
   return comment

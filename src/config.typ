@@ -1,6 +1,6 @@
 #import "highlight.typ" as hl
-#import "../themes/icons.typ": pre-icons
-#import "../themes/pre-themes.typ": pre-default, pseudo-pre-default
+#import "../styling/icons.typ": pre-icons
+#import "../styling/pre-themes.typ": pre-default, pseudo-pre-default
 #import "utils.typ" as ut
 
 // -----------------------------------------------------------------------------
@@ -403,7 +403,7 @@
 /// The current highlights, by name.
 ///
 /// -> dictionary
-#let uraw-list-highlights() = context uncontext-category-getter(
+#let list-highlights() = context uncontext-category-getter(
   "highlights",
   none,
 )
@@ -412,36 +412,18 @@
 ///
 /// - args (arguments): The added highlights as named arguments, the names given will be used to identify the corresponding highlights.
 /// -> content
-#let uraw-add-highlights(..args) = context {
+#let add-highlights(..args) = context {
   no-lang-highlights(args)
   update-highlights(
     uncontext-category-getter("highlights", none) + args.named(),
   )
 }
 
-/// Redefine existing highlights.
-///
-/// - args (arguments): The redefined highlights as named arguments, the names being the ones of existing highlights.
-/// -> content
-#let uraw-set-highlights(..args) = context {
-  no-lang-highlights(args)
-  let old = uncontext-category-getter("highlights", none)
-  for name in args.named().keys() {
-    assert(
-      name in old,
-      message: "There is no highlight named `"
-        + name
-        + "`, use `uraw-add-highlights` to add one.",
-    )
-  }
-  update-highlights(old + args.named())
-}
-
 /// Remove highlights.
 ///
 /// - args (arguments): The names of the removed highlights.
 /// -> content
-#let uraw-remove-highlights(..args) = {
+#let remove-highlights(..args) = {
   uraw-config-state.update(config => {
     for h in args.pos() { let _ = config.highlights.remove(h, default: none) }
     return config
@@ -451,7 +433,7 @@
 /// Reset the highlights to their initial value.
 ///
 /// -> content
-#let uraw-reset-highlights() = {
+#let reset-highlights() = {
   uraw-config-state.update(config => {
     config.highlights = initial-config.highlights
     return config
@@ -480,7 +462,7 @@
 // Set the uraw configurations, specific to a language if one is mentioned.
 ///
 /// - lang (none, str): The language name. If set to `none`, the default configurations are updated.
-/// - args (arguments): uraw settings, by category: **frame**, **header**, **footer**, **numbers**, **marker** (`marker: bool` for its visibility), **code**, **comment**, **jump**, **lang-tag**, **highlights**, **diff** (the settings specific to diffs, see `uraw-diff-set`) (e.g. `header: (fill: red)`), or flat as `category-key` (e.g. `header-fill: red`), except for `width`, `height`, `breakable`, `sharp-page-break` (frame), `start`, `end` (numbers), `line-spacing`, `indentation`, `indent-size`, `theme` (code), the format of the numbers given by `numbers: format` (`none` to hide them) and the visibility of the lang tag given by `lang-tag: bool`. The lang tag settings include **color** (auto | color): the color of its text, `auto` for the color of the code of the first line. The frame settings include **sharp-page-break** (bool): wether the frame has no radius at page breaks: it is then drawn by its cells (the cells on its sides taking its stroke and radius, the cells without fill taking its fill), and otherwise by its block, which clips the cells (its fill, stroke and radius being repeated on each page). The code settings include **indent-size** (auto | int): the number of spaces of an indentation level, `auto` to infer it from the code (the most frequent increase of the leading spaces between consecutive lines, the tab size of the raw block when no line is indented) \ **indented-line-return** (bool): wether the parts of a line broken because it is too long start at the indentation of the line (when it leaves at least half of the width) rather than at the start of the code \ **theme** (auto | none | path | bytes): the syntax highlighting theme of the code (as for `raw`), `auto` for the one of the raw block \ **color** (auto | color | function): the color of the text of the code that the theme does not color (`auto` for the color of the text), or a function of the line number as for `fill`; the numbers, the markers, the comments (under their style), the header and the footer take it when their color is `auto`. And the general settings: **coloring-follow-numbers** (bool): when the numbers are visible, wether the fill and color functions (of the code and of the number) are applied to the displayed line number (which can jump) or to the position of the line \ **line-reference** (none | auto | function): how a reference to the line `k` of a labelled figure (`@label.k`) is displayed after "Listing n": `none` for no line references, `auto` for "Listing n.k", or a function of `k` giving the text to add (", line k" by default) \ **default-stroke-thickness** (length): the length of the strokes and separators given without one (as a color), `.05em` by default \ **markers-over-numbers** (bool): wether the line markers are shown over the numbers (in their column) rather than in a marker column
+/// - args (arguments): uraw settings, by category: **frame**, **header**, **footer**, **numbers**, **marker** (`marker: bool` for its visibility), **code**, **comment**, **jump**, **lang-tag**, **highlights**, **diff** (the settings specific to diffs, see `uraw-diff-set`) (e.g. `header: (fill: red)`), or flat as `category-key` (e.g. `header-fill: red`), except for `width`, `height`, `breakable`, `sharp-page-break` (frame), `start`, `end` (numbers), `line-spacing`, `indentation`, `indent-size`, `theme` (code), the format of the numbers given by `numbers: format` (`none` to hide them) and the visibility of the lang tag given by `lang-tag: bool`. The lang tag settings include **color** (auto | color): the color of its text, `auto` for the color of the code of the first line. The frame settings include **sharp-page-break** (bool): wether the frame has no radius at page breaks: it is then drawn by its cells (the cells on its sides taking its stroke and radius, the cells without fill taking its fill), and otherwise by its block, which clips the cells (its fill, stroke and radius being repeated on each page). The code settings include **indent-size** (auto | int): the number of spaces of an indentation level, `auto` to infer it from the code (the most frequent increase of the leading spaces between consecutive lines, the tab size of the raw block when no line is indented) \ **indented-line-return** (bool): wether the parts of a line broken because it is too long start at the indentation of the line (when it leaves at least half of the width) rather than at the start of the code \ **theme** (auto | none | path | bytes): the syntax highlighting theme of the code (as for `raw`), `auto` for the one of the raw block \ **color** (auto | color | function): the color of the text of the code that the theme does not color (`auto` for the color of the text), or a function of the line number as for `fill`; the numbers, the comments (under their style), the header and the footer take it when their color is `auto`, and the markers (of the lines and of the comments) take the color of the numbers. And the general settings: **coloring-follow-numbers** (bool): when the numbers are visible, wether the fill and color functions (of the code and of the number) are applied to the displayed line number (which can jump) or to the position of the line \ **line-reference** (none | auto | function): how a reference to the line `k` of a labelled figure (`@label.k`) is displayed after "Listing n": `none` for no line references, `auto` for "Listing n.k", or a function of `k` giving the text to add (", line k" by default) \ **default-stroke-thickness** (length): the length of the strokes and separators given without one (as a color), `.05em` by default \ **markers-over-numbers** (bool): wether the line markers are shown over the numbers (in their column) rather than in a marker column
 /// -> content
 #let set-uraw(..args) = {
   // The language, if one is given

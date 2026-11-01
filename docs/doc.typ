@@ -1,5 +1,6 @@
 #import "@mine/ultraw:0.0.1": *
-#import "@preview/octique:0.1.1": *
+#import "@preview/pinit:0.2.2": *
+#import "utils.typ": *
 
 #show heading: text.with(font: "Geist Mono")
 #show heading.where(depth: 1): text.with(30pt)
@@ -29,168 +30,95 @@
   outline(
     title: text(22pt)[Guide],
     target: selector(heading).before(<library>, inclusive: false),
-    depth: 1,
+    // depth: 1,
     indent: 2mm,
   ),
   outline(
     title: text(22pt)[Library],
     target: selector(heading).after(<library>, inclusive: false),
-    depth: 1,
+    // depth: 1,
     indent: 2mm,
   ),
 )
 
 #pagebreak()
 
-#let merge-diagram = {
-  let b(body: none, color: orange) = box(
-    width: .7em,
-    height: .7em,
-    stroke: color,
-    body,
-  )
-  let ls(color) = align(center, line(
-    angle: 90deg,
-    length: 2mm,
-    stroke: (
-      paint: color,
-      dash: "dotted",
-    ),
-  ))
-  let ll(color) = align(center, line(
-    angle: 90deg,
-    length: .7em + 4mm,
-    stroke: (
-      paint: color,
-      dash: "dotted",
-    ),
-  ))
-  let ss(color: black) = stack(
-    dir: ttb,
-    b(color: color),
-    ls(color),
-    b(color: color),
-  )
-  let sl(color: black) = stack(
-    dir: ttb,
-    b(color: color),
-    ll(color),
-    b(color: color),
-  )
-  let st(color: black) = align(top, stack(
-    dir: ttb,
-    spacing: 2mm,
-    b(color: color),
-    b(color: color),
-  ))
-
-  grid(
-    columns: 30,
-    column-gutter: (4mm, 0mm),
-    align: bottom,
-    stack(dir: ttb, spacing: 2mm, [`l1`], [`l2`], [`l`]),
-    ss(),
-    ss(),
-    sl(),
-    ss(),
-    sl(),
-    sl(),
-    sl(),
-    ss(),
-    h(2mm),
-    move(dy: -.35em, line(length: 3.5mm, stroke: (dash: "dotted"))),
-    h(2mm),
-    sl(),
-    ss(),
-    h(2mm),
-    stack(
-      move(dx: .35em, line(length: .35em + 1mm, stroke: (
-        paint: orange,
-        dash: "dotted",
-      ))),
-      align(center, line(angle: 90deg, length: .7em + 3mm, stroke: (
-        paint: orange,
-        dash: "dotted",
-      ))),
-      b(color: orange),
-    ),
-    h(.35em),
-    stack(
-      line(angle: 90deg, length: .7em + 2mm, stroke: .5pt + orange),
-      v(1.05em + 2mm),
-    ),
-    stack(
-      line(length: 7mm, stroke: .5pt + orange),
-      v(.8mm),
-      move(dx: .5mm, text(orange)[$<=$?]),
-      v(1.2mm),
-      line(length: 7mm, stroke: .5pt + orange),
-      v(1.05em + 2mm),
-    ),
-    st(color: orange),
-    h(2mm),
-    st(),
-    st(),
-    h(2mm),
-    stack(
-      line(length: 3.5mm, stroke: (dash: "dotted")),
-      v(.7em + 2mm),
-      line(length: 3.5mm, stroke: (dash: "dotted")),
-      v(1.05em + 2mm),
-    ),
-    h(2mm),
-    st(),
-    st(color: olive),
-  )
-}
-
-#let octique-marker(name, color: black) = move(dy: -.3mm, octique(
-  name,
-  color: color,
-))
+#add-highlights(
+  safety: (
+    ldel: "*$",
+    rdel: "$*",
+    ..highlights.default-style(olive),
+    sticky: true,
+  ),
+  red-code: (
+    ldel: "*r",
+    rdel: "r*",
+    code-style: text.with(red),
+  ),
+  blue-code: (
+    ldel: "*b",
+    rdel: "b*",
+    code-style: text.with(rgb("#4C69C6")),
+  ),
+  rainbow-code: (
+    ldel: "*g",
+    rdel: "g*",
+    code-style: it => box(text(
+      fill: gradient.linear(..color.map.rainbow),
+      it,
+    )),
+  ),
+  pinit: (ldel: "*p", rdel: "p*", code-style: it => pin(it)),
+)
 
 #page(margin: 1cm)[
   #set align(horizon)
-
-  #uraw-add-highlights(
-    safety: (
-      ldel: "*$",
-      rdel: "$*",
-      ..highlights.default-style(olive),
-      sticky: true,
-    ),
-    red-code: (
-      ldel: "*r",
-      rdel: "r*",
-      code-style: text.with(red),
-    ),
-  )
 
   #grid(
     columns: (1fr, auto),
     column-gutter: 1cm,
 
     [
+      #set par(spacing: 1cm)
+
+      #uraw(
+        ..themes.note,
+        width: 100%,
+        highlights: (
+          (
+            line: (9, 13),
+            fill: teal.transparentize(70%),
+            stroke: teal.darken(30%),
+            expand: left,
+          ),
+          (line: 15, fill: gradient.linear(..color.map.flare)),
+        ),
+        ````typ
+        = Using the *|ultraw|* package
+
+        // It is as simple as that:
+        #show: uraw
+
+        You can now write *gbeautifulg* raw
+        text by simply typing it:
+
+        ```rs
+        fn main() {
+            println!("Hello World!");
+        }
+        ```
+
+        == Styling
+
+        *|Markers, highlights, or comments|*
+        are easily defined. You can even
+        write *|pseudo code|* and *|diffs|*.
+        ````,
+      )
+
       #uraw-pseudo(
         width: 100%,
         header: [*Algorithm* Merge Sort],
-        no-number[*Procedure* MERGE($L_1$, $L_2$)],
-        no-number[*Input* $L_1$ and $L_2$ two sorted list],
-        [$n <-$ the length of $L_1$ + the length of $L_2$],
-        [$L_1 <- L_1 + [$_inf_$]$],
-        [$L_2 <- L_2 + [$_inf_$]$],
-        [$L <- []$],
-        [*for* \_ $= 1$ *to* $n$ *do*],
-        indent(
-          [*if* $L_1[0] <= L_2[0]$ *then*],
-          indent[$L <- L + [L_1."pop"(0)]$],
-          [*else*],
-          indent[$L <- L + [L_2."pop"(0)]$],
-          [*end if*],
-        ),
-        [*end for*],
-        [*return* $L$],
-        no-number[],
         no-number[*Procedure* MERGE-SORT($L$)],
         no-number[*Input* $L$ the list to sort],
         [$n <-$ the length of $L$],
@@ -203,28 +131,13 @@
         [$L_1 <-$ MERGE-SORT($L_1$)],
         [$L_2 <-$ MERGE-SORT($L_2$)],
       )
-
-      #set par(spacing: 1cm)
-
-      #uraw(
-        width: 100%,
-        frame-radius: 0mm,
-        frame-stroke: black,
-        numbers: none,
-        header: [#box(height: 1em, icons.py) `Python IDE`],
-        header-fill: silver,
-        ```
-        *r>>>r* merge_sort([3, 4, 1, 6, 0, 2, 5])
-        ... [0, 1, 2, 3, 4, 5, 6]
-        ```,
-      )
     ],
 
     uraw(
-      frame-stroke: black,
-      numbers-sep: black,
-      header: [The Merge Sort algorithm implementation in python.],
-      header-fill: luma(245),
+      frame-stroke: 1pt + luma(235),
+      // numbers-sep: gray,
+      header: [The Merge Sort algorithm's implementation in python.],
+      header-fill: luma(235),
       comment-fill: luma(245),
       line-spacing: 0.8em,
       lang-tag-size: 1em,
@@ -234,9 +147,6 @@
           line: (7, 10),
           ..highlights.default(color: orange),
           fill: orange.transparentize(80%),
-          // expand: left,
-          // stroke: none,
-          // TODO: test how the highlight separation is with stroke on a less perfomant screen + how are strokes not spanning on the whole length created again?
         ),
       ),
       markers: (15, octique-marker("alert", color: red)),
@@ -366,19 +276,7 @@
   radius: 2pt,
   raw(body),
 )
-
-#let source(code, ..args) = uraw(
-  frame-fill: luma(250),
-  frame-stroke: .05em + black,
-  code-inset: (x: 1.6mm, y: 0.25em),
-  numbers-sep: .05em + black,
-  lang-tag-fill: auto,
-  lang-tag-stroke: auto,
-  lang-tag-placement: "top-right",
-  lang-tag-name: "source",
-  ..args,
-  raw(block: code.block, lang: "typ", code.text),
-)
+#let urawf = f("uraw")
 
 = Usage
 
@@ -398,12 +296,12 @@
 
   source(
     precedes: 18,
-    raw(block: true, import-str),
+    raw(block: true, lang: "typ", import-str),
     width: 100%,
   ),
   [],
 
-  grid.cell(colspan: 2)[Change the raw blocks with the #f("uraw") show rule:],
+  grid.cell(colspan: 2)[Change the raw blocks with the #urawf show rule:],
 
   source(
     follows: 1,
@@ -458,7 +356,7 @@
 
   grid.cell(
     colspan: 2,
-  )[#f("uraw") can also be called locally for a specific raw block:],
+  )[#urawf can also be called locally for a specific raw block:],
 
   source(
     follows: 18,
@@ -469,7 +367,7 @@
       frame-radius: 1mm,
 
       code-fill:
-        n => if calc.even(n) { luma(240) },
+        style.zebra(even: luma(240)),
 
       header: [Some Rust code],
       header-fill: auto,
@@ -491,7 +389,7 @@
     #uraw(
       frame-stroke: luma(240),
       frame-radius: 1mm,
-      code-fill: n => if calc.even(n) { luma(240) },
+      code-fill: style.zebra(even: luma(240)),
       header: [Some Rust code],
       header-fill: auto,
       lang-tag-placement: "header",
@@ -539,7 +437,7 @@
   [
     #show: uraw
 
-    #set-uraw(
+    #uraw(
       width: 6.5cm,
       frame-stroke: 1pt + purple,
       frame-radius: (right: 2mm),
@@ -547,29 +445,18 @@
       numbers-fill: purple,
       code-fill: n => purple.lighten(80% + n * 5%),
       lang-tag: false,
+      ```py
+      def main():
+          print("Hello")
+          print("World")
+      ```,
     )
-
-    ```py
-    def main():
-        print("Hello")
-        print("World")
-    ```
-
-    #reset-uraw()
 
     #v(1.35em)
   ],
 )
 
 = Raw blocks
-
-#let frame-col = purple
-#let hf-col = rgb("#6877A1")
-#let num-col = rgb("#D88C9A")
-#let comment-col = rgb("#99C1B9")
-#let code-col = rgb("#F2D0A9")
-#let lang-col = rgb("#AF92C9")
-#let underline-col(col, body) = underline(offset: 2pt, stroke: 2pt + col, body)
 
 #figure(
   uraw(
@@ -601,18 +488,233 @@
     )
     ```,
   ),
-  caption: [The differents components of an #f("uraw") block.],
+  caption: [The differents components of an #urawf block.],
 ) <uraw-block-components>
 
-A block of raw text formatted by #f("uraw") is made of several components. They are all colored differently in @uraw-block-components and their name will be underlined with the corresponding color. The raw text is shown inside of the #underline-col(code-col)[code] part. The #underline-col(num-col)[numbers] and #underline-col(num-col)[markers] are displayed in a gutter on the left. Some #underline-col(comment-col)[comments] may be added to the code, a #underline-col(hf-col)[header] and a #underline-col(hf-col)[footer] can be defined. The #underline-col(lang-col)[lang tag] indicates which coding language is used. Finally, the #underline-col(frame-col)[frame] is the box containg the whole block.
+A block of raw text formatted by #urawf is made of several components. They are all colored differently in @uraw-block-components and their name will be underlined with the corresponding color. The raw text is shown inside of the #underline-col(code-col)[code] part. The #underline-col(num-col)[numbers] and #underline-col(num-col)[markers] are displayed in a gutter on the left. Some #underline-col(comment-col)[comments] may be added to the code, a #underline-col(hf-col)[header] and a #underline-col(hf-col)[footer] can be defined. The #underline-col(lang-col)[lang tag] indicates which coding language is used. Finally, the #underline-col(frame-col)[frame] is the box containg the whole block.
 
-The different parameters of the #f("uraw") function can be inspected #link(<uraw-lib>)[here].
+#alert(icon: "info")[
+  The precise parameters of the #urawf function can be inspected #link(<uraw-lib>)[here].
+]
+
+== Code
+
+Quite some parameters of the code can be set with #urawf, such as appearence (e.g., `theme`, `fill`) or the layout (e.g., `line-spacing`, `indent-size`). Here are some examples illustrating the offered possibilities:
+
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 1cm,
+
+  text(0.8em, source-output(
+    hidden-args: (lang-tag: false, numbers: none),
+    indentation: "purple",
+    indent-size: "1",
+    indented-line-return: "false",
+    code-color: "olive",
+    ```typ
+    #let ex(body) = stack(dir: ttb,
+      spacing: 2mm,
+      [Here is an example I really want to show you:],
+      body
+    )
+    ```,
+  )),
+
+  text(0.8em, source-output(
+    hidden-args: (lang-tag: false, numbers: none),
+    line-spacing: ".88em",
+    code-fill: "style.zebra(odd: luma(240))",
+    theme: "code-themes.github-light",
+    ```typ
+    #let ex(body) = stack(dir: ttb,
+      spacing: 2mm,
+      [Here is an example I really want to show you:],
+      body
+    )
+    ```,
+  )),
+)
+
+== Numbers & Markers
+
+Numbers indicate the code lines numbers and markers can further decorate each line. They both appear in a gutter on the left of the code. The background of this gutter, the color of numbers and markers, or the starting or ending number can be chose as follow:
+
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 1cm,
+
+  text(0.8em, source-output(
+    hidden-args: (
+      lang-tag: false,
+      indentation: silver,
+      highlights: (line: (8, 12), code-style: it => fade(20%, it)),
+    ),
+    start: "8",
+    numbers-align: "left",
+    numbers-fill: "\n    style.zebra(even: yellow, odd: aqua)",
+    markers: "((10, [•]), (11, [•]))",
+    ```typ
+    #let ex(body) = stack(dir: ttb,
+      spacing: 2mm,
+      [Here is an example:],
+      body
+    )
+    ```,
+  )),
+
+  text(0.8em, source-output(
+    hidden-args: (
+      lang-tag: false,
+      indentation: silver,
+      numbers-align: left,
+      highlights: (line: (1, 5), code-style: it => fade(20%, it)),
+    ),
+    numbers: "\"1.\"",
+    numbers-color: "maroon",
+    numbers-sep: "1pt + teal",
+    markers-over-numbers: "true",
+    markers: "(4, $->$)",
+    ```typ
+    #let ex(body) = stack(dir: ttb,
+      spacing: 2mm,
+      [Here is an example:],
+      body
+    )
+    ```,
+  )),
+)
+
+== Header & Footer
+
+
+Each #urawf block can have a header and a footer. Like `grid`s headers and footers, they can be repeated at each page breaks. Their start can also be aligned with the code block. Here are som examples:
+
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 1cm,
+
+  text(0.8em, source(
+    width: 100%,
+    precedes: true,
+    comments: (
+      after: 5,
+      content: text(style: "normal", uraw(
+        width: 100%,
+        lang-tag: false,
+        indentation: silver,
+        numbers-color: silver,
+        highlights: (line: (1, 2), code-style: it => fade(20%, it)),
+        header: [Some basic header],
+        header-color: blue,
+        ```typ
+        #let my-box(body) = box(stroke: purple,
+          body
+        ```,
+      )),
+      fill: white,
+    ),
+    ```typ
+    *b#urawb*(
+      header: [Some basic header],
+      header-color: blue,
+      header-repeat: true,
+    ```,
+  )),
+
+  text(0.8em, source(
+    width: 100%,
+    precedes: true,
+    comments: (
+      after: 5,
+      content: text(style: "normal", {
+        uraw(
+          width: 100%,
+          lang-tag: false,
+          indentation: silver,
+          numbers-color: silver,
+          highlights: (line: (1, 2), code-style: it => fade(20%, it)),
+          ```typ
+          #let my-box(body) = box(stroke: purple,
+            body
+          ```,
+        )
+        v(2.1mm)
+      }),
+      fill: white,
+    ),
+    ```typ
+    *b#urawb*(
+      footer: [Some basic footer],
+      footer-fill: purple.lighten(80%),
+      footer-sep: 1pt + purple,
+      footer-code-aligned: true,
+    ```,
+  )),
+
+  text(0.8em, source(
+    width: 100%,
+    follows: 4,
+    comments: (
+      before: 5,
+      content: text(style: "normal", uraw(
+        width: 100%,
+        start: 3,
+        lang-tag: false,
+        indentation: silver,
+        numbers-color: silver,
+        highlights: (line: 3, code-style: it => fade(20%, it)),
+        header: [Some basic header],
+        header-color: blue,
+        ```typ
+        )
+        ```,
+      )),
+      fill: white,
+    ),
+    ```typ
+    )
+    ```,
+  )),
+
+  text(0.8em, source(
+    width: 100%,
+    follows: 5,
+    comments: (
+      after: 5,
+      content: text(style: "normal", uraw(
+        width: 100%,
+        start: 3,
+        lang-tag: false,
+        indentation: silver,
+        numbers-color: silver,
+        highlights: (line: 3, code-style: it => fade(20%, it)),
+        footer: [Some basic footer],
+        footer-fill: purple.lighten(80%),
+        footer-sep: 1pt + purple,
+        footer-code-aligned: true,
+        ```typ
+        )
+        ```,
+      )),
+      fill: white,
+    ),
+    ```typ
+    )
+    ```,
+  )),
+)
+
+== Lang tag & Frame
+
+The lang tag indicates which language is used and can be placed inside of the code, in the header, or on the frame.
 
 = Highlights
 
 The #ultraw package provides a simple and efficient highlighting that enables one to define highlights directly inside the raw text.
 
-= Comments and jumps
+= Comments & Jumps
+
+= Referencing
 
 = Pseudo code
 
@@ -628,14 +730,8 @@ The #ultraw package provides a simple and efficient highlighting that enables on
 
 = Library <library>
 
-#let alert(body) = grid(
-  columns: 2,
-  column-gutter: 2mm,
-  octique("alert"), body,
-)
-
 #alert[
-  Before going any further, a note about arguments of functions of this package (#f("uraw"), #f("set-uraw"), etc) must be made. Most arguments are grouped by categories (`frame`, `numbers`, etc) to which they refer to. Such arguments can be given under two form: a *grouped form* or a *direct form*. The grouped form groups arguments of the same category together while the direct form points to the arguments directly as follow:
+  Before going any further, a note about arguments of functions of this package (#urawf, #f("set-uraw"), etc) must be made. Most arguments are grouped by categories (`frame`, `numbers`, etc) to which they refer to. Such arguments can be given under two form: a *grouped form* or a *direct form*. The grouped form groups arguments of the same category together while the direct form points to the arguments directly as follow:
 
   #align(center, grid(
     columns: 2,
@@ -654,7 +750,7 @@ The #ultraw package provides a simple and efficient highlighting that enables on
 
 = Arguments forms table <args-forms-table>
 
-== #f("uraw") <uraw-args-forms-table>
+== #urawf <uraw-args-forms-table>
 
 #stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
 
@@ -718,6 +814,7 @@ The #ultraw package provides a simple and efficient highlighting that enables on
     marker........................................................comment-marker
     marker-fill..............................................comment-marker-fill
     placement..................................................comment-placement
+    sep..............................................................comment-sep
     style..........................................................comment-style
   )
   jump: (
@@ -727,6 +824,7 @@ The #ultraw package provides a simple and efficient highlighting that enables on
     comment-marker...........................................jump-comment-marker
     comment-marker-fill.................................jump-comment-marker-fill
     comment-placement.....................................jump-comment-placement
+    comment-sep.................................................jump-comment-sep
     comment-style.............................................jump-comment-style
     skip-lines...................................................jump-skip-lines
   )
@@ -755,7 +853,7 @@ The #ultraw package provides a simple and efficient highlighting that enables on
 
 == #f("uraw-diff")
 
-Arguments from `frame`, `header`, `footer`, `numbers`, `code`, `comment`, `jump`, `highlight`, and `lang-tag` follow the same pattern as the #link(<uraw-args-forms-table>)[#f("uraw") table], the general ones adding the following ones.
+Arguments from `frame`, `header`, `footer`, `numbers`, `code`, `comment`, `jump`, `highlight`, and `lang-tag` follow the same pattern as the #link(<uraw-args-forms-table>)[#urawf table], the general ones adding the following ones.
 
 #stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
 
@@ -793,7 +891,7 @@ Arguments from `frame`, `header`, `footer`, `numbers`, `code`, `comment`, `jump`
 
 == #f("uraw-pseudo")
 
-Arguments from `frame`, `header`, `footer`, `numbers`, and `code` follow the same pattern as the #link(<uraw-args-forms-table>)[#f("uraw") table], except for a specific argument of `code`.
+Arguments from `frame`, `header`, `footer`, `numbers`, and `code` follow the same pattern as the #link(<uraw-args-forms-table>)[#urawf table], except for a specific argument of `code`.
 
 #stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
 

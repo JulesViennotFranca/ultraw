@@ -27,7 +27,9 @@
   // The states (settings, identifier) are read outside of `layout`, whose content can be laid out without them (as when measuring an auto column of a grid)
   context {
     let id = id-counter.get().first()
-    let lang = (new-it, old-it).map(it => it.at("lang", default: none)).find(l => l != none)
+    let lang = (new-it, old-it)
+      .map(it => it.at("lang", default: none))
+      .find(l => l != none)
     let general = cf.diff-category-parser("general", args, lang)
     let with-default-thickness(stroke) = ut.with-default-thickness(
       stroke,
@@ -170,41 +172,54 @@
         for v in ("old", "new") {
           let n = numbers.at(v)
           let single-comment(c, g, k) = (
-            formatting.single-comment(c, g, k, n.number, colored-code, base-style)
+            formatting.single-comment(
+              c,
+              g,
+              k,
+              n.number,
+              colored-code,
+              base-style,
+              with-default-thickness,
+            )
               + (version: v)
           )
           // (without numbers, only the jumps skipping lines have an effect)
           let jumps-of(version) = formatting
             .of-version(entries.jumps, version)
-            .filter(j => number.visible or j.at("skip-lines", default: jump.skip-lines))
-          comments.insert(v, (
-            formatting.jump-comments(
-              jumps-of(v),
-              jump,
-              comment,
-              n.line-index,
-              single-comment,
-              extra: (span: false),
-            )
-              + if v == "new" {
-                formatting
-                  .jump-comments(
-                    jumps-of("both"),
-                    jump,
-                    comment,
-                    n.line-index,
-                    single-comment,
-                  )
-                  .map(c => c + (span: true))
-              }
-              + formatting.comments(
-                formatting.of-version(entries.comments, v),
+            .filter(j => (
+              number.visible or j.at("skip-lines", default: jump.skip-lines)
+            ))
+          comments.insert(
+            v,
+            (
+              formatting.jump-comments(
+                jumps-of(v),
+                jump,
                 comment,
-                n.line-numbers,
+                n.line-index,
                 single-comment,
                 extra: (span: false),
               )
-          ))
+                + if v == "new" {
+                  formatting
+                    .jump-comments(
+                      jumps-of("both"),
+                      jump,
+                      comment,
+                      n.line-index,
+                      single-comment,
+                    )
+                    .map(c => c + (span: true))
+                }
+                + formatting.comments(
+                  formatting.of-version(entries.comments, v),
+                  comment,
+                  n.line-numbers,
+                  single-comment,
+                  extra: (span: false),
+                )
+            ),
+          )
         }
         // The markers of the spanning comments are in the gutter of the old code
         let spanning(c) = c.span and not same-code
@@ -256,7 +271,13 @@
             lines: kept.at(v).map(i => code-lines.at(i)),
             highlights: formatting.highlights(
               entries.highlights.at(v),
-              formatting.diff-changes(diff, v, confs.at(v), highlight, kept.at(v))
+              formatting.diff-changes(
+                diff,
+                v,
+                confs.at(v),
+                highlight,
+                kept.at(v),
+              )
                 + entries.delimited.at(v),
               code-lines,
               k => kept.at(v).at((n.line-index)(k)),
@@ -315,9 +336,7 @@
           let marker = versions.new.marker
           marker.visible = versions.old.marker.visible or marker.visible
           marker.markers = versions.old.marker.markers + marker.markers
-          let markers-width = me
-            .numbers-markers-width(number, marker)
-            .last()
+          let markers-width = me.numbers-markers-width(number, marker).last()
           for v in ("old", "new") {
             versions.at(v).marker.visible = marker.visible
             versions.at(v).markers-width = markers-width
@@ -594,16 +613,21 @@
   comments: (),
   jumps: (),
 ) = {
-  let (pos, first-lines) = args.pos().map(cf.code-input).fold(
-    ((), ()),
-    ((pos, firsts), (it, first)) => (pos + (it,), firsts + (first,)),
-  )
+  let (pos, first-lines) = args
+    .pos()
+    .map(cf.code-input)
+    .fold(
+      ((), ()),
+      ((pos, firsts), (it, first)) => (pos + (it,), firsts + (first,)),
+    )
   assert(
     pos.len() == 2 and pos.all(r => type(r) == content and r.func() == raw),
     message: "`uraw-diff` takes the old and the new raw blocks of code (or the paths of their files).",
   )
   let (old, new) = pos
-  let lang = (new, old).map(it => it.at("lang", default: none)).find(l => l != none)
+  let lang = (new, old)
+    .map(it => it.at("lang", default: none))
+    .find(l => l != none)
   // Settings given by category or flat (e.g. `header-fill`)
   let args = cf.normalize-settings(args.named(), cf.diff-spec)
   let entries = (
@@ -638,9 +662,12 @@
           hl.make-highlight(formatted-pre-highlights.at(del.idx), del),
           highlight,
         )))
-        entries.highlights.insert(v, formatting
-          .of-version(highlights, v)
-          .map(h => hl.format-highlight(h, highlight)))
+        entries.highlights.insert(
+          v,
+          formatting
+            .of-version(highlights, v)
+            .map(h => hl.format-highlight(h, highlight)),
+        )
       }
 
       // (`auto` keeps the theme of each original raw element, a theme set with `set raw` applying when it has none)

@@ -7,6 +7,11 @@
   <string>Typst Dark</string>
   <key>settings</key>
   <array>
+    <!-- The global settings (always the first entry), empty so that the color of the code is kept -->
+    <dict>
+      <key>settings</key>
+      <dict></dict>
+    </dict>
     <dict>
       <key>scope</key>
       <string>comment</string>

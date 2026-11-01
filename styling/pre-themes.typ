@@ -1,5 +1,5 @@
-#import "../themes/highlights.typ" as hl-style
-#import "code.typ": typst-dark
+#import "../styling/highlights.typ" as hl-style
+#import "code.typ": *
 
 // -----------------------------------------------------------------------------
 // Default
@@ -8,7 +8,7 @@
 #let pre-default = (
   general: (
     coloring-follow-numbers: true,
-    default-stroke-thickness: .05em,
+    default-stroke-thickness: .5pt,
     line-reference: it => ", line " + str(it),
     markers-over-numbers: false,
   ),
@@ -27,7 +27,7 @@
     color: auto,
     fill: none,
     height: auto,
-    inset: .5em,
+    inset: 5pt,
     repeat: false,
     sep: auto,
   ),
@@ -37,7 +37,7 @@
     color: auto,
     fill: none,
     height: auto,
-    inset: .5em,
+    inset: 5pt,
     repeat: false,
     sep: auto,
   ),
@@ -52,7 +52,7 @@
     sep: none,
   ),
   code: (
-    inset: (x: .3em),
+    inset: (x: 3pt),
     line-spacing: .65em,
     indentation: gray,
     indent-size: auto,
@@ -68,6 +68,7 @@
     placement: "numbers",
     fill: luma(245),
     style: text.with(style: "italic"),
+    sep: none,
   ),
   jump: (
     skip-lines: false,
@@ -78,11 +79,12 @@
     comment-placement: "numbers",
     comment-fill: none,
     comment-style: auto,
+    comment-sep: auto,
   ),
   highlight: (
     expand: center,
     sticky: auto,
-    radius: 0mm,
+    radius: 1mm,
     fill: none,
     stroke: none,
     code-style: it => it,
@@ -97,7 +99,7 @@
     radius: .2em,
     stroke: none,
     mode: "full",
-    code-spacing: .5em,
+    code-spacing: 5pt,
     placement: "code",
   ),
   highlights: (
@@ -143,7 +145,7 @@
 #let pre-dark = (
   general: (
     coloring-follow-numbers: true,
-    default-stroke-thickness: .05em,
+    default-stroke-thickness: .5pt,
     line-reference: it => ", line " + str(it),
     markers-over-numbers: false,
   ),
@@ -162,7 +164,7 @@
     color: auto,
     fill: none,
     height: auto,
-    inset: .5em,
+    inset: 5pt,
     repeat: false,
     sep: auto,
   ),
@@ -172,7 +174,7 @@
     color: auto,
     fill: none,
     height: auto,
-    inset: .5em,
+    inset: 5pt,
     repeat: false,
     sep: auto,
   ),
@@ -187,7 +189,7 @@
     sep: none,
   ),
   code: (
-    inset: (x: .3em),
+    inset: (x: 3pt),
     line-spacing: .65em,
     indentation: luma(100),
     indent-size: auto,
@@ -203,6 +205,7 @@
     placement: "numbers",
     fill: luma(60),
     style: text.with(style: "italic"),
+    sep: none,
   ),
   jump: (
     skip-lines: false,
@@ -213,11 +216,12 @@
     comment-placement: "numbers",
     comment-fill: none,
     comment-style: auto,
+    comment-sep: auto,
   ),
   highlight: (
     expand: center,
     sticky: auto,
-    radius: 0mm,
+    radius: 1mm,
     fill: none,
     stroke: none,
     code-style: it => it,
@@ -232,7 +236,7 @@
     radius: .2em,
     stroke: none,
     mode: "full",
-    code-spacing: .5em,
+    code-spacing: 5pt,
     placement: "code",
   ),
   highlights: (
@@ -272,13 +276,152 @@
 )
 
 // -----------------------------------------------------------------------------
+// Note
+// -----------------------------------------------------------------------------
+
+// TODO construct the diff version
+
+#let pre-note = (
+  general: (
+    coloring-follow-numbers: true,
+    default-stroke-thickness: .5pt,
+    line-reference: it => ", line " + str(it),
+    markers-over-numbers: false,
+  ),
+  frame: (
+    breakable: true,
+    sharp-page-break: true,
+    fill: luma(250),
+    height: auto,
+    radius: 1mm,
+    stroke: black,
+    width: auto,
+  ),
+  header: (
+    align: left + horizon,
+    code-aligned: false,
+    color: auto,
+    fill: none,
+    height: auto,
+    inset: 5pt,
+    repeat: false,
+    sep: auto,
+  ),
+  footer: (
+    align: left + horizon,
+    code-aligned: false,
+    color: auto,
+    fill: none,
+    height: auto,
+    inset: 5pt,
+    repeat: false,
+    sep: auto,
+  ),
+  numbers: (
+    format: auto,
+    start: auto,
+    end: none,
+    color: auto,
+    fill: auto,
+    inset: auto,
+    align: top + left,
+    sep: black,
+  ),
+  code: (
+    inset: (x: 3pt, y: 2.5pt),
+    line-spacing: .65em,
+    indentation: gray,
+    indent-size: auto,
+    indented-line-return: true,
+    theme: auto,
+    color: auto,
+    fill: none,
+  ),
+  comment: (
+    indent: "frame",
+    marker: none,
+    marker-fill: auto,
+    placement: "numbers",
+    fill: luma(245),
+    style: text.with(style: "italic"),
+    sep: black,
+  ),
+  jump: (
+    skip-lines: false,
+    comment: none,
+    comment-indent: "frame",
+    comment-marker: none,
+    comment-marker-fill: auto,
+    comment-placement: "numbers",
+    comment-fill: none,
+    comment-style: auto,
+    comment-sep: none,
+  ),
+  highlight: (
+    expand: center,
+    sticky: auto,
+    radius: 1mm,
+    fill: none,
+    stroke: none,
+    code-style: it => it,
+  ),
+  lang-tag: (
+    visible: true,
+    color: auto,
+    name: none,
+    size: 0.8em,
+    icon: none,
+    fill: auto,
+    radius: .2em,
+    stroke: auto,
+    mode: "full",
+    code-spacing: 5pt,
+    placement: "top-right",
+  ),
+  highlights: (
+    default: hl-style.default(),
+    alert: hl-style.alert(),
+  ),
+  diff: (
+    general: (
+      line-reference: (k, version) => ", " + version + " line " + str(k),
+      columns: (auto, auto),
+      column-gutter: 0pt,
+      blank-fill: tiling(size: (4pt, 4pt), line(
+        start: (0pt, 4pt),
+        end: (4pt, 0pt),
+        stroke: .3pt + luma(200),
+      )),
+      sep: gray,
+    ),
+    diff-marker: (
+      visible: true,
+      inset: auto,
+      unchanged: [],
+    ),
+    old: (
+      diff-marker: text(red.darken(20%))[-],
+      numbers-color: auto,
+      numbers-fill: rgb("#FF8B85"),
+      fill: red.lighten(75%),
+    ),
+    new: (
+      diff-marker: text(olive)[+],
+      numbers-color: auto,
+      numbers-fill: rgb("#7CCBA7"),
+      fill: rgb("#32C04C").lighten(75%),
+    ),
+  ),
+)
+
+// -----------------------------------------------------------------------------
 // Pseudo
 // -----------------------------------------------------------------------------
 
 #let pseudo-pre-default = (
   general: (
     coloring-follow-numbers: true,
-    default-stroke-thickness: .05em,
+    default-stroke-thickness: .5pt,
     line-reference: it => ", line " + str(it),
     algorithm-figure: true,
   ),
@@ -325,7 +468,7 @@
     inset: (x: .25em),
     line-spacing: .65em,
     indentation: none,
-    indent-size: 1.5em,
+    indent-size: 15pt,
     style: none,
     color: auto,
     fill: none,

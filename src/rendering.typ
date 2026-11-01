@@ -261,6 +261,8 @@
 /// - height (length): The height of the row.
 /// - radius (radius):
 /// - stroke (stroke):
+/// - sep (dictionary): The separators drawn on the top and bottom sides (inside the cell).
+/// - overlap (length): The height of the bottom of the cell covered by the next row.
 /// -> block
 #let comment-cell(
   c,
@@ -269,6 +271,8 @@
   stroke,
   indentation,
   char-width,
+  sep: (top: none, bottom: none),
+  overlap: 0pt,
 ) = {
   block(
     breakable: false,
@@ -281,6 +285,22 @@
     fill: c.fill,
     align(left + horizon, c.body),
   )
+
+  // The separators, inside the visible part of the cell (and inside the frame strokes on its sides)
+  let half(side) = {
+    let s = if type(stroke) == dictionary { stroke.at(side, default: none) }
+    let t = if s != none { std.stroke(s).thickness }
+    if t == none or t == auto { 0pt } else { t / 2 }
+  }
+  for (side, s) in sep.pairs().filter(((_, s)) => s != none) {
+    let t = if s.thickness == auto { 1pt } else { s.thickness }
+    let y = if side == "top" { t / 2 } else { height - overlap - t / 2 }
+    place(left + top, line(
+      start: (half("left"), y),
+      end: (c.width - half("right"), y),
+      stroke: s,
+    ))
+  }
 
   // Add indentation if needed
   if (
@@ -608,6 +628,21 @@
     cells
   }
 
+  // The separators of a comment: against code lines, and against comments without separator on this side (not at the frame, the header or the footer)
+  let separated(q, side) = (
+    0 <= q
+      and q < nr
+      and (
+        rows.at(q).kind == "code" or rows.at(q).comment.sep.at(side) == none
+      )
+  )
+  let comment-sep(r, c) = (
+    top: if separated(r - 1, "bottom") { c.sep.top },
+    bottom: if separated(r + 1, "top") { c.sep.bottom },
+  )
+  // The part of a row covered by the next one
+  let overlap(r) = if r < nr - 1 { -row-gutters.at(r) } else { 0pt }
+
   let row-cells = rows
     .enumerate()
     .map(((r, row)) => {
@@ -668,7 +703,7 @@
             height,
             extra,
             (number.color)(i, number.cells.at(i)),
-            ut.colored((code.color)(i), markers.at(i, default: none)),
+            (number.color)(i, markers.at(i, default: none)),
             (number.fill)(i),
           )
             + (with-sep(code-cell, height),)
@@ -689,18 +724,27 @@
                 full-stroke(r),
                 code.indentation,
                 char-width,
+                sep: comment-sep(r, c),
+                overlap: overlap(r),
               ),
             ),
           )
         } else {
+          // The commented line: the line before for a comment after it, the line after otherwise
+          let k = calc.clamp(
+            if c.copy-before { c.gap - 1 } else { c.gap },
+            0,
+            nl - 1,
+          )
           let fill = if c.marker-fill == auto {
             c.fill
           } else if c.marker-fill == none {
-            // The number fill of the commented line: the line before for a comment after it, the line after otherwise
-            let k = if c.copy-before { c.gap - 1 } else { c.gap }
-            (number.fill)(calc.clamp(k, 0, nl - 1))
+            // (the number fill of the commented line)
+            (number.fill)(k)
           } else { c.marker-fill }
           let in-number = c.placement == "numbers"
+          // (in the color of the numbers)
+          c.marker = (number.color)(k, c.marker)
           (
             gutter-cells(
               r,
@@ -719,6 +763,8 @@
                     code-stroke(r),
                     code.indentation,
                     char-width,
+                    sep: comment-sep(r, c),
+                    overlap: overlap(r),
                   ),
                   height,
                 ),
@@ -972,21 +1018,37 @@
     alignment,
   )
 
-  let number-cell(v, i, k, height, extra, f) = {
+  // The fill of the number of the line `i` of the version `v` (of key `k`)
+  let number-fill(v, i, k) = {
     let conf = versions.at(v).conf
-    let changed = versions.at(v).status.at(i) != "same"
-    let n = versions.at(v).number.cells.at(i)
-    let body = if changed and conf.numbers-color != auto {
-      text(fill: conf.numbers-color, n)
-    } else { (versions.at(v).number.color)(k, n) }
-    let fill = if changed and conf.numbers-fill != auto {
+    if versions.at(v).status.at(i) != "same" and conf.numbers-fill != auto {
       conf.numbers-fill
     } else { (versions.at(v).number.fill)(k) }
+  }
+
+  // The number color of the line `i` of the version `v` (of key `k`), applied to `it`
+  let number-color(v, i, k, it) = {
+    let conf = versions.at(v).conf
+    if versions.at(v).status.at(i) != "same" and conf.numbers-color != auto {
+      ut.colored(conf.numbers-color, it)
+    } else { (versions.at(v).number.color)(k, it) }
+  }
+
+  // The key of each line of each version
+  let line-keys = (old: (:), new: (:))
+  for row in rows.filter(row => row.kind == "line") {
+    for v in ("old", "new") {
+      if row.at(v) != none { line-keys.at(v).insert(str(row.at(v)), row.k) }
+    }
+  }
+
+  let number-cell(v, i, k, height, extra, f) = {
+    let body = number-color(v, i, k, versions.at(v).number.cells.at(i))
     side(
       body,
       versions.at(v).numbers-width,
       number.inset,
-      fill,
+      number-fill(v, i, k),
       number.align,
       height,
       extra,
@@ -1098,10 +1160,27 @@
 
   // A comment in the columns of a version from `from` (with the gutter of the separated new code) to `to` (the code by default), its marker being in the gutter of the version, its text being shifted by `shift` (the gutter of the separated new code by default)
   let comment-cells(v, c, k, from, r, height, extra, to: auto, shift: auto) = {
+    // The separators, only against the code lines (of the version of the comment, when the codes are separated)
+    // The separators: against the code lines and the comments without separator on this side (of the version of the comment, when the codes are separated)
+    let separated(q, side) = {
+      if q < 0 or q >= nr { return false }
+      let row = rows.at(q)
+      let v = if same-code or "span" in rows.at(r) {
+        if row.at("new", default: none) != none { "new" } else { "old" }
+      } else { c.version }
+      if row.kind == "line" { return row.at(v) != none }
+      let n = if "span" in row { row.span } else { row.at(v) }
+      n != none and n.sep.at(side) == none
+    }
+    let sep = (
+      top: if separated(r - 1, "bottom") { c.sep.top },
+      bottom: if separated(r + 1, "top") { c.sep.bottom },
+    )
     let to = if to == auto { key(v, "code") } else { to }
-    let shift = if shift != auto { shift } else if from == "new-gutter" {
-      gutter
-    } else { 0pt }
+    // (a comment with a marker starts at the code, after the gutter of the separated new code)
+    let shift = if shift != auto { shift } else if (
+      from == "new-gutter" and c.marker == none
+    ) { gutter } else { 0pt }
     let c = c + (inset: ut.grow-inset(c.inset, extra))
     c.inset.left += shift
     if c.marker == none {
@@ -1115,13 +1194,24 @@
           f.stroke + if from == "new-gutter" { (left: general.sep) },
           code.indentation,
           char-width,
+          sep: sep,
         )),
       )
     }
 
+    // The commented line: the line before for a comment after it, the line after otherwise
+    let cv = c.version
+    let i = calc.clamp(
+      if c.copy-before { c.gap - 1 } else { c.gap },
+      0,
+      versions.at(cv).status.len() - 1,
+    )
+    let ck = line-keys.at(cv).at(str(i), default: k)
     let fill = if c.marker-fill == auto { c.fill } else if (
       c.marker-fill == none
-    ) { (number.fill)(k) } else { c.marker-fill }
+    ) { number-fill(cv, i, ck) } else { c.marker-fill }
+    // (in the color of the numbers of the commented line)
+    c.marker = number-color(cv, i, ck, c.marker)
     let cells = ()
     if from == "new-gutter" {
       cells.push(blank-cell(
@@ -1162,7 +1252,15 @@
     c.width = width-between(first-code-key, to)
     cells.push(cell(first-code-key, to, with-sep(
       v,
-      comment-cell(c, height, f.radius, f.stroke, code.indentation, char-width),
+      comment-cell(
+        c,
+        height,
+        f.radius,
+        f.stroke,
+        code.indentation,
+        char-width,
+        sep: sep,
+      ),
       height,
     )))
     cells
@@ -1190,11 +1288,14 @@
         if versions.new.marker.visible {
           let m = ("new", "old")
             .filter(mv => row.at(mv) != none)
-            .map(mv => versions.at(mv).markers.at(row.at(mv)))
+            .map(mv => {
+              let m = versions.at(mv).markers.at(row.at(mv))
+              if m != none { number-color(mv, row.at(mv), k, m) }
+            })
             .find(m => m != none)
           cells.push(marker-cell(
             "new",
-            ut.colored((code.color)(k), m),
+            m,
             (number.fill)(k),
             height,
             extra,
@@ -1232,7 +1333,7 @@
           if versions.at(v).marker.visible {
             cells.push(marker-cell(
               v,
-              ut.colored((code.color)(k), versions.at(v).markers.at(row.at(v))),
+              number-color(v, row.at(v), k, versions.at(v).markers.at(row.at(v))),
               (versions.at(v).number.fill)(k),
               height,
               extra,

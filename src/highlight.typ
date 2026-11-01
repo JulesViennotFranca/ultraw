@@ -14,12 +14,12 @@
   let (i_s, j_s) = hl.range.first()
   let (i_e, j_e) = hl.range.last()
   assert(
-    i_s < i_e or (i_s == i_e and j_s < j_e),
+    i_s < i_e or (i_s == i_e and j_s <= j_e),
     message: "There is a empty highlight.",
   )
 }
 
-/// Check that a pre-highlight has different left and right delimiters, and only known settings.
+/// Check that a pre-highlight has delimiters, and only known settings (its left and right delimiters can be the same, a delimiter being matched with the first one after it).
 ///
 /// - hl (dictionary): The pre-highlight.
 /// - style-keys (array): The style settings of a highlight (the keys of the `highlight` settings).
@@ -27,10 +27,6 @@
   ut.check-keys(hl, style-keys + ("ldel", "rdel"), "a highlight")
   assert("ldel" in hl, message: "A highlight has no left delimiter.")
   assert("rdel" in hl, message: "A highlight has no right delimiter.")
-  assert(
-    hl.ldel != hl.rdel,
-    message: "A highlight has the same left and right delimiters.",
-  )
 }
 
 /// Check pre-highlight one by one and ensure that no pre-highlights share delimiters.
@@ -402,7 +398,9 @@
 
 /// The horizontal range of a highlight block on a sub-line (in characters, from the start of the code): the sub-line is shown at its `offset`, and a highlight expanding on the left from the start of a sub-line reaches the start of the code.
 #let block-span(hl, sl, start, end, spaning-start) = (
-  if hl.expand.left and (spaning-start or hl.is-line) and start == 0 { 0 } else {
+  if hl.expand.left and (spaning-start or hl.is-line) and start == 0 {
+    0
+  } else {
     start + sl.offset
   },
   if type(end) == int { end + sl.offset } else { end },
@@ -555,10 +553,6 @@
     if s < x1 and x1 <= e { radius.bottom-right = 0mm }
   }
 
-  let height = (
-    block-top-pad(hl, inset) + char-height + block-bottom-pad(hl, inset)
-  )
-
   // The stroke surrounds the whole highlight: there is none on the touching parts of the top and bottom sides,
   // nor on the broken ends of a highlight with sharp breaks (a highlight that is not sticky)
   let s = hl.stroke
@@ -572,41 +566,62 @@
     )
   }
 
-  // The parts of a touched side not touching the other block, stroked by blocks of their own (to keep the rounded corners)
-  let free-parts(touch) = {
-    let (a, b) = touch
-    ((x0, calc.min(x1, a)), (calc.max(x0, b), x1)).filter(((u, v)) => (
-      v - u > .01pt
-    ))
-  }
-  let side-strokes(side, touch) = if s == none or touch == none { () } else {
-    let (left-corner, right-corner) = (side + "-left", side + "-right")
-    free-parts(touch).map(((u, v)) => place(
-      if side == "top" { top + left } else { bottom + left },
-      dx: u - x0 - outset-left,
-      block(
+  let height = block-top-pad(hl, inset) + char-height + block-bottom-pad(hl, inset)
+
+  // The stroke lies inside the block (so that the next line does not hide it): it is drawn by blocks tighter vertically on its stroked sides.
+  // The width is split where the touched parts of the top and bottom sides start and end, each part being drawn by a whole stroke block clipped to it (to keep the rounded corners)
+  let stroke-blocks = if s == none { () } else {
+    let t = s.thickness
+    let in-touch(touch, x) = touch != none and touch.first() < x and x < touch.last()
+    let cuts = (x0, x1)
+    for touch in (touch-top, touch-bottom).filter(touch => touch != none) {
+      cuts += touch.filter(x => x0 < x and x < x1)
+    }
+    cuts = cuts.dedup().sorted()
+
+    // The parts with the same free (stroked) sides being merged
+    let parts = ()
+    for (u, v) in cuts.windows(2).filter(((u, v)) => v - u > .01pt) {
+      let free = (
+        top: not in-touch(touch-top, (u + v) / 2),
+        bottom: not in-touch(touch-bottom, (u + v) / 2),
+      )
+      if parts.len() > 0 and parts.last().free == free {
+        parts.last().v = v
+      } else { parts.push((u: u, v: v, free: free)) }
+    }
+
+    parts.map(p => {
+      // The outer sides are not clipped, the inner ones go over the next part to join the side stroke of the touching block
+      let u = if p.u == x0 { x0 - t } else { p.u - t / 2 }
+      let v = if p.v == x1 { x1 + t } else { p.v + t / 2 }
+      let dt = if p.free.top { t / 2 } else { 0pt }
+      let db = if p.free.bottom { t / 2 } else { 0pt }
+      place(top + left, dx: u - x0 - outset-left, dy: -t, box(
         width: v - u,
-        height: height,
-        stroke: ((side): s),
-        radius: (
-          (left-corner): if u == x0 { radius.at(left-corner) } else { 0pt },
-          (right-corner): if v == x1 { radius.at(right-corner) } else { 0pt },
-        ),
-      ),
-    ))
+        height: height + 2 * t,
+        clip: true,
+        place(top + left, dx: x0 - u, dy: t + dt, block(
+          width: x1 - x0,
+          height: height - dt - db,
+          radius: radius,
+          stroke: stroke
+            + (
+              top: if p.free.top { s },
+              bottom: if p.free.bottom { s },
+            ),
+        )),
+      ))
+    })
   }
 
   block(
     radius: radius,
     fill: hl.fill,
-    stroke: stroke,
     outset: (left: outset-left),
     width: (end - start) * char-width,
     height: height,
-    {
-      side-strokes("top", touch-top).join()
-      side-strokes("bottom", touch-bottom).join()
-    },
+    stroke-blocks.join(),
   )
 }
 

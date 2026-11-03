@@ -33,6 +33,8 @@
 }
 
 #let frame(frame, lang-tag, with-dst) = {
+  frame.sharp-page-break = frame.sharp-page-break and frame.breakable
+
   frame.radius = ut.full-radius(frame.radius)
   if lang-tag.visible {
     if lang-tag.placement == "top-left" or lang-tag.placement == "left-top" {
@@ -159,9 +161,13 @@
 /// - footer (dictionary): The formatted footer parameters.
 /// - pre-width (length): The width of the columns before the code.
 /// -> array: the header and the footer parameters
-#let align-header-footer(header, footer, pre-width) = {
-  if header.remove("code-aligned") { header.inset.left = pre-width }
-  if footer.remove("code-aligned") { footer.inset.left = pre-width }
+#let align-header-footer(header, footer, pre-width, code) = {
+  if header.remove("code-aligned") {
+    header.inset.left = pre-width + code.inset.left
+  }
+  if footer.remove("code-aligned") {
+    footer.inset.left = pre-width + code.inset.left
+  }
   return (header, footer)
 }
 
@@ -265,6 +271,12 @@
   let line-numbers = ()
   let kept = ()
   let (i, n) = (0, number.start)
+  // (a jump from `start` being taken before the first line)
+  let j = jumps-map.at(str(n - 1), default: none)
+  if j != none {
+    if j.skip-lines { i += j.to - j.from - 1 }
+    n = j.to
+  }
   while i < nbr-lines {
     line-numbers.push(n)
     kept.push(i)
@@ -273,8 +285,9 @@
       (i, n) = (i + 1, n + 1)
     } else {
       if j.skip-lines {
+        // (a jump to `end` skipping exactly the remaining lines)
         assert(
-          i + j.to - j.from < nbr-lines,
+          i + j.to - j.from <= nbr-lines,
           message: "The jump from line "
             + str(j.from)
             + " to line "
@@ -289,7 +302,7 @@
 
   for j in jumps {
     assert(
-      j.from in line-numbers,
+      j.from in line-numbers or j.from == number.start - 1,
       message: "The jump from line "
         + str(j.from)
         + " does not start from a line of the code block.",
@@ -300,6 +313,10 @@
   let indexes = (:)
   for (i, d) in line-numbers.enumerate() {
     if d != none and str(d) not in indexes { indexes.insert(str(d), i) }
+  }
+  // (a jump from `start` comes after the line before the first one)
+  if str(number.start - 1) in jumps-map {
+    indexes.insert(str(number.start - 1), -1)
   }
   let line-index(n) = {
     let i = if type(n) == int { indexes.at(str(n), default: none) }
@@ -335,7 +352,7 @@
 /// -> array
 #let markers(line-markers, comments, marker) = {
   let comment-markers(placement) = comments
-    .filter(c => c.marker != none and c.placement == placement)
+    .filter(c => c.marker != none and c.marker-placement == placement)
     .map(c => c.marker)
 
   // The markers in the number column (by line), and all of them
@@ -429,15 +446,6 @@
 // Lang tag
 // -----------------------------------------------------------------------------
 
-/// Check that the mode of the lang tag is correct.
-///
-/// - mode (str):
-/// -> none
-#let check-lang-tag-mode(mode) = assert(
-  mode == "icon" or mode == "name" or mode == "full",
-  message: "Wrong mode for the language tag.",
-)
-
 /// Check that the placement of the lang tag is correct.
 ///
 /// - plcmt (str):
@@ -508,33 +516,25 @@
   nd
 }
 
-/// Create the content present inside of the lang tag.
-///
-/// - lang (str): The language of the raw code.
-/// - lt (dictionary): The lang tag parameters.
-/// -> box
 #let lang-tag-content(lang, lt) = box(
-  height: .8 * lt.size,
-  ut.colored(lt.color, text(lt.size, if lt.mode == "icon" and lt.icon != none {
-    lt.icon
-  } else if lt.mode == "icon" or lt.mode == "name" {
-    if lt.name != none { lt.name } else { lang }
-  } else {
-    (
-      if lt.icon != none { box(lt.icon) + h(.2em) }
-        + {
-          let name = if lt.name != none { lt.name } else { lang }
-          if (
+  height: .8em,
+  ut.colored(lt.color, {
+    let name = if lt.name != auto { lt.name } else { lang }
+    if lt.icon != none and name != none {
+      (
+        box(lt.icon)
+          + h(.2em)
+          + if (
             (type(name) == str and not name.contains(regex("[A-Z0-9]")))
               or (
                 type(name) == content
                   and "text" in name.fields()
                   and not name.text.contains(regex("[A-Z0-9]"))
               )
-          ) { box(move(dy: -0.1 * lt.size, name)) } else { name }
-        }
-    )
-  })),
+          ) { box(move(dy: -0.1em, name)) } else { name }
+      )
+    } else if name != none { name } else { lt.icon }
+  }),
 )
 
 /// Create the lang tag.
@@ -546,15 +546,6 @@
 #let lang-tag-block(lang, lt, frame) = {
   if not lt.visible { return none }
   let ltc = lang-tag-content(lang, lt)
-
-  /// The stroke of the tag: `auto` for the stroke of the frame (on the given side), `none` for no stroke, a color for a thin stroke of this color.
-  let tag-stroke(frame-stroke) = if lt.stroke == auto {
-    frame-stroke
-  } else if type(lt.stroke) in (color, gradient, tiling) {
-    lt.at("stroke-thickness", default: .05em) + lt.stroke
-  } else {
-    lt.stroke
-  }
 
   if lt.visible and lt.placement not in ("code", "inline", "header") {
     let (is-top, is-left, is-right, is-bottom) = lang-tag-position(lt)
@@ -583,7 +574,7 @@
     let fill = if lt.fill == auto { frame.fill } else { lt.fill }
 
     block(
-      stroke: tag-stroke(frame-stroke),
+      stroke: if lt.stroke == auto { frame-stroke } else { lt.stroke },
       fill: fill,
       radius: radius,
       inset: .25em,
@@ -593,18 +584,11 @@
     )
   } else if lt.visible {
     block(
-      // The height of the tag for a text of size `.8em` is `1.1em`
-      height: 1.2 * lt.size,
-      // The first stroked side of the frame
-      stroke: tag-stroke(
-        ("top", "right", "bottom", "left")
-          .map(side => frame.stroke.at(side))
-          .find(s => s != none),
-      ),
-      // An automatic fill shows the fill of the code or of the header behind it
+      height: 1.2em,
+      stroke: if lt.stroke == auto { none } else { lt.stroke },
       fill: if lt.fill == auto { none } else { lt.fill },
       radius: lt.radius,
-      inset: 0.2 * lt.size,
+      inset: 0.2em,
       ltc,
     )
   }
@@ -612,7 +596,6 @@
 
 #let lang-tag(lang-tag, lang, frame, header, with-dst) = {
   if lang-tag.visible {
-    check-lang-tag-mode(lang-tag.mode)
     check-lang-tag-placement(lang-tag.placement)
   }
 
@@ -780,11 +763,12 @@
 // Comments
 // -----------------------------------------------------------------------------
 
-#let single-comment(comment, gap, key, number, code, base-style, with-dst) = {
+#let single-comment(comment, gap, key, numbers, code, base-style, with-dst) = {
   let comment = comment + (gap: gap, key: key)
 
   // The separators above and below the comment (drawn only against code lines)
   let sep = comment.at("sep", default: none)
+  sep = if sep == auto { numbers.sep } else { sep }
   let per-side = (
     type(sep) == dictionary
       and sep.len() > 0
@@ -807,18 +791,20 @@
     message: "The `indent` of a comment must be \"frame\", \"code\", \"line\" or \"guideline\".",
   )
   assert(
-    comment.placement in ("numbers", "markers"),
+    comment.marker-placement in ("numbers", "markers"),
     message: "The `placement` of a comment marker must be \"numbers\" or \"markers\".",
   )
   // Without numbers, the marker is in the marker column
-  if not number.visible { comment.placement = "markers" }
+  if not numbers.visible { comment.marker-placement = "markers" }
   // A comment with a marker starts after the gutter, so at the start of the code
   comment.in-code = comment.indent != "frame" or comment.marker != none
   comment.to-indent = comment.indent == "guideline"
   comment.indented = comment.indent in ("line", "guideline")
 
   // Without fill, the comment looks like the code, so its marker like the numbers
-  if comment.fill == none and comment.marker-fill == auto { comment.marker-fill = none }
+  if comment.fill == none and comment.marker-fill == auto {
+    comment.marker-fill = none
+  }
   // (`none` for the fill of the frame, when it is not filled itself)
   if comment.fill == none { comment.fill = code.frame-fill }
 
@@ -840,28 +826,25 @@
   return comment
 }
 
-// The comments of the jumps (the style of a comment being given by its content, a jump has no `comment-style`), with the `extra` keys of the jumps (with their default value)
+// The comments of the jumps (the style of a comment being given by its content, a jump has no comment `style`), with the `extra` keys of the jumps (with their default value). A jump gives its comment settings as a comment (e.g. `fill`), and the `jump` settings with a `comment-` prefix.
 #let jump-comments(jumps, jump, comment, line-index, format, extra: (:)) = {
   jumps
     .map(j => {
       ut.check-keys(
         j,
-        jump.keys().filter(k => k != "comment-style")
-          + ("from", "to")
+        ("from", "to", "skip-lines", "comment")
+          + comment.keys().filter(k => k != "style")
           + extra.keys(),
         "a jump",
       )
-      let jc = ut.filter-add-dict(jump, j)
 
       let settings = (:)
-      for (k, v) in jc.pairs() {
-        if k.starts-with("comment-") {
-          let k = k.slice("comment-".len())
-          settings.insert(k, if v == auto { comment.at(k) } else { v })
-        }
+      for k in comment.keys() {
+        let v = j.at(k, default: jump.at("comment-" + k))
+        settings.insert(k, if v == auto { comment.at(k) } else { v })
       }
 
-      let content = jc.comment
+      let content = j.at("comment", default: jump.comment)
       if type(content) == function { content = content(j.from, j.to) }
       if content != none {
         format(
@@ -874,7 +857,7 @@
               content: content,
               copy-before: true,
             ),
-          line-index(j.from) + 1,
+          if j.from == start { 0 } else { line-index(j.from) + 1 },
           none,
         )
       }
@@ -1022,7 +1005,7 @@
     )).height
     // The marker of a comment is in the number or the marker column
     c.height = if c.marker != none {
-      let (width, inset) = if c.placement == "numbers" {
+      let (width, inset) = if c.marker-placement == "numbers" {
         (numbers-width, number.inset)
       } else { (markers-width, marker.inset) }
       calc.max(
@@ -1040,7 +1023,7 @@
 // -----------------------------------------------------------------------------
 
 // The jumps, checked, with wether they skip their lines (`skip-lines`, `none` when it is not supported), and stored by starting line
-#let jumps(jumps, number, skip-lines: false) = {
+#let jumps(jumps, number, nbr-lines, skip-lines: false) = {
   jumps = ut
     .single-to-list(jumps)
     .map(j => {
@@ -1057,16 +1040,9 @@
         message: "A jump must have a `from` and a `to` line.",
       )
       assert(
-        type(j.from) == int and type(j.to) == int,
-        message: "The `from` and `to` lines of a jump must be integers.",
-      )
-      assert(
-        j.from < j.to,
-        message: "The jump from line "
-          + str(j.from)
-          + " to line "
-          + str(j.to)
-          + " must go forward.",
+        (type(j.from) == int or j.from == start)
+          and (type(j.to) == int or j.to == end),
+        message: "The `from` and `to` lines of a jump must be integers (or `start` and `end`).",
       )
       if skip-lines == none {
         assert(
@@ -1079,10 +1055,43 @@
         type(j.skip-lines) == bool,
         message: "The `skip-lines` of a jump must be a boolean.",
       )
+      assert(
+        j.to != end or j.skip-lines,
+        message: "A jump to `end` must skip its lines.",
+      )
       j
     })
     // Without numbers, only the jumps skipping lines have an effect
     .filter(j => number.visible or j.skip-lines)
+
+  // A jump from `start` starts before the first line, and a jump to `end` skips the lines after its start
+  let s = if number.visible { number.start } else { 1 }
+  assert(
+    not number.visible
+      or number.end == none
+      or jumps.all(j => j.from != start and j.to != end),
+    message: "The numbers cannot have an `end` with jumps from `start` or to `end`.",
+  )
+  jumps = jumps
+    .map(j => if j.from == start { j + (from: s - 1) } else { j })
+    .sorted(key: j => j.from)
+  // (the index of a line in the code is its number, minus the numbers jumped by the previous jumps not skipping lines)
+  let jumped = 0
+  for (k, j) in jumps.enumerate() {
+    if j.to == end {
+      jumps.at(k).to = j.from + nbr-lines - (j.from - s - jumped)
+    } else if not j.skip-lines { jumped += j.to - j.from - 1 }
+  }
+  for j in jumps {
+    assert(
+      j.from < j.to,
+      message: "The jump from line "
+        + str(j.from)
+        + " to line "
+        + str(j.to)
+        + " must go forward.",
+    )
+  }
 
   // Store jumps at their starting line
   let jumps-map = (:)
@@ -1473,7 +1482,7 @@
 #let versioned(entries, keys, both: false) = {
   let entries = if (
     type(entries) == dictionary
-      or (entries.len() > 0 and type(entries.first()) in (int, str))
+      or (entries.len() > 0 and type(entries.first()) in (int, str, alignment))
   ) { (entries,) } else { entries }
   let versions = ("old", "new") + if both { ("both",) } else { () }
 
@@ -1530,6 +1539,7 @@
     let (version-jumps, jumps-map) = jumps(
       version-jumps,
       diff-number,
+      nbr-lines.at(version),
       skip-lines: skip-lines,
     )
     let version-number = number(
@@ -1559,15 +1569,21 @@
 
   // (the lines are matched on all the lines of the codes)
   let old-jumps = of-version(diff-jumps, "old")
-  for j in both.sorted(key: j => j.from) {
-    let i = new-to-old.at(new.kept.at((new.line-index)(j.from)))
+  for j in both.sorted(key: j => if j.from == start { -calc.inf } else {
+    j.from
+  }) {
     let old = numbers-of("old", old-jumps)
-    let k = old.kept.position(l => l == i)
-    if i >= 0 and k != none {
-      let from = old.line-numbers.at(k)
+    let from = if j.from == start { start } else {
+      let i = new-to-old.at(new.kept.at((new.line-index)(j.from)))
+      let k = old.kept.position(l => l == i)
+      if i >= 0 and k != none { old.line-numbers.at(k) }
+    }
+    if from != none {
       old-jumps.push((
         from: from,
-        to: from + j.to - j.from,
+        to: if j.to == end { end } else if from == start {
+          old.number.start + j.to - new.number.start
+        } else { from + j.to - j.from },
         skip-lines: j.at("skip-lines", default: skip-lines),
       ))
     }

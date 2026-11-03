@@ -30,7 +30,7 @@
 
 /// Wrap a single element given without a trailing comma (a dictionary, or a pair whose first value is an integer) into an array.
 #let single-to-list(a) = if (
-  type(a) == dictionary or (a.len() == 2 and type(a.first()) == int)
+  type(a) == dictionary or (a.len() == 2 and type(a.first()) in (int, alignment))
 ) {
   (a,)
 } else {

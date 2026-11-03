@@ -104,6 +104,7 @@
         let (jumps, jumps-map) = formatting.jumps(
           jumps,
           number,
+          nbr-numbered,
           skip-lines: none,
         )
         number = formatting.number(
@@ -188,6 +189,7 @@
           header,
           footer,
           pre-width,
+          code,
         )
 
         let header-width = if header.content != none {
@@ -278,7 +280,6 @@
           stroke: frame.block.stroke,
           clip: not frame.sharp-page-break,
           width: frame.width,
-          height: frame.height,
           breakable: frame.breakable,
           frame-content,
         )
@@ -290,7 +291,7 @@
 /// Display pseudo code: lines of content, numbered and framed like raw code.
 ///
 /// - args (arguments): The lines (each content starting a new line, indented with `indent`, without number with `no-number`), and the settings (see `uraw-pseudo-set`).
-/// - jumps (array, dictionary): The jumps in the number, as `(from, to)` pairs or `(from: .., to: ..)` dictionaries. A single one can be given instead of an array.
+/// - jumps (array, dictionary): The jumps in the number, as `(from, to)` pairs or `(from: .., to: ..)` dictionaries, `from` being possibly `start` (before the first line). A single one can be given instead of an array.
 /// -> content
 #let uraw-pseudo(..args, jumps: ()) = {
   // Settings given by category or flat (e.g. `header-fill`)

@@ -1,4 +1,4 @@
-#import "@mine/ultraw:0.0.1": code-themes, style, themes, uraw
+#import "@mine/ultraw:0.0.1": code-themes, get-uraw, style, themes, uraw
 #import "@preview/octique:0.1.1": *
 
 #let merge-diagram = {
@@ -172,3 +172,78 @@
     hide(body),
   ))
 })
+
+#let fade-string = "#let fade(alpha, body) = box(inset: 0pt, {\n
+  body\n
+  place(top + left, box(\n
+    outset: (bottom: 3pt, rest: 1pt),\n
+    fill: white.transparentize(alpha),\n
+    hide(body),\n
+  ))\n
+})"
+
+/// An example: some code, followed by its output in a comment.
+///
+/// - code (raw): The code of the example.
+/// - output-args (dictionary): Arguments given to `uraw` and `uraw-diff` in the example only, as strings (e.g. `(numbers: "none")`).
+/// - hidden-prefix1, hidden-prefix2 (str): Code evaluated before the example, without being shown (before and after the output arguments).
+/// - hidden-suffix (str): Code evaluated after the example, without being shown (e.g. `#reset-uraw()` after a `set-uraw`).
+/// - hidden-raw (bool): Whether the raw blocks of the code (with their delimiters) are skipped. They must not be on the first or last line.
+/// - args (arguments): Arguments of the code block (`source`), with its `comments`.
+#let example(
+  code,
+  output-args: (:),
+  hidden-prefix1: "",
+  hidden-prefix2: "",
+  hidden-suffix: "",
+  ..args,
+) = {
+  let args = args.named()
+  let comments = args.remove("comments", default: ())
+  if type(comments) == dictionary { comments = (comments,) }
+  let output-args = if output-args.len() > 0 {
+    let a = output-args.pairs().map(((k, v)) => k + ": " + v + ",").sum()
+    (
+      "#let uraw = uraw.with("
+        + a
+        + ")\n#let uraw-diff = uraw-diff.with("
+        + a
+        + ")\n"
+    )
+  } else { "" }
+  let output = eval(
+    mode: "markup",
+    "#import \"@mine/ultraw:0.0.1\": *\n\n"
+      + hidden-prefix1
+      + "\n\n"
+      + output-args
+      + "\n\n"
+      + hidden-prefix2
+      + "\n\n"
+      + code.text
+      + "\n\n"
+      + hidden-suffix,
+  )
+  let jumps = args.remove("jumps", default: ())
+  if (
+    type(jumps) == dictionary or jumps.len() > 0 and type(jumps.first()) == int
+  ) { jumps = (jumps,) }
+  source(
+    width: 100%,
+    code-inset: (bottom: 0pt, top: 2.5pt, x: 3pt),
+    jump-comment-fill: none,
+    jump-comment-marker: [],
+    jump-comment-indent: "guideline",
+    ..args,
+    jumps: jumps,
+    comments: comments
+      + (
+        (
+          after: code.text.split("\n").len(),
+          content: std.text(style: "normal", block(width: 100%, output)),
+          fill: white,
+        ),
+      ),
+    raw(block: true, lang: "typ", code.text),
+  )
+}

@@ -19,24 +19,36 @@
   )
 }
 
-/// Check that a pre-highlight has delimiters, and only known settings (its left and right delimiters can be the same, a delimiter being matched with the first one after it).
+/// The style settings of a highlight (the keys of the `highlight` settings).
+#let style-keys = ("expand", "sticky", "radius", "fill", "stroke", "code-style")
+
+/// Check a pre-highlight (a highlight defined by delimiters): its delimiters (`ldel` and `rdel`, or `del` for both, a delimiter being matched with the first one after it) and its style settings. Return it with `ldel` and `rdel`.
 ///
-/// - hl (dictionary): The pre-highlight.
-/// - style-keys (array): The style settings of a highlight (the keys of the `highlight` settings).
-#let check-pre-highlight(hl, style-keys) = {
-  ut.check-keys(hl, style-keys + ("ldel", "rdel"), "a highlight")
-  assert("ldel" in hl, message: "A highlight has no left delimiter.")
-  assert("rdel" in hl, message: "A highlight has no right delimiter.")
+/// - h (dictionary):
+/// -> dictionary
+#let pre-highlight(h) = {
+  assert(type(h) == dictionary, message: "A highlight must be a dictionary.")
+  ut.check-keys(h, style-keys + ("del", "ldel", "rdel"), "a highlight")
+  if "del" in h {
+    assert(
+      not "ldel" in h and not "rdel" in h,
+      message: "A highlight has either `del`, or `ldel` and `rdel`.",
+    )
+    let del = h.remove("del")
+    h += (ldel: del, rdel: del)
+  }
+  assert(
+    "ldel" in h and "rdel" in h,
+    message: "A highlight has no left or right delimiter.",
+  )
+  h
 }
 
-/// Check pre-highlight one by one and ensure that no pre-highlights share delimiters.
+/// Check that no pre-highlights share both delimiters.
 ///
 /// - hls (dictionary): The pre-highlights by name.
-/// - style-keys (array): The style settings of a highlight (the keys of the `highlight` settings).
-#let check-pre-highlights(hls, style-keys) = {
-  hls = hls.values()
-  hls.map(h => check-pre-highlight(h, style-keys))
-
+#let check-pre-highlights(hls) = {
+  let hls = hls.values()
   for i in range(hls.len()) {
     for j in range(i + 1, hls.len()) {
       assert(
@@ -52,16 +64,17 @@
 // -----------------------------------------------------------------------------
 
 /// Convert the horizontal expansion of a highlight (`none`, `left`, `right` or `center`) to the expanded sides.
-#let expand-sides(expand) = {
+#let expand-sides(expand, is-line) = {
   assert(
     expand == none
+      or expand == auto
       or (type(expand) == alignment and expand.axis() == "horizontal"),
     message: "The expansion of a highlight must be `none`, `left`, `right` or `center` (for both), use `sticky` to make it occupy the height of the lines and connect it between lines.",
   )
 
   (
-    left: expand in (left, start, center),
-    right: expand in (right, end, center),
+    left: expand in (left, start, center) or (expand == auto and is-line),
+    right: expand in (right, end, center) or (expand == auto and is-line),
   )
 }
 
@@ -146,7 +159,7 @@
     (s, e)
   }
 
-  let expand = expand-sides(style.expand)
+  let expand = expand-sides(style.expand, is-line)
   // By default, only the highlights on whole lines are sticky
   let sticky = if style.sticky == auto { is-line } else { style.sticky }
   (
@@ -566,13 +579,17 @@
     )
   }
 
-  let height = block-top-pad(hl, inset) + char-height + block-bottom-pad(hl, inset)
+  let height = (
+    block-top-pad(hl, inset) + char-height + block-bottom-pad(hl, inset)
+  )
 
   // The stroke lies inside the block (so that the next line does not hide it): it is drawn by blocks tighter vertically on its stroked sides.
   // The width is split where the touched parts of the top and bottom sides start and end, each part being drawn by a whole stroke block clipped to it (to keep the rounded corners)
   let stroke-blocks = if s == none { () } else {
     let t = s.thickness
-    let in-touch(touch, x) = touch != none and touch.first() < x and x < touch.last()
+    let in-touch(touch, x) = (
+      touch != none and touch.first() < x and x < touch.last()
+    )
     let cuts = (x0, x1)
     for touch in (touch-top, touch-bottom).filter(touch => touch != none) {
       cuts += touch.filter(x => x0 < x and x < x1)

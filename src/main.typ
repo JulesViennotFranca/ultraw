@@ -1,6 +1,7 @@
 #import "content.typ" as ct
 #import "formatting.typ" as formatting
 #import "highlight.typ" as hl
+#import "../styling/highlights.typ" as hs
 #import "measure.typ" as me
 #import "rendering.typ" as re
 #import "config.typ" as cf
@@ -119,7 +120,16 @@
         if number.start == auto { number.start = first-line }
 
         // Basic formatting
-        lang-tag.visible = lang-tag.visible and it.lang != none
+        lang-tag.visible = (
+          lang-tag.visible
+            and not (
+              lang-tag.icon == none
+                and (
+                  lang-tag.name == none
+                    or (lang-tag.name == auto and it.lang == none)
+                )
+            )
+        )
         // The lang tag is removed from the open sides
         if (
           follows
@@ -153,6 +163,7 @@
         let (jumps, jumps-map) = formatting.jumps(
           jumps,
           number,
+          it.lines.len(),
           skip-lines: jump.skip-lines,
         )
         let nbr-lines = it.lines.len() - formatting.nbr-skipped(jumps)
@@ -235,16 +246,22 @@
           with-default-thickness,
         )
 
-        // The open sides have no radius and no stroke, the header and footer are only shown if they repeat
+        // The open sides have no radius, no stroke and no code inset, the header and footer are only shown if they repeat
         if follows {
-          if not header.repeat { header.content = none }
+          if not header.repeat {
+            header.content = none
+            code.edge.top = 0pt
+          }
           header.radius = (:)
           frame.radius.top-left = 0pt
           frame.radius.top-right = 0pt
           frame.stroke.top = none
         }
         if precedes {
-          if not footer.repeat { footer.content = none }
+          if not footer.repeat {
+            footer.content = none
+            code.edge.bottom = 0pt
+          }
           footer.radius = (:)
           frame.radius.bottom-left = 0pt
           frame.radius.bottom-right = 0pt
@@ -280,7 +297,7 @@
         lang-tag.insert(
           "width",
           if lang-tag.visible and lang-tag.in-code {
-            measure(lang-tag.block).width + lang-tag.code-spacing.to-absolute()
+            measure(lang-tag.block).width + lang-tag.spacing.to-absolute()
           },
         )
 
@@ -318,13 +335,14 @@
           header,
           footer,
           pre-width,
+          code,
         )
 
         let header-width = if header.content != none {
           (
             measure(block(inset: header.inset, header.content)).width
               + if header.tag != none {
-                measure(header.tag).width + lang-tag.code-spacing.to-absolute()
+                measure(header.tag).width + lang-tag.spacing.to-absolute()
               } else { 0pt }
           )
         } else { 0mm }
@@ -422,7 +440,6 @@
           clip: not frame.sharp-page-break,
           sticky: lang-tag.visible and lang-tag.on-frame and is-bottom,
           width: frame.width,
-          height: frame.height,
           breakable: frame.breakable,
           frame-content,
         )
@@ -430,7 +447,7 @@
         if lang-tag.visible and lang-tag.on-frame {
           if is-left or is-right {
             block({
-              re.place-frame-lang-tag(lang-tag, lang-tag.block)
+              re.place-frame-lang-tag(lang-tag, lang-tag.block, frame)
               frame-block
             })
           } else {
@@ -464,9 +481,9 @@
 /// - markers (array, dictionary): The markers of the lines, shown in the marker column (when it is visible), as `(line, content)` or `(line: line, content: content)` on the displayed line numbers. A single one can be given instead of an array.
 /// - highlights (array, dictionary): The highlights of the code, given by `line`, `range`, or `start` and `end`, and some `highlight` settings (a predefined highlight can be spread in it, e.g. `..highlights.alert()`, its delimiters being ignored). A single one can be given instead of an array.
 /// - comments (array, dictionary): The comments of the code, as `(line, content)` (after the line) or a dictionary with `after` or `before` (a line), `content`, and any `comment` setting except `style` (the content being styled directly). The comment starts (`indent`) at the left of the frame (`"frame"`), at the start of the code (`"code"`), at the indentation of the commented line (`"line"`), or there with the indentation guides (`"guideline"`). The marker of a comment (`marker`) is shown in the gutter, in the marker column or the number column (`placement`: `"markers"` or `"numbers"`, the marker column when the numbers are hidden). An empty marker (`marker: []`) keeps the gutter beside the comment, so that its separator is not interrupted. The separators of the comment (`sep`: a stroke, `(top: stroke, bottom: stroke)` or `none`) are drawn inside its top and bottom sides, against code lines and comments without separator on this side (not between two comments with separators, nor against the frame, the header or the footer). The fill of the gutter beside the comment (`marker-fill`) is the number fill of the commented line when `none`, and when `auto`, the fill of the comment, or the number fill of the commented line if the comment has no fill. A single one can be given instead of an array.
-/// - jumps (array, dictionary): The jumps of the number, as `(from, to)` or a dictionary with `from`, `to`, `skip-lines`, and any `jump` setting except `comment-style`. A jump skipping its lines (`skip-lines: true`) does not show the lines between `from` and `to` (which are in the code), instead of only jumping their numbers. A single one can be given instead of an array.
-/// - follows (bool, int): Wether the block continues a previous one, as after a page break: its top has no radius and no stroke, the header is only shown if it repeats, and the lang tag is removed if it is on the top (in the header, in the first line of code, or on the top of the frame). An integer is the number of the last line of the preceding block, the lines of this block being numbered from the next one (overriding `start`).
-/// - precedes (bool, int, content): Wether the block is continued by a next one, as before a page break: its bottom has no radius and no stroke, the footer is only shown if it repeats, and the lang tag is removed if it is on the bottom of the frame. An integer is the largest line number of the following blocks (the number format being applied to it) and content is their widest number (or marker): the number column is made wide enough for it, so that it has the same width in the following blocks.
+/// - jumps (array, dictionary): The jumps of the number, as `(from, to)` or a dictionary with `from`, `to`, `skip-lines`, its `comment`, and the settings of this comment, named as for a comment (e.g. `fill`, not `comment-fill`). A jump skipping its lines (`skip-lines: true`) does not show the lines between `from` and `to` (which are in the code), instead of only jumping their numbers. A jump can start from `start` (before the first line) and, when skipping its lines, go to `end` (skipping the lines after `from`). A single one can be given instead of an array.
+/// - follows (bool, int): Wether the block continues a previous one, as after a page break: its top has no radius, no stroke and no vertical code inset (unless the header repeats), the header is only shown if it repeats, and the lang tag is removed if it is on the top (in the header, in the first line of code, or on the top of the frame). An integer is the number of the last line of the preceding block, the lines of this block being numbered from the next one (overriding `start`).
+/// - precedes (bool, int, content): Wether the block is continued by a next one, as before a page break: its bottom has no radius, no stroke and no vertical code inset (unless the footer repeats), the footer is only shown if it repeats, and the lang tag is removed if it is on the bottom of the frame. An integer is the largest line number of the following blocks (the number format being applied to it) and content is their widest number (or marker): the number column is made wide enough for it, so that it has the same width in the following blocks.
 /// -> content
 #let uraw(
   ..args,
@@ -594,50 +611,61 @@
       )
     }
 
-    show raw.where(block: true): it => context {
-      set text(1.25em)
+    // (for a single raw block, only this one: a raw block in one of its comments would take its comments, and be shown again inside itself)
+    let single = type(doc) == content and doc.func() == raw
+    show raw.where(block: true): it => if single and it.text != doc.text {
+      it
+    } else {
+      context {
+        set text(1.25em)
 
-      // The default values of the highlights
-      let highlight = cf.category-parser("highlight", args, it.lang)
+        // The default values of the highlights
+        let highlight = cf.category-parser("highlight", args, it.lang)
 
-      // Reading highlights from the raw text
-      let pre-highlights = cf.uncontext-category-getter("highlights", none)
-      let formatted-pre-highlights = pre-highlights
-        .values()
-        .map(h => hl.format-pre-highlight(h, highlight))
-      let (dels, lines) = hl.parse-delimiters(
-        it.lines.map(l => l.text),
-        formatted-pre-highlights,
-      )
-      let delimited-highlights = dels.map(del => hl.make-highlight(
-        formatted-pre-highlights.at(del.idx),
-        del,
-      ))
-      let manual-highlights = ut
-        .single-to-list(highlights)
-        .map(h => hl.format-highlight(h, highlight))
+        // Reading highlights from the raw text
+        let pre-highlights = hs.list()
+        let formatted-pre-highlights = pre-highlights
+          .values()
+          .map(h => hl.format-pre-highlight(h, highlight))
+        let (dels, lines) = hl.parse-delimiters(
+          it.lines.map(l => l.text),
+          formatted-pre-highlights,
+        )
+        let delimited-highlights = dels.map(del => hl.make-highlight(
+          formatted-pre-highlights.at(del.idx),
+          del,
+        ))
+        let manual-highlights = ut
+          .single-to-list(highlights)
+          .map(h => hl.format-highlight(h, highlight))
 
-      // The raw element without the highlights delimiters is the one displayed
-      show <uraw-code>: code-it => raw-to-uraw(
-        args,
-        markers,
-        manual-highlights,
-        delimited-highlights.map(h => hl.format-highlight(h, highlight)),
-        comments,
-        jumps,
-        base-style,
-        first-line,
-        code-it,
-      )
+        // The raw element without the highlights delimiters is the one displayed (only this one: a raw block in a comment is another one)
+        let shown-text = lines.join("\n", default: "")
+        show <uraw-code>: code-it => if code-it.text != shown-text {
+          code-it
+        } else {
+          raw-to-uraw(
+            args,
+            markers,
+            manual-highlights,
+            delimited-highlights.map(h => hl.format-highlight(h, highlight)),
+            comments,
+            jumps,
+            base-style,
+            first-line,
+            code-it,
+          )
+        }
 
-      // (`auto` keeps the theme of the original raw element)
-      let theme = cf.category-parser("code", args, it.lang).theme
-      if theme == auto { theme = it.theme }
-      [#raw(
-        lang: it.lang,
-        theme: theme,
-        lines.join("\n", default: ""),
-      )<uraw-code>]
+        // (`auto` keeps the theme of the original raw element)
+        let theme = cf.category-parser("code", args, it.lang).theme
+        if theme == auto { theme = it.theme }
+        [#raw(
+          lang: it.lang,
+          theme: theme,
+          shown-text,
+        )<uraw-code>]
+      }
     }
 
     doc

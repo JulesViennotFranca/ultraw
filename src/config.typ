@@ -61,8 +61,6 @@
   let config = pre-default
   config.header += (content: none)
   config.footer += (content: none)
-  // The highlights are stored as given, their missing style fields take the `highlight` settings when displayed
-  let _ = hl.check-pre-highlights(config.highlights, config.highlight.keys())
   config
 }
 
@@ -267,7 +265,6 @@
   ),
   (
     width: ("frame", "width"),
-    height: ("frame", "height"),
     breakable: ("frame", "breakable"),
     sharp-page-break: ("frame", "sharp-page-break"),
     start: ("numbers", "start"),
@@ -291,7 +288,6 @@
   uraw-spec.categories.keys() + diff-categories,
   (
     width: ("frame", "width"),
-    height: ("frame", "height"),
     breakable: ("frame", "breakable"),
     sharp-page-break: ("frame", "sharp-page-break"),
     start: ("numbers", "start"),
@@ -313,7 +309,6 @@
   ("general", "frame", "header", "footer", "numbers", "code"),
   (
     width: ("frame", "width"),
-    height: ("frame", "height"),
     breakable: ("frame", "breakable"),
     sharp-page-break: ("frame", "sharp-page-break"),
     start: ("numbers", "start"),
@@ -379,68 +374,6 @@
 }
 
 // -----------------------------------------------------------------------------
-// Highlights
-// -----------------------------------------------------------------------------
-
-/// The highlights do not depend on the language of the code.
-#let no-lang-highlights(args) = assert(
-  args.pos().len() == 0,
-  message: "The highlights do not depend on the language, they are given by name.",
-)
-
-/// Check and store the highlights.
-#let update-highlights(pre-highlights) = {
-  let _ = hl.check-pre-highlights(
-    pre-highlights,
-    uncontext-category-getter("highlight", none).keys(),
-  )
-  uraw-config-state.update(config => {
-    config.highlights = pre-highlights
-    return config
-  })
-}
-
-/// The current highlights, by name.
-///
-/// -> dictionary
-#let list-highlights() = context uncontext-category-getter(
-  "highlights",
-  none,
-)
-
-/// Add highlights.
-///
-/// - args (arguments): The added highlights as named arguments, the names given will be used to identify the corresponding highlights.
-/// -> content
-#let add-highlights(..args) = context {
-  no-lang-highlights(args)
-  update-highlights(
-    uncontext-category-getter("highlights", none) + args.named(),
-  )
-}
-
-/// Remove highlights.
-///
-/// - args (arguments): The names of the removed highlights.
-/// -> content
-#let remove-highlights(..args) = {
-  uraw-config-state.update(config => {
-    for h in args.pos() { let _ = config.highlights.remove(h, default: none) }
-    return config
-  })
-}
-
-/// Reset the highlights to their initial value.
-///
-/// -> content
-#let reset-highlights() = {
-  uraw-config-state.update(config => {
-    config.highlights = initial-config.highlights
-    return config
-  })
-}
-
-// -----------------------------------------------------------------------------
 // Main functions
 // -----------------------------------------------------------------------------
 
@@ -462,7 +395,7 @@
 // Set the uraw configurations, specific to a language if one is mentioned.
 ///
 /// - lang (none, str): The language name. If set to `none`, the default configurations are updated.
-/// - args (arguments): uraw settings, by category: **frame**, **header**, **footer**, **numbers**, **marker** (`marker: bool` for its visibility), **code**, **comment**, **jump**, **lang-tag**, **highlights**, **diff** (the settings specific to diffs, see `uraw-diff-set`) (e.g. `header: (fill: red)`), or flat as `category-key` (e.g. `header-fill: red`), except for `width`, `height`, `breakable`, `sharp-page-break` (frame), `start`, `end` (numbers), `line-spacing`, `indentation`, `indent-size`, `theme` (code), the format of the numbers given by `numbers: format` (`none` to hide them) and the visibility of the lang tag given by `lang-tag: bool`. The lang tag settings include **color** (auto | color): the color of its text, `auto` for the color of the code of the first line. The frame settings include **sharp-page-break** (bool): wether the frame has no radius at page breaks: it is then drawn by its cells (the cells on its sides taking its stroke and radius, the cells without fill taking its fill), and otherwise by its block, which clips the cells (its fill, stroke and radius being repeated on each page). The code settings include **indent-size** (auto | int): the number of spaces of an indentation level, `auto` to infer it from the code (the most frequent increase of the leading spaces between consecutive lines, the tab size of the raw block when no line is indented) \ **indented-line-return** (bool): wether the parts of a line broken because it is too long start at the indentation of the line (when it leaves at least half of the width) rather than at the start of the code \ **theme** (auto | none | path | bytes): the syntax highlighting theme of the code (as for `raw`), `auto` for the one of the raw block \ **color** (auto | color | function): the color of the text of the code that the theme does not color (`auto` for the color of the text), or a function of the line number as for `fill`; the numbers, the comments (under their style), the header and the footer take it when their color is `auto`, and the markers (of the lines and of the comments) take the color of the numbers. And the general settings: **coloring-follow-numbers** (bool): when the numbers are visible, wether the fill and color functions (of the code and of the number) are applied to the displayed line number (which can jump) or to the position of the line \ **line-reference** (none | auto | function): how a reference to the line `k` of a labelled figure (`@label.k`) is displayed after "Listing n": `none` for no line references, `auto` for "Listing n.k", or a function of `k` giving the text to add (", line k" by default) \ **default-stroke-thickness** (length): the length of the strokes and separators given without one (as a color), `.05em` by default \ **markers-over-numbers** (bool): wether the line markers are shown over the numbers (in their column) rather than in a marker column
+/// - args (arguments): uraw settings, by category: **frame**, **header**, **footer**, **numbers**, **marker** (`marker: bool` for its visibility), **code**, **comment**, **jump**, **lang-tag**, **diff** (the settings specific to diffs, see `uraw-diff-set`) (e.g. `header: (fill: red)`), or flat as `category-key` (e.g. `header-fill: red`), except for `width`, `breakable`, `sharp-page-break` (frame), `start`, `end` (numbers), `line-spacing`, `indentation`, `indent-size`, `theme` (code), the format of the numbers given by `numbers: format` (`none` to hide them) and the visibility of the lang tag given by `lang-tag: bool`. The lang tag settings include **color** (auto | color): the color of its text, `auto` for the color of the code of the first line. The frame settings include **sharp-page-break** (bool): wether the frame has no radius at page breaks: it is then drawn by its cells (the cells on its sides taking its stroke and radius, the cells without fill taking its fill), and otherwise by its block, which clips the cells (its fill, stroke and radius being repeated on each page). The code settings include **indent-size** (auto | int): the number of spaces of an indentation level, `auto` to infer it from the code (the most frequent increase of the leading spaces between consecutive lines, the tab size of the raw block when no line is indented) \ **indented-line-return** (bool): wether the parts of a line broken because it is too long start at the indentation of the line (when it leaves at least half of the width) rather than at the start of the code \ **theme** (auto | none | path | bytes): the syntax highlighting theme of the code (as for `raw`), `auto` for the one of the raw block \ **color** (auto | color | function): the color of the text of the code that the theme does not color (`auto` for the color of the text), or a function of the line number as for `fill`; the numbers, the comments (under their style), the header and the footer take it when their color is `auto`, and the markers (of the lines and of the comments) take the color of the numbers. And the general settings: **coloring-follow-numbers** (bool): when the numbers are visible, wether the fill and color functions (of the code and of the number) are applied to the displayed line number (which can jump) or to the position of the line \ **line-reference** (none | auto | function): how a reference to the line `k` of a labelled figure (`@label.k`) is displayed after "Listing n": `none` for no line references, `auto` for "Listing n.k", or a function of `k` giving the text to add (", line k" by default) \ **default-stroke-thickness** (length): the length of the strokes and separators given without one (as a color), `.05em` by default \ **markers-over-numbers** (bool): wether the line markers are shown over the numbers (in their column) rather than in a marker column
 /// -> content
 #let set-uraw(..args) = {
   // The language, if one is given
@@ -472,9 +405,6 @@
     if sec in settings {
       category-setter(sec, arguments(..lang, ..settings.at(sec)))
     }
-  }
-  if "highlights" in settings {
-    uraw-set-highlights(..lang, ..settings.highlights)
   }
 }
 
@@ -529,7 +459,7 @@
 /// -> dictionary
 #let get-uraw-pseudo() = uraw-pseudo-config-state.get()
 
-/// Set the settings of pseudo code, by category (**general**, **frame**, **header**, **footer**, **numbers**, **code**) or flat (`category-key`, with the shortcuts `width`, `height`, `breakable`, `sharp-page-break`, `start`, `end`, `line-spacing`, `indentation`, `indent-size`, `style`, the general settings, and `numbers: format` for the format of the numbers). They are the same as for raw code, except for the code settings **indent-size** (length): the width of an indentation level, **style** (none | function): the style of the lines (`none` for the style of the document, or a function applied to the content of each line), and the general setting **algorithm-figure** (bool): wether a figure containing pseudo code is an "Algorithm" (with its own number) instead of a "Figure".
+/// Set the settings of pseudo code, by category (**general**, **frame**, **header**, **footer**, **numbers**, **code**) or flat (`category-key`, with the shortcuts `width`, `breakable`, `sharp-page-break`, `start`, `end`, `line-spacing`, `indentation`, `indent-size`, `style`, the general settings, and `numbers: format` for the format of the numbers). They are the same as for raw code, except for the code settings **indent-size** (length): the width of an indentation level, **style** (none | function): the style of the lines (`none` for the style of the document, or a function applied to the content of each line), and the general setting **algorithm-figure** (bool): wether a figure containing pseudo code is an "Algorithm" (with its own number) instead of a "Figure".
 /// -> content
 #let set-uraw-pseudo(..args) = {
   assert(
@@ -616,20 +546,40 @@
   flat
 }
 
-/// Make a theme of `uraw` from a pre-theme (as the ones of `pre-themes`: the settings by category, with the defined `highlights` and the settings specific to diffs in `diff`), given with `uraw(..theme)` or `set-uraw(..theme)`: its flat settings, without the defined highlights (added with `uraw-add-highlights`), the settings of diffs, and the `none` name and icon of the lang tag (so that the ones of the languages apply). The settings given after the theme override it (`uraw(..theme, header: [Title])` keeps the other header settings of the theme).
+/// The settings by category of `base` overridden by the ones of `pre-theme` (a setting is replaced, not merged with the one of `base`).
+#let merge-categories(base, pre-theme) = (
+  base
+    + pre-theme
+      .pairs()
+      .map(((c, s)) => (c, base.at(c, default: (:)) + s))
+      .to-dict()
+)
+
+/// A pre-theme of `uraw` completed with the default settings (`pre-default`), the ones of `diff` included.
+#let complete-pre-theme(pre-theme) = {
+  ut.check-keys(
+    pre-theme,
+    uraw-spec.categories.keys() + ("diff",),
+    "a pre-theme",
+  )
+  let diff = merge-categories(pre-default.diff, pre-theme.at(
+    "diff",
+    default: (:),
+  ))
+  merge-categories(pre-default, pre-theme) + (diff: diff)
+}
+
+/// Make a theme of `uraw` from a pre-theme (the settings by category which differ from the default ones, as the ones of `pre-themes`, with the settings specific to diffs in `diff`), given with `uraw(..theme)` or `set-uraw(..theme)`: its flat settings (all of them, the missing ones being the default ones, so that a theme does not depend on the settings set before), without the settings of diffs, and the `none` name and icon of the lang tag (so that the ones of the languages apply). The settings given after the theme override it (`uraw(..theme, header: [Title])` keeps the other header settings of the theme).
 ///
 /// - pre-theme (dictionary):
 /// -> dictionary
 #let make-theme(pre-theme) = {
-  ut.check-keys(
-    pre-theme,
-    uraw-spec.categories.keys() + ("highlights", "diff"),
-    "a pre-theme",
-  )
-  flatten-theme(
-    pre-theme.pairs().filter(((k, _)) => k in uraw-spec.categories).to-dict(),
-    uraw-spec,
-  )
+  let pre-theme = complete-pre-theme(pre-theme)
+  let theme = pre-theme
+    .pairs()
+    .filter(((k, _)) => k in uraw-spec.categories)
+    .to-dict()
+  flatten-theme(theme, uraw-spec)
 }
 
 /// Make a theme of `uraw-diff` from a pre-theme (see `make-theme`), given with `uraw-diff(..theme)` or `set-uraw-diff(..theme)`: its flat settings, the ones of its `diff` overriding the other ones.
@@ -637,11 +587,7 @@
 /// - pre-theme (dictionary):
 /// -> dictionary
 #let make-diff-theme(pre-theme) = {
-  ut.check-keys(
-    pre-theme,
-    uraw-spec.categories.keys() + ("highlights", "diff"),
-    "a pre-theme",
-  )
+  let pre-theme = complete-pre-theme(pre-theme)
   let theme = pre-theme
     .pairs()
     .filter(((k, _)) => k in uraw-spec.categories)
@@ -652,11 +598,11 @@
   flatten-theme(theme, diff-spec)
 }
 
-/// Make a theme of `uraw-pseudo` from a pre-theme of pseudo code (the settings by category, as `pseudo-pre-default`), given with `uraw-pseudo(..theme)` or `set-uraw-pseudo(..theme)`: its flat settings.
+/// Make a theme of `uraw-pseudo` from a pre-theme of pseudo code (the settings by category which differ from `pseudo-pre-default`), given with `uraw-pseudo(..theme)` or `set-uraw-pseudo(..theme)`: its flat settings (all of them, the missing ones being the default ones).
 ///
 /// - pre-theme (dictionary):
 /// -> dictionary
 #let make-pseudo-theme(pre-theme) = {
   ut.check-keys(pre-theme, pseudo-spec.categories.keys(), "a pre-theme")
-  flatten-theme(pre-theme, pseudo-spec)
+  flatten-theme(merge-categories(pseudo-pre-default, pre-theme), pseudo-spec)
 }

@@ -1,6 +1,7 @@
 #import "config.typ" as cf
 #import "formatting.typ" as formatting
 #import "highlight.typ" as hl
+#import "../styling/highlights.typ" as hs
 #import "measure.typ" as me
 #import "rendering.typ" as re
 #import "utils.typ" as ut
@@ -97,7 +98,16 @@
         let follows = follows != false
 
         // Basic formatting
-        lang-tag.visible = lang-tag.visible and lang != none
+        lang-tag.visible = (
+          lang-tag.visible
+            and not (
+              lang-tag.icon == none
+                and (
+                  lang-tag.name == none
+                    or (lang-tag.name == auto and lang == none)
+                )
+            )
+        )
         // The lang tag is removed from the open sides
         if (
           follows
@@ -269,20 +279,28 @@
             markers: markers,
             code-lines: code-lines,
             lines: kept.at(v).map(i => code-lines.at(i)),
-            highlights: formatting.highlights(
-              entries.highlights.at(v),
-              formatting.diff-changes(
-                diff,
-                v,
-                confs.at(v),
-                highlight,
-                kept.at(v),
-              )
-                + entries.delimited.at(v),
-              code-lines,
-              k => kept.at(v).at((n.line-index)(k)),
-              with-default-thickness,
-            ),
+            // (the changes first, so that the highlights are drawn over them)
+            highlights: (
+              (
+                formatting.diff-changes(
+                  diff,
+                  v,
+                  confs.at(v),
+                  highlight,
+                  kept.at(v),
+                ),
+                (),
+              ),
+              (entries.delimited.at(v), entries.highlights.at(v)),
+            )
+              .map(((delimited, manual)) => formatting.highlights(
+                manual,
+                delimited,
+                code-lines,
+                k => kept.at(v).at((n.line-index)(k)),
+                with-default-thickness,
+              ))
+              .join(),
           ))
         }
         code = colored-code
@@ -300,16 +318,22 @@
           with-default-thickness,
         )
 
-        // The open sides have no radius and no stroke, the header and footer are only shown if they repeat
+        // The open sides have no radius, no stroke and no code inset, the header and footer are only shown if they repeat
         if follows {
-          if not header.repeat { header.content = none }
+          if not header.repeat {
+            header.content = none
+            code.edge.top = 0pt
+          }
           header.radius = (:)
           frame.radius.top-left = 0pt
           frame.radius.top-right = 0pt
           frame.stroke.top = none
         }
         if precedes {
-          if not footer.repeat { footer.content = none }
+          if not footer.repeat {
+            footer.content = none
+            code.edge.bottom = 0pt
+          }
           footer.radius = (:)
           frame.radius.bottom-left = 0pt
           frame.radius.bottom-right = 0pt
@@ -397,7 +421,7 @@
         lang-tag.insert(
           "width",
           if lang-tag.visible and lang-tag.in-code {
-            measure(lang-tag.block).width + lang-tag.code-spacing.to-absolute()
+            measure(lang-tag.block).width + lang-tag.spacing.to-absolute()
           } else { 0pt },
         )
         // The lang tag in the code is on the first line (of the new code for separated codes)
@@ -486,12 +510,13 @@
           header,
           footer,
           versions.old.code-start,
+          code,
         )
         let header-width = if header.content != none {
           (
             measure(block(inset: header.inset, header.content)).width
               + if header.tag != none {
-                measure(header.tag).width + lang-tag.code-spacing.to-absolute()
+                measure(header.tag).width + lang-tag.spacing.to-absolute()
               } else { 0pt }
           )
         } else { 0pt }
@@ -565,7 +590,6 @@
           stroke: frame.block.stroke,
           clip: not frame.sharp-page-break,
           width: frame.width,
-          height: frame.height,
           breakable: frame.breakable,
           frame-content,
         )
@@ -573,7 +597,7 @@
         if lang-tag.visible and lang-tag.on-frame {
           if is-left or is-right {
             block({
-              re.place-frame-lang-tag(lang-tag, lang-tag.block)
+              re.place-frame-lang-tag(lang-tag, lang-tag.block, frame)
               frame-block
             })
           } else {
@@ -602,7 +626,7 @@
 /// - markers (array, dictionary): The markers of the lines, as `(line, content)`, `(version, line, content)` or dictionaries with a `version` (`"old"` or `"new"`, `"new"` by default). A single one can be given instead of an array.
 /// - highlights (array, dictionary): The highlights, on the line numbers of their `version`. A single one can be given instead of an array.
 /// - comments (array, dictionary): The comments, as `(line, content)`, `(version, line, content)` or dictionaries with a `version`, as for `uraw`, and `span` (bool): wether the comment spans over both separated codes (over the separator), its text staying at the same place in its code and its marker being in the gutter of the old code. A single one can be given instead of an array.
-/// - jumps (array, dictionary): The jumps of the number, as `(from, to)`, `(version, from, to)` or dictionaries with a `version`: `"old"`, `"new"`, or `"both"` for a jump given on the new numbers, which jumps the same number of lines in the old code (its comment spans over both separated codes, as a new comment). A jump skipping its lines (`skip-lines`, as for `uraw`) does not show them, the codes being compared without them. A single one can be given instead of an array.
+/// - jumps (array, dictionary): The jumps of the number, as `(from, to)`, `(version, from, to)` or dictionaries with a `version`: `"old"`, `"new"`, or `"both"` for a jump given on the new numbers, which jumps the same number of lines in the old code (its comment spans over both separated codes, as a new comment). A jump skipping its lines (`skip-lines`, as for `uraw`, as well as `start` and `end`) does not show them, the codes being compared without them. A single one can be given instead of an array.
 /// - follows (bool, int): Wether the diff continues a previous one, as for `uraw` (an integer being the number of the last line of the preceding block, for both versions).
 /// - precedes (bool, int, content): Wether the diff is continued by a next one, as for `uraw`.
 /// -> content
@@ -637,61 +661,77 @@
   )
   let highlights = formatting.versioned(highlights, ())
 
-  // The style outside of the raw environments, used by the headers, footers and comments
+  // The style outside of the raw environments, used by the headers, footers and comments (stored in a state, so that the raw element is not in a context: a figure containing a diff is then a listing)
   context {
     let style = cf.outside-style()
+    cf.uraw-style.update(styles => styles + (style,))
+  }
+  {
+    // (only the raw elements of this diff: a raw block in a comment is another one)
+    show <uraw-diff-src>: src-it => if src-it.text != new.text { src-it } else {
+      context {
+        let highlight = cf.diff-category-parser("highlight", args, lang)
+        let pre-highlights = hs.list()
+        let formatted-pre-highlights = pre-highlights
+          .values()
+          .map(h => hl.format-pre-highlight(h, highlight))
 
-    // The raw elements are shown, so that a figure containing a diff is a listing
-    show <uraw-diff-src>: _ => context {
-      let highlight = cf.diff-category-parser("highlight", args, lang)
-      let pre-highlights = cf.uncontext-category-getter("highlights", none)
-      let formatted-pre-highlights = pre-highlights
-        .values()
-        .map(h => hl.format-pre-highlight(h, highlight))
+        // The highlights read from the delimiters, and the texts without them
+        let texts = (:)
+        let entries = entries + (delimited: (:), highlights: (:))
+        for (v, it) in (old: old, new: new) {
+          let (dels, lines) = hl.parse-delimiters(
+            it.text.split("\n"),
+            formatted-pre-highlights,
+          )
+          texts.insert(v, lines.join("\n", default: ""))
+          entries.delimited.insert(v, dels.map(del => hl.format-highlight(
+            hl.make-highlight(formatted-pre-highlights.at(del.idx), del),
+            highlight,
+          )))
+          entries.highlights.insert(
+            v,
+            formatting
+              .of-version(highlights, v)
+              .map(h => hl.format-highlight(h, highlight)),
+          )
+        }
 
-      // The highlights read from the delimiters, and the texts without them
-      let texts = (:)
-      let entries = entries + (delimited: (:), highlights: (:))
-      for (v, it) in (old: old, new: new) {
-        let (dels, lines) = hl.parse-delimiters(
-          it.text.split("\n"),
-          formatted-pre-highlights,
-        )
-        texts.insert(v, lines.join("\n", default: ""))
-        entries.delimited.insert(v, dels.map(del => hl.format-highlight(
-          hl.make-highlight(formatted-pre-highlights.at(del.idx), del),
-          highlight,
-        )))
-        entries.highlights.insert(
-          v,
-          formatting
-            .of-version(highlights, v)
-            .map(h => hl.format-highlight(h, highlight)),
-        )
-      }
+        // (`auto` keeps the theme of each original raw element, a theme set with `set raw` applying when it has none)
+        let code-theme = cf.diff-category-parser("code", args, lang).theme
+        let theme(it) = if code-theme == auto {
+          if it.has("theme") { (theme: it.theme) } else { (:) }
+        } else { (theme: code-theme) }
 
-      // (`auto` keeps the theme of each original raw element, a theme set with `set raw` applying when it has none)
-      let code-theme = cf.diff-category-parser("code", args, lang).theme
-      let theme(it) = if code-theme == auto {
-        if it.has("theme") { (theme: it.theme) } else { (:) }
-      } else { (theme: code-theme) }
-
-      // The two codes are shown as raw elements, to get their highlighted lines
-      set text(1.25em)
-      show <uraw-diff-new>: new-it => {
-        show <uraw-diff-old>: old-it => diff-to-uraw(
-          args,
-          old-it,
-          new-it,
-          entries,
-          () => style,
-          (old: first-lines.first(), new: first-lines.last()),
-        )
+        // The two codes are shown as raw elements, to get their highlighted lines
         set text(1.25em)
-        [#raw(texts.old, lang: lang, block: true, ..theme(old))<uraw-diff-old>]
+        show <uraw-diff-new>: new-it => if new-it.text != texts.new {
+          new-it
+        } else {
+          show <uraw-diff-old>: old-it => if old-it.text != texts.old {
+            old-it
+          } else {
+            diff-to-uraw(
+              args,
+              old-it,
+              new-it,
+              entries,
+              cf.base-style,
+              (old: first-lines.first(), new: first-lines.last()),
+            )
+          }
+          set text(1.25em)
+          [#raw(
+            texts.old,
+            lang: lang,
+            block: true,
+            ..theme(old),
+          )<uraw-diff-old>]
+        }
+        [#raw(texts.new, lang: lang, block: true, ..theme(new))<uraw-diff-new>]
       }
-      [#raw(texts.new, lang: lang, block: true, ..theme(new))<uraw-diff-new>]
     }
     [#raw(new.text, lang: lang, block: true)<uraw-diff-src>]
   }
+  cf.uraw-style.update(styles => styles.slice(0, -1))
 }

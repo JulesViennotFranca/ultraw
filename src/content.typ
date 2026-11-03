@@ -357,6 +357,8 @@
 /// -> int
 #let get-max-pos(max-width, char-width) = {
   let wr = max-width / char-width
+  // (an infinite width, as when the code is measured without width, breaks no line)
+  if wr > 1e9 { return int(1e9) }
   if calc.ceil(wr) - wr < 0.01 { calc.ceil(wr) } else { int(wr) }
 }
 

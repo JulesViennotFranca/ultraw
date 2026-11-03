@@ -1,11 +1,9 @@
 #import "src/config.typ": (
-  add-highlights, get-uraw, get-uraw-diff, get-uraw-pseudo, list-highlights,
-  make-diff-theme, make-pseudo-theme, make-theme, read-code, remove-highlights,
-  reset-highlights, reset-uraw, reset-uraw-diff, reset-uraw-pseudo, set-uraw,
-  set-uraw-diff, set-uraw-pseudo,
+  get-uraw, get-uraw-diff, get-uraw-pseudo, read-code, reset-uraw,
+  reset-uraw-diff, reset-uraw-pseudo, set-uraw, set-uraw-diff, set-uraw-pseudo,
 )
 #import "styling/highlights.typ" as highlights
-#import "styling/icons.typ": icons
+#import "styling/icons.typ": icons as lang-icons
 #import "src/main.typ": uraw
 #import "src/inline.typ": uraw-inline
 #import "src/diff.typ": uraw-diff

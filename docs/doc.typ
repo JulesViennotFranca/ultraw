@@ -4,7 +4,7 @@
 
 #show heading: text.with(font: "Geist Mono")
 #show heading.where(depth: 1): text.with(30pt)
-#show heading.where(depth: 2): text.with(22pt)
+#show heading.where(depth: 2): text.with(18pt)
 #set page(numbering: "1")
 #set text(12pt)
 #show link: it => underline(stroke: blue, it)
@@ -43,32 +43,27 @@
 
 #pagebreak()
 
-#add-highlights(
+#highlights.add(
   safety: (
     ldel: "*$",
     rdel: "$*",
-    ..highlights.default-style(olive),
+    ..highlights.base-style(olive),
     sticky: true,
-  ),
-  red-code: (
-    ldel: "*r",
-    rdel: "r*",
-    code-style: text.with(red),
   ),
   blue-code: (
     ldel: "*b",
     rdel: "b*",
     code-style: text.with(rgb("#4C69C6")),
   ),
+  black-code: (ldel: "*k", rdel: "k*", code-style: text.with(black)),
   rainbow-code: (
-    ldel: "*g",
-    rdel: "g*",
+    ldel: "*g|",
+    rdel: "|g*",
     code-style: it => box(text(
       fill: gradient.linear(..color.map.rainbow),
       it,
     )),
   ),
-  pinit: (ldel: "*p", rdel: "p*", code-style: it => pin(it)),
 )
 
 #page(margin: 1cm)[
@@ -91,7 +86,7 @@
             stroke: teal.darken(30%),
             expand: left,
           ),
-          (line: 15, fill: gradient.linear(..color.map.flare)),
+          (line: 15, expand: center, fill: gradient.linear(..color.map.flare)),
         ),
         ````typ
         = Using the *|ultraw|* package
@@ -99,7 +94,7 @@
         // It is as simple as that:
         #show: uraw
 
-        You can now write *gbeautifulg* raw
+        You can now write *g|beautiful|g* raw
         text by simply typing it:
 
         ```rs
@@ -116,11 +111,12 @@
         ````,
       )
 
+      #v(-4pt)
+
       #uraw-pseudo(
         width: 100%,
         header: [*Algorithm* Merge Sort],
         no-number[*Procedure* MERGE-SORT($L$)],
-        no-number[*Input* $L$ the list to sort],
         [$n <-$ the length of $L$],
         [*if* $n <= 1$ *then*],
         indent[*return* $L$],
@@ -130,22 +126,20 @@
         [$L_2 <- L[{h, h + 1, ..., n-1}]$ ],
         [$L_1 <-$ MERGE-SORT($L_1$)],
         [$L_2 <-$ MERGE-SORT($L_2$)],
+        [*return* MERGE($L_1$, $L_2$)],
       )
     ],
 
     uraw(
-      frame-stroke: 1pt + luma(235),
-      // numbers-sep: gray,
-      header: [The Merge Sort algorithm's implementation in python.],
-      header-fill: luma(235),
-      comment-fill: luma(245),
+      ..themes.window,
+      header: style.window[The Merge Sort algorithm in python.],
       line-spacing: 0.8em,
-      lang-tag-size: 1em,
-      lang-tag-fill: blue.lighten(80%),
+      lang-tag-fill: blue.lighten(75%),
       highlights: (
         (
           line: (7, 10),
-          ..highlights.default(color: orange),
+          ..highlights.base(color: orange),
+          expand: none,
           fill: orange.transparentize(80%),
         ),
       ),
@@ -222,13 +216,7 @@
   #uraw-diff(
     ..themes.diff-dark,
     header: [`merge_sort` correction],
-    comment-fill: luma(80),
-    code-fill: luma(50),
-    numbers-fill: luma(25),
-    numbers-sep: none,
-    sep: none,
     line-spacing: 0.8em,
-    lang-tag-size: 1em,
     lang-tag-fill: blue.darken(30%),
     columns: (1fr, 1fr),
     comments: (
@@ -277,35 +265,33 @@
   raw(body),
 )
 #let urawf = f("uraw")
+#let uraw-difff = f("uraw-diff")
+#let uraw-pseudof = f("uraw-pseudo")
 
 = Usage
 
 #ultraw provides a highly customizable formatting of raw text.
 
-#let import-str = ("#import \"@preview/ultraw:" + uraw-version + "\": *")
+#v(10pt)
 
-#v(5mm)
+#let import-str = ("#import \"@preview/ultraw:" + uraw-version + "\": *")
 
 #context grid(
   columns: (1fr, auto),
   column-gutter: 3mm,
   row-gutter: par.spacing,
-  align: (left, bottom),
 
   align(center)[*Source code*], align(center)[*Produced pdf*],
 
-  source(
-    precedes: 18,
-    raw(block: true, lang: "typ", import-str),
-    width: 100%,
-  ),
+  source(width: 100%, precedes: 18, raw(block: true, lang: "typ", import-str)),
   [],
 
   grid.cell(colspan: 2)[Change the raw blocks with the #urawf show rule:],
 
   source(
+    width: 100%,
     follows: 1,
-    precedes: true,
+    precedes: 37,
     ````typ
     ```typ
     #let my-box(body) = box(
@@ -325,24 +311,25 @@
     )
     ```
     ````,
-    width: 100%,
   ),
 
   [
+    #v(1.2em + 2pt)
+
     ```typ
     #let my-box(body) = box(
       stroke: purple,
       body,
     )
     ```
-
-    #v(4.15em)
 
     #show: uraw
 
+    #v(1.2em * 3 + 6pt)
+
     `#let my-text = text.with(purple)`
 
-    #v(1.5em)
+    #v(1.2em + 4pt)
 
     ```typ
     #let my-box(body) = box(
@@ -350,8 +337,6 @@
       body,
     )
     ```
-
-    #v(1.35em)
   ],
 
   grid.cell(
@@ -359,22 +344,23 @@
   )[#urawf can also be called locally for a specific raw block:],
 
   source(
+    width: 100%,
     follows: 18,
-    precedes: true,
+    precedes: 59,
     ````typ
     #uraw(
-      frame-stroke: luma(240),
-      frame-radius: 1mm,
-
-      code-fill:
-        style.zebra(even: luma(240)),
-
-      header: [Some Rust code],
-      header-fill: auto,
-
-      lang-tag-placement: "header",
-      lang-tag-fill: orange.lighten(75%),
-
+      frame: (stroke: luma(240)),
+      code: (
+        fill: style.zebra(even: luma(240)),
+      ),
+      header: (
+        content: [Some Rust code],
+        fill: auto,
+      ),
+      lang-tag: (
+        placement: "header",
+        fill: orange.lighten(75%),
+      ),
       ```rs
       fn main() {
           println!("Hello World!");
@@ -382,13 +368,13 @@
       ```,
     )
     ````,
-    width: 100%,
   ),
 
   [
+    #v(1.2em * 13 - 16pt)
+
     #uraw(
       frame-stroke: luma(240),
-      frame-radius: 1mm,
       code-fill: style.zebra(even: luma(240)),
       header: [Some Rust code],
       header-fill: auto,
@@ -400,8 +386,6 @@
       }
       ```,
     )
-
-    #v(2.5em)
   ],
 
   grid.cell(
@@ -409,20 +393,24 @@
   )[Global configurations can be set with the function #f("set-uraw"):],
 
   source(
-    follows: 38,
+    width: 100%,
+    follows: 37,
     ````typ
     #set-uraw(
-      width: 6.5cm,
-      frame-stroke: 1pt + purple,
-      frame-radius: (right: 2mm),
-
-      numbers-color: white,
-      numbers-fill: purple,
-
-      code-fill:
-        n => purple.lighten(80% + n * 5%),
-
-      lang-tag: false,
+      frame: (
+        width: 6.5cm,
+        stroke: 1pt + purple,
+        radius: (right: 2mm),
+      ),
+      numbers: (
+        color: white,
+        fill: purple,
+      ),
+      code: (
+        fill:
+          n => purple.lighten(80% + n * 5%)
+      ),
+      lang-tag: (visible: false),
     )
 
     ```py
@@ -431,11 +419,10 @@
         print("World")
     ```
     ````,
-    width: 100%,
   ),
 
   [
-    #show: uraw
+    #v(1.2em * 17 - 1pt)
 
     #uraw(
       width: 6.5cm,
@@ -451,8 +438,6 @@
           print("World")
       ```,
     )
-
-    #v(1.35em)
   ],
 )
 
@@ -475,12 +460,6 @@
     lang-tag-fill: lang-col,
     lang-tag-stroke: 2pt + lang-col,
     markers: (2, octique-marker("star-fill", color: white)),
-    comments: (
-      before: 2,
-      content: [Add some color],
-      fill: comment-col,
-      indent: "line",
-    ),
     ```typ
     #let my-box(body) = box(
       stroke: purple,
@@ -491,238 +470,801 @@
   caption: [The differents components of an #urawf block.],
 ) <uraw-block-components>
 
-A block of raw text formatted by #urawf is made of several components. They are all colored differently in @uraw-block-components and their name will be underlined with the corresponding color. The raw text is shown inside of the #underline-col(code-col)[code] part. The #underline-col(num-col)[numbers] and #underline-col(num-col)[markers] are displayed in a gutter on the left. Some #underline-col(comment-col)[comments] may be added to the code, a #underline-col(hf-col)[header] and a #underline-col(hf-col)[footer] can be defined. The #underline-col(lang-col)[lang tag] indicates which coding language is used. Finally, the #underline-col(frame-col)[frame] is the box containg the whole block.
+A block of raw text formatted by #urawf is made of several components. They are all colored differently in @uraw-block-components and their name will be underlined with the corresponding color. The raw text is shown inside of the #underline-col(code-col)[code] part. The #underline-col(num-col)[numbers] and #underline-col(num-col)[markers] are displayed in a gutter on the left. A #underline-col(hf-col)[header] and a #underline-col(hf-col)[footer] can be defined. The #underline-col(lang-col)[lang tag] indicates which coding language is used. Finally, the #underline-col(frame-col)[frame] is the box containg the whole block.
 
 #alert(icon: "info")[
-  The precise parameters of the #urawf function can be inspected #link(<uraw-lib>)[here].
+  The precise arguments of the #urawf function can be inspected #link(<uraw-lib>)[here].
+]
+
+#alert[
+  For conciseness, arguments names in this section are different than in the above examples. Refer to this #link(<args-forms-disclaimer>)[disclaimer] if you want to understand why both namings are supported.
 ]
 
 == Code
 
 Quite some parameters of the code can be set with #urawf, such as appearence (e.g., `theme`, `fill`) or the layout (e.g., `line-spacing`, `indent-size`). Here are some examples illustrating the offered possibilities:
 
-#grid(
+#text(0.8em, grid(
   columns: (1fr, 1fr),
-  column-gutter: 1cm,
+  column-gutter: 5mm,
 
-  text(0.8em, source-output(
-    hidden-args: (lang-tag: false, numbers: none),
-    indentation: "purple",
-    indent-size: "1",
-    indented-line-return: "false",
-    code-color: "olive",
-    ```typ
-    #let ex(body) = stack(dir: ttb,
-      spacing: 2mm,
-      [Here is an example I really want to show you:],
-      body
+  example(
+    output-args: (lang-tag: "false", numbers: "none"),
+    jumps: (from: 5, to: 13, comment: [`...,`], skip-lines: true),
+    ````typ
+    #uraw(
+      indentation: purple,
+      indent-size: 1,
+      indented-line-return: false,
+      code-color: olive,
+      ```typ
+      #let ex(body) = stack(dir: ttb,
+        spacing: 2mm,
+        [Here is an example I really want to show you:],
+        body
+      )
+      ```,
     )
-    ```,
-  )),
+    ````,
+  ),
 
-  text(0.8em, source-output(
-    hidden-args: (lang-tag: false, numbers: none),
-    line-spacing: ".88em",
-    code-fill: "style.zebra(odd: luma(240))",
-    theme: "code-themes.github-light",
-    ```typ
-    #let ex(body) = stack(dir: ttb,
-      spacing: 2mm,
-      [Here is an example I really want to show you:],
-      body
+  example(
+    output-args: (lang-tag: "false", numbers: "none"),
+    jumps: (from: 4, to: 12, comment: [`...,`], skip-lines: true),
+    ````typ
+    #uraw(
+      line-spacing: .88em,
+      code-fill: style.zebra(odd: luma(240)),
+      theme: code-themes.github-light,
+      ```typ
+      #let ex(body) = stack(dir: ttb,
+        spacing: 2mm,
+        [Here is an example I really want to show you:],
+        body
+      )
+      ```,
     )
-    ```,
-  )),
-)
+    ````,
+  ),
+))
 
 == Numbers & Markers
 
 Numbers indicate the code lines numbers and markers can further decorate each line. They both appear in a gutter on the left of the code. The background of this gutter, the color of numbers and markers, or the starting or ending number can be chose as follow:
 
-#grid(
+#text(0.8em, grid(
   columns: (1fr, 1fr),
-  column-gutter: 1cm,
+  column-gutter: 5mm,
 
-  text(0.8em, source-output(
-    hidden-args: (
-      lang-tag: false,
-      indentation: silver,
-      highlights: (line: (8, 12), code-style: it => fade(20%, it)),
+  example(
+    output-args: (
+      lang-tag: "false",
+      indentation: "silver",
+      highlights: "(line: (8, 12), code-style: it => fade(20%, it))",
     ),
-    start: "8",
-    numbers-align: "left",
-    numbers-fill: "\n    style.zebra(even: yellow, odd: aqua)",
-    markers: "((10, [•]), (11, [•]))",
-    ```typ
-    #let ex(body) = stack(dir: ttb,
-      spacing: 2mm,
-      [Here is an example:],
-      body
-    )
-    ```,
-  )),
-
-  text(0.8em, source-output(
-    hidden-args: (
-      lang-tag: false,
-      indentation: silver,
+    hidden-prefix1: fade-string,
+    jumps: (from: 6, to: 14, comment: [`...,`], skip-lines: true),
+    ````typ
+    #uraw(
+      start: 8,
       numbers-align: left,
-      highlights: (line: (1, 5), code-style: it => fade(20%, it)),
-    ),
-    numbers: "\"1.\"",
-    numbers-color: "maroon",
-    numbers-sep: "1pt + teal",
-    markers-over-numbers: "true",
-    markers: "(4, $->$)",
-    ```typ
-    #let ex(body) = stack(dir: ttb,
-      spacing: 2mm,
-      [Here is an example:],
-      body
+      numbers-fill:
+        style.zebra(even: yellow, odd: aqua),
+      markers: ((10, [•]), (11, [•])),
+      ```typ
+      #let ex(body) = stack(dir: ttb,
+        spacing: 2mm,
+        [Here is an example:],
+        body
+      )
+      ```,
     )
-    ```,
-  )),
-)
+    ````,
+  ),
+
+  example(
+    output-args: (
+      lang-tag: "false",
+      indentation: "silver",
+      numbers-align: "left",
+      highlights: "(line: (1, 5), code-style: it => fade(20%, it))",
+    ),
+    hidden-prefix1: fade-string,
+    jumps: (from: 6, to: 14, comment: [`...,`], skip-lines: true),
+    ````typ
+    #uraw(
+      numbers: "1.",
+      numbers-color: maroon,
+      numbers-sep: 1pt + teal,
+      markers-over-numbers: true,
+      markers: (4, $->$),
+      ```typ
+      #let ex(body) = stack(dir: ttb,
+        spacing: 2mm,
+        [Here is an example:],
+        body
+      )
+      ```,
+    )
+    ````,
+  ),
+))
 
 == Header & Footer
 
+Each #urawf block can have a header and a footer. Like `grid`s headers and footers, they can be repeated at each page breaks. Their start can also be aligned with the code block.
 
-Each #urawf block can have a header and a footer. Like `grid`s headers and footers, they can be repeated at each page breaks. Their start can also be aligned with the code block. Here are som examples:
-
-#grid(
+#text(0.8em, grid(
   columns: (1fr, 1fr),
-  column-gutter: 1cm,
+  column-gutter: 5mm,
 
-  text(0.8em, source(
+  source(
     width: 100%,
-    precedes: true,
-    comments: (
-      after: 5,
-      content: text(style: "normal", uraw(
-        width: 100%,
-        lang-tag: false,
-        indentation: silver,
-        numbers-color: silver,
-        highlights: (line: (1, 2), code-style: it => fade(20%, it)),
-        header: [Some basic header],
-        header-color: blue,
-        ```typ
-        #let my-box(body) = box(stroke: purple,
-          body
-        ```,
-      )),
-      fill: white,
+    code-inset: (bottom: 0pt, top: 2.5pt, x: 3pt),
+    jumps: (
+      from: 3,
+      to: 9,
+      comment: [`...,`],
+      marker: [],
+      fill: none,
+      indent: "guideline",
+      skip-lines: true,
     ),
-    ```typ
-    *b#urawb*(
-      header: [Some basic header],
-      header-color: blue,
-      header-repeat: true,
-    ```,
-  )),
-
-  text(0.8em, source(
-    width: 100%,
-    precedes: true,
     comments: (
-      after: 5,
-      content: text(style: "normal", {
-        uraw(
-          width: 100%,
+      (
+        after: 10,
+        content: text(style: "normal", uraw(
           lang-tag: false,
           indentation: silver,
           numbers-color: silver,
-          highlights: (line: (1, 2), code-style: it => fade(20%, it)),
+          highlights: (line: 1, code-style: it => fade(20%, it)),
+          header: [Some basic header],
+          header-code-aligned: true,
           ```typ
           #let my-box(body) = box(stroke: purple,
-            body
           ```,
-        )
-        v(2.1mm)
-      }),
-      fill: white,
+        )),
+        fill: white,
+      ),
+      (
+        after: 10,
+        content: text(style: "normal", uraw(
+          width: 100%,
+          start: 2,
+          lang-tag: false,
+          indentation: silver,
+          numbers-color: silver,
+          highlights: (line: (2, 3), code-style: it => fade(20%, it)),
+          header: [Some basic header],
+          header-code-aligned: true,
+          ```typ
+            body,
+          )
+          ```,
+        )),
+        fill: white,
+      ),
     ),
-    ```typ
-    *b#urawb*(
+    ````typ
+    #uraw(
+      header: [Some basic header],
+      header-repeat: true,
+      ```typ
+      #let my-box(body) = box(stroke: purple,
+        body,
+      )
+      ```,
+    )
+    ````,
+  ),
+
+  example(
+    output-args: (
+      lang-tag: "false",
+      indentation: "silver",
+      highlights: "(line: (1, 2), code-style: it => fade(20%, it))",
+    ),
+    hidden-prefix1: fade-string,
+    jumps: (from: 6, to: 11, comment: [`...,`], skip-lines: true),
+    ````typ
+    #uraw(
       footer: [Some basic footer],
+      footer-color: blue,
       footer-fill: purple.lighten(80%),
       footer-sep: 1pt + purple,
       footer-code-aligned: true,
-    ```,
-  )),
-
-  text(0.8em, source(
-    width: 100%,
-    follows: 4,
-    comments: (
-      before: 5,
-      content: text(style: "normal", uraw(
-        width: 100%,
-        start: 3,
-        lang-tag: false,
-        indentation: silver,
-        numbers-color: silver,
-        highlights: (line: 3, code-style: it => fade(20%, it)),
-        header: [Some basic header],
-        header-color: blue,
-        ```typ
-        )
-        ```,
-      )),
-      fill: white,
-    ),
-    ```typ
+      ```typ
+      #let bbox(body) = box(stroke: blue, body)
+      #let rbox(body) = box(stroke: red, body)
+      ```,
     )
-    ```,
-  )),
-
-  text(0.8em, source(
-    width: 100%,
-    follows: 5,
-    comments: (
-      after: 5,
-      content: text(style: "normal", uraw(
-        width: 100%,
-        start: 3,
-        lang-tag: false,
-        indentation: silver,
-        numbers-color: silver,
-        highlights: (line: 3, code-style: it => fade(20%, it)),
-        footer: [Some basic footer],
-        footer-fill: purple.lighten(80%),
-        footer-sep: 1pt + purple,
-        footer-code-aligned: true,
-        ```typ
-        )
-        ```,
-      )),
-      fill: white,
-    ),
-    ```typ
-    )
-    ```,
-  )),
-)
+    ````,
+  ),
+))
 
 == Lang tag & Frame
 
-The lang tag indicates which language is used and can be placed inside of the code, in the header, or on the frame.
+The lang tag indicates which language is used and can be placed inside of the code, in the header, or on the frame. The lang tag may contain a custom icon or name. For most know languages, their icon is already available by default. The frame controls various parameters such as wether the code block can break across pages or if such page break is sharp (no radius and stroke around the page break).
+
+#text(0.8em, grid(
+  columns: (1fr, 1fr),
+  column-gutter: 5mm,
+
+  example(
+    output-args: (
+      numbers-color: "silver",
+      indentation: "silver",
+      highlights: "(line: (1, 4), code-style: it => fade(20%, it))",
+    ),
+    hidden-prefix1: fade-string,
+    jumps: (from: 6, to: 13, comment: [`...,`], skip-lines: true),
+    ````typ
+    #uraw(
+      lang-tag-stroke: teal,
+      lang-tag-fill: teal.lighten(80%),
+      lang-tag-radius: (right: 5pt),
+      lang-tag-name: "Typst",
+      lang-tag-color: teal.darken(30%),
+      ```typ
+      #let my-box(body) = box(
+        stroke: purple,
+        body,
+      )
+      ```,
+    )
+    ````,
+  ),
+
+  example(
+    output-args: (
+      numbers-color: "silver",
+      indentation: "silver",
+      highlights: "(line: (1, 4), code-style: it => fade(20%, it))",
+    ),
+    hidden-prefix1: fade-string,
+    jumps: (from: 6, to: 13, comment: [`...,`], skip-lines: true),
+    ````typ
+    #uraw(
+      width: 80%,
+      frame-stroke: 1pt + red,
+      frame-radius: 2mm,
+      lang-tag-placement: "right-top",
+      lang-tag-icon: none,
+      ```typ
+      #let my-box(body) = box(
+        stroke: purple,
+        body,
+      )
+      ```,
+    )
+    ````,
+  ),
+))
 
 = Highlights
 
-The #ultraw package provides a simple and efficient highlighting that enables one to define highlights directly inside the raw text.
+The #ultraw package provides a simple and efficient highlighting. The main feature is to be able to define highlights directly inside the raw text as follow:
 
-= Comments & Jumps
+#grid(
+  columns: (1fr, auto),
+  align: bottom,
+  column-gutter: 3mm,
 
-= Referencing
+  [
+    #highlights.add(
+      base: (
+        ldel: "*||",
+        rdel: "||*",
+        ..highlights.base-style(yellow),
+        sticky: true,
+      ),
+      alert: (
+        ldel: "*!!",
+        rdel: "!!*",
+        ..highlights.alert-style(red),
+        sticky: true,
+      ),
+    )
 
-= Pseudo code
+    #source(
+      width: 100%,
+      ````typ
+      #show: uraw
+
+      ```typ
+      = One example of *||*|||*highlight*|||*||*
+
+      Highlight as you *!!*!!!*want*!!!*!!*.
+      ```
+      ````,
+    )
+
+    #highlights.add(base: highlights.base(), alert: highlights.alert())
+  ],
+
+  [
+    #show: uraw
+
+    ```typ
+    = One example of *|highlight|*
+
+    Highlight as you *!want!*.
+    ```
+
+    #v(16pt)
+  ],
+)
+
+As shown above, raw text can be highlighted by framing it between highlights delimiters.
+
+#alert(icon: "info")[
+  For the precise list of default highlights, refer to the #link(<highlights-lib>)[`highlights`] module.
+]
+
+You can define your own highlights by providing a left and a right delimiters and its style. In addition to basic style parameters (`stroke`, `fill`, `radius`), a highlight can style the code it highlights (`code-style`), expand left or right or both (`expand`), and merge with its other parts across lines (`sticky`). Default values of these parameters are set by the #link(<uraw-lib>)[`highlight`] setting of #urawf. Here are some examples illustrating highlights definition and use:
+
+#text(0.8em, block({
+  source(
+    width: 100%,
+    comments: (
+      before: 7,
+      content: [Set both `ldel` and `rdel` with `del`.],
+      sep: none,
+      fill: white,
+      marker: octique("info"),
+      indent: "guideline",
+    ),
+    ````typ
+    #highlights.add(
+      rainbow: (
+        ldel: "*r",
+        rdel: "r*",
+        code-style: it => box(text(fill: gradient.linear(..color.map.rainbow), it)),
+      ),
+      purple-base: (del: "*p*", sticky: true, ..highlights.base-style(purple)),
+      flare: (ldel: "*#", rdel: "#*", expand: right, fill: gradient.linear(..color.map.flare)),
+    )
+
+    ```rs
+    fn *rmainr*() {
+      let n_even = 0;
+      *p*for x in 1..=5 {
+        if x % 2 == 1 {
+          *rprintlnr*!("odd:", x);
+          n_even += 1;
+        }
+      }*p*
+      *#return n_even
+    }#*
+    ```
+    ````,
+  )
+
+  highlights.add(
+    rainbow: (
+      ldel: "*r",
+      rdel: "r*",
+      code-style: it => box(text(
+        fill: gradient.linear(..color.map.rainbow),
+        it,
+      )),
+    ),
+    purple-base: (del: "*p*", sticky: true, ..highlights.base-style(purple)),
+    flare: (
+      ldel: "*#",
+      rdel: "#*",
+      expand: right,
+      fill: gradient.linear(..color.map.flare),
+    ),
+  )
+
+  place(center + bottom, dx: 1cm, dy: -1.2em - 2pt, uraw(
+    frame-stroke: black,
+    frame-fill: white,
+    ```rs
+    fn *rmainr*() {
+      let n_even = 0;
+      *p*for x in 1..=5 {
+        if x % 2 == 1 {
+          *rprintlnr*!("odd:", x);
+          n_even += 1;
+        }
+      }*p*
+      *#return n_even
+    }#*
+    ```,
+  ))
+}))
+
+#alert(icon: "info")[
+  The available highlights are managed by functions of the #link(<highlights-lib>)[`highlights`] module.
+]
+
+== Local highlights <local-highlights>
+
+Highlights can also be defined per block through the `highlights` argument of #urawf, without touching the raw text. A local highlight targets either a range of lines (`line`) or a range of code coordinates (`start` and `end` containing `(line, column)` pairs). The style parameters remains the same as for regular highlights.
+
+#text(0.8em, block(width: 100%, {
+  source(
+    width: 100%,
+    ````typ
+    #uraw(
+      highlights: (
+        (line: (1, 2), fill: aqua.lighten(60%)),
+        (start: (3, 11), end: (3, 17), ..highlights.alert()),
+        (start: 4, end: 4, stroke: purple),
+      ),
+      ```py
+      def area(r):
+          pi = 3.14
+          return pi * r * r
+      print(area(2))
+      ```,
+    )
+    ````,
+  )
+
+  place(center + bottom, dy: -2.4em - 1pt, uraw(
+    frame-stroke: black,
+    frame-fill: white,
+    highlights: (
+      (line: (1, 2), fill: aqua.lighten(60%)),
+      (start: (3, 11), end: (3, 17), ..highlights.alert()),
+      (start: 4, end: 4, stroke: purple),
+    ),
+    ```py
+    def area(r):
+        pi = 3.14
+        return pi * r * r
+    print(area(2))
+    ```,
+  ))
+}))
+
+= Inline
+
+A simpler version of #urawf for inline raw text exists. It inherits its appearence from #urawf's ones and can contain highlights. Here is an example of such inline formatted raw text:
+
+#highlights.add(
+  base: (
+    ldel: "*||",
+    rdel: "||*",
+    ..highlights.base-style(yellow),
+    sticky: true,
+  ),
+  alert: (
+    ldel: "*!!",
+    rdel: "!!*",
+    ..highlights.alert-style(red),
+    sticky: true,
+  ),
+)
+
+#grid(
+  columns: (auto, 1fr),
+  column-gutter: 1cm,
+  align: horizon,
+  text(0.8em, source(numbers: none, lang-tag: false, ```typ
+  uraw-inline(highlights: (end: 5, ..highlights.base()), `ult*!raw!*`)
+  ```)),
+  uraw-inline(highlights: (end: 5, ..highlights.base()), `ult*!!raw!!*`),
+)
+
+#highlights.add(base: highlights.base(), alert: highlights.alert())
+
+= Comments <comments>
+
+Comments are content blocks inserted between lines of code. They are defined locally either in a short form `(line, content)` or in an elaborate one `(after: line, content: content, ...)` containing more parameters. Such parameters controls the style, placement, and markers of comments. By default, they abide by the #link(<uraw-lib>)[`comment`] setting of #urawf.
+
+#text(0.8em, block({
+  source(
+    width: 100%,
+    ````typ
+    #uraw(
+      comments: (
+        (1, [After line 1, from the frame.]),
+        (before: 3, content: [Before line 3, at indentation.], indent: "guideline", sep: olive),
+        (
+          after: 4,
+          content: [With a marker and separators.],
+          marker: sym.arrow.r,
+          marker-placement: "markers",
+          fill: none,
+        ),
+      ),
+      ```py
+      def area(r):
+          if r < 0:
+              return None
+          return 3.14 * r * r
+      ```,
+    )
+    ````,
+  )
+
+  place(center + bottom, dx: 1cm, dy: -7pt, uraw(
+    frame-stroke: black,
+    frame-fill: white,
+    comments: (
+      (1, [After line 1, from the frame.]),
+      (
+        before: 3,
+        content: [Before line 3, at indentation.],
+        indent: "guideline",
+        sep: olive,
+      ),
+      (
+        after: 4,
+        content: [With a marker and no background.],
+        marker: sym.arrow.r,
+        marker-placement: "markers",
+        fill: none,
+      ),
+    ),
+    ```py
+    def area(r):
+        if r < 0:
+            return None
+        return 3.14 * r * r
+    ```,
+  ))
+}))
+
+= Jumps <jumps>
+
+Jumps enables one to skip some line numbers and possibly skip corresponding raw text lines too. As comments, jumps are defined either by a short form `(from, to)` or with a dictionary (`from: from, to: to, ...`). Defined with the dictionary form, a jump can skip the associated raw text lines (`skip-lines`). Jumps can also be paired with a comment whose content and style can be set. The #link(<uraw-lib>)[`jump`] setting of #urawf controls default parameters of jumps.
+
+#text(0.8em, grid(
+  columns: (1fr, 1fr),
+  column-gutter: 5mm,
+
+  example(
+    jumps: (from: 5, to: 12, comment: [`...,`], skip-lines: true),
+    ````typ
+    #uraw(
+      jumps: (
+        (1, 6),
+        (from: 7, to: 11, comment: $dots.v$, indent: "line"),
+      ),
+      ```py
+      def main():
+          setup()
+          run()
+          stop()
+      ```,
+    )
+    ````,
+  ),
+
+  example(
+    jumps: (from: 8, to: 14, comment: [`...,`], skip-lines: true),
+    ````typ
+    #uraw(
+      jumps: (
+        from: 1,
+        to: 3,
+        skip-lines: true,
+        comment:
+          (f, t) => [#(t - f - 1) line jump],
+      ),
+      ```py
+      a = 1
+      b = 2
+      c = 3
+      ```,
+    )
+    ````,
+  ),
+))
 
 = Diffs
 
-= Themes
+#uraw-difff automatically compares and displays the difference between an old and a new version of some code. The different colors and markers of removed and added lines is customizable. The codes take all the settings of #urawf, including highlight delimiters.
 
-= Good practices
+#text(0.8em, example(
+  indent-size: 2,
+  ````typ
+  #uraw-diff(
+    ```py
+    def greet(name):
+        print("Hello " + name)
+    ```,
+    ```py
+    def greet(name, polite=False):
+        word = "Hello" if polite else "Hi"
+        print(word + " " + name)
+    ```,
+  )
+  ````,
+))
+
+The diff is displayed on one or two columns, depending on a `columns` parameter mimicking the one of `grid`. Between the two columns, a `column-gutter` can be set and a separator `sep` can be drawn. Displayed in one column, the two numbers gutters are side by side. More styling parameters are specific to the function #link(<uraw-diff-lib>, uraw-difff), here is an example:
+
+#text(0.8em, block({
+  source(width: 100%, ````typ
+  #uraw-diff(
+    columns: 1,
+    old-fill: orange.lighten(80%),
+    new-fill: blue.lighten(85%),
+    old-numbers-fill: orange.lighten(40%),
+    new-numbers-fill: blue.lighten(50%),
+    blank-fill: style.hatch(purple),
+    comments: (version: "new", after: 2, content: [A more precise value.]),
+    ```py
+    pi = 3.14
+    r = 2
+    ```,
+    ```py
+    pi = 3.14159
+    r = 2
+    ```,
+  )
+  ````)
+
+  place(center + bottom, dy: -3.6em, uraw-diff(
+    frame-stroke: black,
+    frame-fill: white,
+    columns: 1,
+    old-fill: orange.lighten(80%),
+    new-fill: blue.lighten(85%),
+    old-numbers-fill: orange.lighten(40%),
+    new-numbers-fill: blue.lighten(50%),
+    blank-fill: style.hatch(purple),
+    comments: (version: "new", after: 2, content: [A more precise value.]),
+    ```py
+    pi = 3.14
+    r = 2
+    ```,
+    ```py
+    pi = 3.14159
+    r = 2
+    ```,
+  ))
+}))
+
+Markers, highlights, comments, and jumps are given an additional `version` they refer to (`"new"` by default or `"old"`). When given as array short forms, the version must be the first element (e.g., comments given with `(version, line, content)`). Comments can span on both versions (`span: true`) and jumps can apply to both versions (`version: both`, lines numbers of the new version are used).
+
+The settings of all the diffs are set with #f("set-uraw-diff"), which overrides the ones of #f("set-uraw").
+
+= Pseudo code <pseudo-code>
+
+#uraw-pseudof) writes pseudo code with the same frame, header, footer and numbers settings as #urawf. The pseudo code is given line by line as follow:
+
+#text(0.8em, grid(
+  columns: (1fr, auto),
+  column-gutter: 5mm,
+  source(```typ
+  #show: uraw
+
+  #uraw-pseudo(
+    header: [*Algorithm* Binary search],
+    no-number[*Input* a sorted list $L$, a value $x$],
+    [$a <- 0$, $b <- |L|$],
+    [*while* $a < b$ *do*],
+    indent(
+      [$m <- floor((a + b) / 2)$],
+      [*if* $L[m] < x$ *then* $a <- m + 1$ *else* $b <- m$],
+    ),
+    [*return* $a$],
+  )
+  ```),
+
+  align(horizon, uraw-pseudo(
+    header: [*Algorithm* Binary search],
+    no-number[*Input* a sorted list $L$, a value $x$],
+    [$a <- 0$, $b <- |L|$],
+    [*while* $a < b$ *do*],
+    indent(
+      [$m <- floor((a + b) / 2)$],
+      [*if* $L[m] < x$ *then* $a <- m + 1$ *else* $b <- m$],
+    ),
+    [*return* $a$],
+  )),
+))
+
+As shown, numbering and indentation are managed by the `no-number` and `indent` functions. Jumps can also be added to pseudo code (without comments). The settings of all pseudo codes are set with #f("set-uraw-pseudo").
+
+= Figure & Referencing
+
+A #urawf block and a #uraw-difff in figures are listings. A #uraw-pseudof) code is refered to as an Algorithm by default. The lines of a labelled figure can be referenced by `@label.n` (or `@label.version.n` for diffs).
+
+#show: uraw
+
+#grid(
+  columns: (1fr, 1fr),
+  align: bottom,
+  [
+    #figure(
+      uraw-pseudo(
+        [*if* $n = 0$ *then*],
+        indent[*return* $1$],
+        [*else*],
+        indent[*return* $n *$ FACT($n - 1$)],
+        [*end if*],
+      ),
+      caption: [The factorial algorithm.],
+    ) <fact-algo>
+  ],
+  [
+    #figure(
+      ```py
+      def fact(n):
+          if n == 0:
+              return 1
+          return n * fact(n - 1)
+      ```,
+      caption: [The factorial function.],
+    ) <fact>
+  ],
+)
+
+The factorial algorithm is defined in @fact-algo. Its implementation is shown in @fact. In these, @fact-algo.4 and @fact.4 match. The precise text printed to reference lines can be changed with `line-reference`.
+
+= Reading from files
+
+#urawf and #uraw-difff both can take files as input raw texts. Files should be given as a `path` or using the finer `read-code` provided function.
+// TODO reference `read-code
+Using this, you can for example make a raw block display itself (useless but really cool):
+
+#uraw(
+  ..themes.note,
+  width: 100%,
+  lang-tag-name: "source",
+  read-code(path("doc.typ"), lang: "typ", from: 1208, to: 1213),
+)
+// TODO make sure this is right at the end
+
+= Themes <themes>
+
+By default, #ultraw keeps a very simple look so that it fits any document and can easily be built upon. But more elaborate themes are available:
+
+#let themes-dict = (
+  Default: themes.default,
+  Note: themes.note,
+  Window: themes.window,
+  Dark: themes.dark,
+)
+
+#grid(
+  columns: (1fr, 1fr),
+  column-gutter: 5mm,
+  row-gutter: 5mm,
+  align: bottom,
+  ..themes-dict
+    .pairs()
+    .map(((name, theme)) => [
+      #uraw(
+        ..theme,
+        width: 100%,
+        header: name + " theme",
+        comments: (2, [A comment]),
+        ```py
+        def area(r):
+            return 3.14 * r * r
+        ```,
+      )
+    ]),
+)
+
+A theme is a collection of settings that is spread into functions to change their output appearence (e.g., `uraw(..themes.note, ...)`).
+
+== Creation
+
+First create a `pre-theme` holding your settings as you would write them inside of #urawf. Then, format it to a proper #urawf theme with `themes.make`. #uraw-difff themes and #uraw-pseudof themes are made with `themes.make-diff` and `themes.make-pseudo`.
+// TODO add the reference to make theme functions
+
+#text(0.8em, source(```typ
+#let pre-theme = (frame: (stroke: purple, radius: 0pt), code-fill: style.zebra(odd: red), *k...k*)
+#let theme = themes.make(pre-theme)
+```))
+
+== Code themes
+
+// present the different code themes with a grid like the theme one
+
+== More styling
+
+// present rapidly the style module, link with the corresponding lib
 
 // --- Library -----------------------------------------------------------------
 
@@ -744,165 +1286,192 @@ The #ultraw package provides a simple and efficient highlighting that enables on
   ))
 
   Look at the #link(<args-forms-table>)[Arguments forms table] for a precise correspondence between grouped and direct forms of arguments.
+] <args-forms-disclaimer>
+
+= #urawf <uraw-lib>
+
+#let arg(name, types, body) = block(breakable: false, below: 1.2em)[
+  #raw(name) #h(1fr) #text(0.85em, fill: gray.darken(30%), types) \
+  #pad(left: 5mm, body)
 ]
 
-= `uraw` <uraw-lib>
+#source(width: 100%, ```typ
+#uraw(..args, markers: (), highlights: (), comments: (), jumps: (), doc)
+```)
+
+#arg(
+  "doc",
+  "content, path, dictionary",
+)[The content whose raw blocks are displayed (a whole document with `#show: uraw`, or a raw block), some code read from a file with #f("read-code"), or the path of a file.]
+#arg(
+  "..args",
+  "arguments",
+)[The settings, by category or directly (see the #link(<args-forms-table>)[arguments forms table]), and `follows` and `precedes` to continue a block on another one (as at a page break): the side of the block which continues has no radius, stroke or vertical code inset, and its header or footer is only shown if it repeats. An integer `follows` is the number of the last line of the preceding block, an integer `precedes` the largest number of the following blocks (so that the number columns have the same width).]
+#arg(
+  "markers",
+  "array, dictionary",
+)[The markers of the lines, as `(line, content)` or `(line: line, content: content)`.]
+#arg(
+  "highlights",
+  "array, dictionary",
+)[The manual highlights, given by `line`, or `start` and `end`, and some `highlight` settings (see #link(<local-highlights>)[Manual highlights]).]
+#arg(
+  "comments",
+  "array, dictionary",
+)[The comments, as `(line, content)` or dictionaries with `after` or `before`, `content`, and `comment` settings (see #link(<comments>)[Comments]).]
+#arg(
+  "jumps",
+  "array, dictionary",
+)[The jumps of the numbers, as `(from, to)` or dictionaries with `from`, `to`, `skip-lines`, `comment` and `jump` settings (see #link(<jumps>)[Jumps]).]
+
+The settings of the following blocks are set with `set-uraw(..args)`, or `set-uraw(lang, ..args)` for the blocks of a language. They are read with `get-uraw(lang)` (in a context) and reset with `reset-uraw(lang)` (the language being optional). The function `read-code(file, from: 1, to: none, lang: auto)` reads the lines `from`-`to` of a file, the language being given by its extension by default. Inline code with highlights is displayed with `uraw-inline(body, lang: none, highlights: ())`, its manual highlights being given by `start` and `end` character positions.
+
+= #uraw-difff <uraw-diff-lib>
+
+#source(width: 100%, ```typ
+#uraw-diff(..args, markers: (), highlights: (), comments: (), jumps: ())
+```)
+
+#arg(
+  "..args",
+  "arguments",
+)[The old and the new code (raw blocks, paths, or code read with #f("read-code")), the settings of #urawf, the ones specific to diffs (see the #link(<args-forms-table>)[arguments forms table]), and `follows` and `precedes` as for #urawf.]
+#arg(
+  "markers, highlights, comments, jumps",
+  "array, dictionary",
+)[As for #urawf, on the lines of a `version` (`"old"` or `"new"`, `"new"` by default): `(version, line, content)` or dictionaries with a `version`. A comment can `span` over both separated codes, and a jump can be on `"both"` versions.]
+
+The settings of the following diffs are set with `set-uraw-diff(..args)`, read with `get-uraw-diff()` and reset with `reset-uraw-diff()`.
+
+= #uraw-pseudof) <uraw-pseudo-lib>
+
+#source(width: 100%, ```typ
+#uraw-pseudo(..args, jumps: ())
+#indent(..contents)
+#no-number(..contents, indent: true)
+```)
+
+#arg(
+  "..args",
+  "arguments",
+)[The lines (each content is a line), and the settings (see the #link(<args-forms-table>)[arguments forms table]).]
+#arg(
+  "jumps",
+  "array, dictionary",
+)[The jumps of the numbers, as `(from, to)` or dictionaries with `from` and `to`.]
+#arg("indent", "function")[Indents its contents by one level.]
+#arg(
+  "no-number",
+  "function",
+)[Writes lines without number, indented as the code when `indent` is `true`, from the left of the frame otherwise.]
+
+The settings of the following pseudo codes are set with `set-uraw-pseudo(..args)`, read with `get-uraw-pseudo()` and reset with `reset-uraw-pseudo()`.
+
+= Highlights <highlights-lib>
+
+The `highlights` module manages the highlights defined by delimiters, which are used by all the blocks. There are two of them by default: `base` (`*|` and `|*`) and `alert` (`*!` and `!*`).
+
+#arg(
+  "add(..highlights)",
+  "content",
+)[Adds highlights by name, a highlight replacing the one with the same name. A highlight has a left and a right delimiter (`ldel` and `rdel`, or `del` when they are the same) and some `highlight` settings. Two highlights cannot have the same delimiters.]
+#arg("remove(..names)", "content")[Removes highlights by name.]
+#arg("get(name)", "dictionary")[The settings of a highlight (in a context).]
+#arg("list()", "dictionary")[The highlights by name (in a context).]
+
+It also provides predefined highlights with their delimiters, and the styles of `base` and `alert` alone (`-style`), to define new highlights or to spread in manual ones:
+
+#highlights.add(
+  hide: highlights.hole(color: none),
+  strike: highlights.strike(),
+  underline: highlights.underline(),
+)
+
+
+#text(0.8em, grid(
+  columns: (1fr, 1fr),
+  column-gutter: 5mm,
+  row-gutter: 3mm,
+  align: horizon,
+  ..(
+    ("base(color: yellow)", "base-style(color)", "*|", "|*"),
+    ("alert(color: red)", "alert-style(color)", "*!", "!*"),
+    ("hide()", none, "*~", "~*"),
+    ("strike(color: red)", none, "*-", "-*"),
+    ("underline(color: black)", none, "*_", "_*"),
+  )
+    .map(((f, fs, l, r)) => (
+      [#raw(f) \ #if fs != none [#raw(fs) \ ] #text(
+          gray.darken(30%),
+        )[delimiters #raw(l) and #raw(r)]],
+      uraw(
+        lang-tag: false,
+        numbers: none,
+        raw(block: true, lang: "py", "x = " + l + "some code" + r + " + 1"),
+      ),
+    ))
+    .flatten(),
+))
+
+#highlights.remove("hide", "strike", "underline")
+
+= Themes & Style
+
+#arg(
+  "themes",
+  "module",
+)[The themes of #urawf (`default`, `note`, `dark`), of #uraw-difff (`diff-default`, `diff-note`, `diff-dark`) and of #uraw-pseudof) (`pseudo-default`), to spread in the functions (see #link(<themes>)[Themes]).]
+#arg(
+  "themes.make(pre-theme)",
+  "dictionary",
+)[A theme of #urawf from its settings by category (and the settings of diffs in `diff`). `themes.make-diff` and `themes.make-pseudo` make the themes of diffs and of pseudo code.]
+#arg(
+  "code-themes",
+  "module",
+)[Syntax highlighting themes for the `theme` setting: `typst-dark`, `github-light` and `github-dark`.]
+#arg(
+  "style",
+  "module",
+)[Helpers for the settings: `zebra(odd: none, even: none)` gives a fill alternating on the line numbers (for `code-fill` or `numbers-fill`), and `octique-marker(octique)` makes a function giving markers from the icons of the `octique` package.]
+#arg("lang-icons", "dictionary")[The icons of the lang tag, by language.]
 
 = Arguments forms table <args-forms-table>
 
-== #urawf <uraw-args-forms-table>
+#let forms(body) = [
+  #stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
+  #align(center, uraw(
+    numbers: none,
+    code-inset: 0mm,
+    indentation: none,
+    lang-tag: false,
+    raw(block: true, body),
+  ))
+]
+#let forms-title(body) = text(
+  font: "Geist Mono",
+  size: 22pt,
+  weight: "bold",
+  body,
+)
 
-#stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
+#forms-title(urawf)
 
-#align(center, uraw(
-  numbers: none,
-  code-inset: 0mm,
-  indentation: none,
-  ```
-  frame: (
-    breakable....................................................frame-breakable
-    fill..............................................................frame-fill
-    height................................................................height
-    radius..........................................................frame-radius
-    sharp-page-break............................................sharp-page-break
-    stroke..........................................................frame-stroke
-    width..................................................................width
-  )
-  header: (
-    alignment...................................................header-alignment
-    code-aligned.............................................header-code-aligned
-    color...........................................................header-color
-    fill.............................................................header-fill
-    height.........................................................header-height
-    inset...........................................................header-inset
-    repeat.........................................................header-repeat
-    sep...............................................................header-sep
-  )
-  footer: (
-    alignment...................................................footer-alignment
-    code-aligned.............................................footer-code-aligned
-    color...........................................................footer-color
-    fill.............................................................footer-fill
-    height.........................................................footer-height
-    inset...........................................................footer-inset
-    repeat.........................................................footer-repeat
-    sep...............................................................footer-sep
-  )
-  numbers: (
-    alignment..................................................numbers-alignment
-    color..........................................................numbers-color
-    end......................................................................end
-    fill............................................................numbers-fill
-    format...............................................................numbers
-    inset..........................................................numbers-inset
-    sep..............................................................numbers-sep
-    start..................................................................start
-  )
-  code: (
-    color.............................................................code-color
-    fill...............................................................code-fill
-    indentation......................................................indentation
-    indent-size......................................................indent-size
-    indented-line-return....................................indented-line-return
-    inset.............................................................code-inset
-    line-spacing....................................................line-spacing
-    theme..................................................................theme
-  )
-  comment: (
-    fill............................................................comment-fill
-    indent........................................................comment-indent
-    marker........................................................comment-marker
-    marker-fill..............................................comment-marker-fill
-    placement..................................................comment-placement
-    sep..............................................................comment-sep
-    style..........................................................comment-style
-  )
-  jump: (
-    comment.........................................................jump-comment
-    comment-fill...............................................jump-comment-fill
-    comment-indent...........................................jump-comment-indent
-    comment-marker...........................................jump-comment-marker
-    comment-marker-fill.................................jump-comment-marker-fill
-    comment-placement.....................................jump-comment-placement
-    comment-sep.................................................jump-comment-sep
-    comment-style.............................................jump-comment-style
-    skip-lines...................................................jump-skip-lines
-  )
-  highlight: (
-    code-style..............................................highlight-code-style
-    expand......................................................highlight-expand
-    fill..........................................................highlight-fill
-    radius......................................................highlight-radius
-    sticky......................................................highlight-sticky
-    stroke......................................................highlight-stroke
-  )
-  lang-tag: (
-    code-spacing...........................................lang-tag-code-spacing
-    color.........................................................lang-tag-color
-    fill...........................................................lang-tag-fill
-    mode...........................................................lang-tag-mode
-    name...........................................................lang-tag-name
-    placement.................................................lang-tag-placement
-    radius.......................................................lang-tag-radius
-    size...........................................................lang-tag-size
-    stroke.......................................................lang-tag-stroke
-    visible.............................................................lang-tag
-  )
-  ```,
-))
+#forms(
+  "general: (\n  coloring-follow-numbers............................coloring-follow-numbers\n  default-stroke-thickness..........................default-stroke-thickness\n  line-reference..............................................line-reference\n  markers-over-numbers..................................markers-over-numbers\n)\nframe: (\n  breakable........................................................breakable\n  fill............................................................frame-fill\n  radius........................................................frame-radius\n  sharp-page-break..........................................sharp-page-break\n  stroke........................................................frame-stroke\n  width................................................................width\n)\nheader: (\n  content.............................................................header\n  align.........................................................header-align\n  code-aligned...........................................header-code-aligned\n  color.........................................................header-color\n  fill...........................................................header-fill\n  height.......................................................header-height\n  inset.........................................................header-inset\n  repeat.......................................................header-repeat\n  sep.............................................................header-sep\n)\nfooter: (\n  content.............................................................footer\n  align.........................................................footer-align\n  code-aligned...........................................footer-code-aligned\n  color.........................................................footer-color\n  fill...........................................................footer-fill\n  height.......................................................footer-height\n  inset.........................................................footer-inset\n  repeat.......................................................footer-repeat\n  sep.............................................................footer-sep\n)\nnumbers: (\n  align........................................................numbers-align\n  color........................................................numbers-color\n  end....................................................................end\n  fill..........................................................numbers-fill\n  format.............................................................numbers\n  inset........................................................numbers-inset\n  sep............................................................numbers-sep\n  start................................................................start\n)\ncode: (\n  color...........................................................code-color\n  fill.............................................................code-fill\n  indent-size....................................................indent-size\n  indentation....................................................indentation\n  indented-line-return..................................indented-line-return\n  inset...........................................................code-inset\n  line-spacing..................................................line-spacing\n  theme................................................................theme\n)\ncomment: (\n  fill..........................................................comment-fill\n  indent......................................................comment-indent\n  marker......................................................comment-marker\n  marker-fill............................................comment-marker-fill\n  placement................................................comment-placement\n  sep............................................................comment-sep\n  style........................................................comment-style\n)\njump: (\n  comment.......................................................jump-comment\n  comment-fill.............................................jump-comment-fill\n  comment-indent.........................................jump-comment-indent\n  comment-marker.........................................jump-comment-marker\n  comment-marker-fill...............................jump-comment-marker-fill\n  comment-placement...................................jump-comment-placement\n  comment-sep...............................................jump-comment-sep\n  comment-style...........................................jump-comment-style\n  skip-lines.................................................jump-skip-lines\n)\nhighlight: (\n  code-style............................................highlight-code-style\n  expand....................................................highlight-expand\n  fill........................................................highlight-fill\n  radius....................................................highlight-radius\n  sticky....................................................highlight-sticky\n  stroke....................................................highlight-stroke\n)\nlang-tag: (\n  spacing.........................................lang-tag-spacing\n  color.......................................................lang-tag-color\n  fill.........................................................lang-tag-fill\n  icon.........................................................lang-tag-icon\n  name.........................................................lang-tag-name\n  placement...............................................lang-tag-placement\n  radius.....................................................lang-tag-radius\n  stroke.....................................................lang-tag-stroke\n  visible...........................................................lang-tag\n)",
+)
 
-== #f("uraw-diff")
+#forms-title(uraw-difff)
 
-Arguments from `frame`, `header`, `footer`, `numbers`, `code`, `comment`, `jump`, `highlight`, and `lang-tag` follow the same pattern as the #link(<uraw-args-forms-table>)[#urawf table], the general ones adding the following ones.
+The settings of #urawf apply to diffs, with the following ones added.
 
-#stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
+#forms(
+  "general: (\n  blank-fill......................................................blank-fill\n  coloring-follow-numbers............................coloring-follow-numbers\n  column-gutter................................................column-gutter\n  columns............................................................columns\n  default-stroke-thickness..........................default-stroke-thickness\n  line-reference..............................................line-reference\n  markers-over-numbers..................................markers-over-numbers\n  sep....................................................................sep\n)\ndiff-marker: (\n  inset....................................................diff-marker-inset\n  unchanged............................................diff-marker-unchanged\n  visible........................................................diff-marker\n)\nold: (\n  diff-marker................................................old-diff-marker\n  fill..............................................................old-fill\n  numbers-color............................................old-numbers-color\n  numbers-fill..............................................old-numbers-fill\n)\nnew: (\n  diff-marker................................................new-diff-marker\n  fill..............................................................new-fill\n  numbers-color............................................new-numbers-color\n  numbers-fill..............................................new-numbers-fill\n)",
+)
 
-#align(center, uraw(
-  numbers: none,
-  code-inset: 0mm,
-  indentation: none,
-  ```
-  general: (
-    blank-fill........................................................blank-fill
-    column-gutter..................................................column-gutter
-    columns..............................................................columns
-    line-reference................................................line-reference
-    sep......................................................................sep
-  )
-  diff-marker: (
-    inset......................................................diff-marker-inset
-    unchanged..............................................diff-marker-unchanged
-    visible..........................................................diff-marker
-  )
-  old: (
-    diff-marker..................................................old-diff-marker
-    fill................................................................old-fill
-    numbers-color..............................................old-numbers-color
-    numbers-fill................................................old-numbers-fill
-  )
-  new: (
-    diff-marker..................................................new-diff-marker
-    fill................................................................new-fill
-    numbers-color..............................................new-numbers-color
-    numbers-fill................................................new-numbers-fill
-  )
-  ```,
-))
+#forms-title(uraw-pseudof))
 
-== #f("uraw-pseudo")
+The `frame`, `header`, `footer` and `numbers` settings of #urawf apply to pseudo code, and so do its `general` settings (except `markers-over-numbers`) and its `code` settings (except `theme` and `indented-line-return`), with the following ones added or changed (`indent-size` being a length).
 
-Arguments from `frame`, `header`, `footer`, `numbers`, and `code` follow the same pattern as the #link(<uraw-args-forms-table>)[#urawf table], except for a specific argument of `code`.
-
-#stack(dir: ltr, spacing: 1fr)[*Grouped form*][*Direct form*]
-
-#align(center, uraw(
-  numbers: none,
-  code-inset: 0mm,
-  indentation: none,
-  ```
-  code: (
-    style..................................................................style
-  )
-  ```,
-))
-
+#forms(
+  "general: (\n  algorithm-figure..........................................algorithm-figure\n)\ncode: (\n  indent-size....................................................indent-size\n  style................................................................style\n)",
+)

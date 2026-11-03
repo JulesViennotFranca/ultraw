@@ -1,20 +1,26 @@
-#let default-style(color) = (
-  expand: none,
-  radius: .3em,
-  fill: color.lighten(70%),
+// -----------------------------------------------------------------------------
+// Style
+// -----------------------------------------------------------------------------
+
+#let base-style(color) = (
+  fill: color.transparentize(70%),
   stroke: color,
-  code-style: it => it,
 )
 
-#let default(color: yellow) = (
+#let base(color: yellow) = (
   ldel: "*|",
   rdel: "|*",
-  ..default-style(color),
+  ..base-style(color),
+)
+
+#let square-style(color) = (
+  radius: 0pt,
+  fill: color,
+  stroke: none,
 )
 
 #let alert-style(color) = (
-  expand: center,
-  radius: 0mm,
+  radius: 0pt,
   fill: color,
   code-style: it => strong(text(fill: white, it)),
 )
@@ -25,38 +31,82 @@
   ..alert-style(color),
 )
 
-#let hide-style() = (
-  expand: none,
-  sticky: true,
-  code-style: it => hide(it),
-)
-
-#let hide() = (
-  ldel: "*~",
-  rdel: "~*",
-  ..hide-style(),
-)
-
-#let strike-style(color) = (
-  expand: none,
-  sticky: true,
-  code-style: it => strike(stroke: .1em + color, it),
+#let hole(color: black) = (
+  ldel: "*?",
+  rdel: "?*",
+  code-style: std.hide,
+  stroke: (paint: color, dash: "dashed"),
+  fill: none,
 )
 
 #let strike(color: red) = (
   ldel: "*-",
   rdel: "-*",
-  ..strike-style(color),
-)
-
-#let underline-style(color) = (
-  expand: none,
-  sticky: true,
-  code-style: it => underline(offset: .2em, stroke: .1em + color, it),
+  code-style: std.strike.with(stroke: 1.5pt + color),
+  stroke: none,
+  fill: none,
 )
 
 #let underline(color: black) = (
   ldel: "*_",
   rdel: "_*",
-  ..underline-style(color),
+  code-style: std.underline.with(offset: 2pt, stroke: 1.5pt + color),
+  stroke: none,
+  fill: none,
 )
+
+#let strong = (
+  del: "***", // Third * needed for Typst code
+  code-style: std.strong,
+  stroke: none,
+  fill: none,
+)
+
+// -----------------------------------------------------------------------------
+// Management
+// -----------------------------------------------------------------------------
+
+#import "../src/highlight.typ" as hl
+
+/// The highlights defined by delimiters, by name.
+#let highlights-state = state("uraw-highlights", (base: base(), alert: alert()))
+
+/// Add highlights by name, a highlight replacing the one with the same name. A highlight has delimiters (`ldel` and `rdel`, or `del` when they are the same) and some `highlight` settings.
+///
+/// -> content
+#let add(..args) = {
+  assert(args.pos().len() == 0, message: "The highlights are given by name.")
+  let added = args
+    .named()
+    .pairs()
+    .map(((name, h)) => (name, hl.pre-highlight(h)))
+    .to-dict()
+  highlights-state.update(hls => {
+    let hls = hls + added
+    let _ = hl.check-pre-highlights(hls)
+    hls
+  })
+}
+
+/// Remove highlights by name.
+///
+/// -> content
+#let remove(..names) = highlights-state.update(hls => {
+  for name in names.pos() { let _ = hls.remove(name, default: none) }
+  hls
+})
+
+/// The settings of a highlight (in a context).
+///
+/// - name (str):
+/// -> dictionary
+#let get(name) = {
+  let hls = highlights-state.get()
+  assert(name in hls, message: "There is no highlight `" + name + "`.")
+  hls.at(name)
+}
+
+/// The highlights by name (in a context).
+///
+/// -> dictionary
+#let list() = highlights-state.get()

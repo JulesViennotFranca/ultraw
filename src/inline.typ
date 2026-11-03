@@ -1,19 +1,31 @@
 #import "content.typ" as ct
 #import "highlight.typ" as hl
+#import "../styling/highlights.typ" as hs
 #import "config.typ" as cf
 #import "utils.typ" as ut
 
-/// The position of a manual highlight of inline code: a character position, `(line, character)` being also accepted.
-#let inline-position(pos, default) = if pos == auto or pos == none {
-  default
-} else if type(pos) == int {
-  pos
-} else if type(pos) == array and pos.len() == 2 and type(pos.last()) == int {
-  pos.last()
-} else {
-  panic(
-    "The start and the end of a highlight of inline code must be character positions.",
+/// The start and the end of a manual highlight of inline code (character positions, the end being excluded): its `range`, or its `start` and `end` (the start and the end of the code by default).
+#let inline-bounds(h, length) = {
+  assert(
+    "line" not in h,
+    message: "A highlight of inline code has no `line`, it is given by its `start` and `end`, or its `range`.",
   )
+  let (start, end) = if "range" in h {
+    assert(
+      "start" not in h and "end" not in h,
+      message: "A highlight of inline code is given by its `range`, or by its `start` and `end`, not both.",
+    )
+    assert(
+      type(h.range) == array and h.range.len() == 2,
+      message: "The `range` of a highlight of inline code must be a pair `(start, end)`.",
+    )
+    h.range
+  } else { (h.at("start", default: 0), h.at("end", default: length)) }
+  assert(
+    type(start) == int and type(end) == int,
+    message: "The start and the end of a highlight of inline code must be integers (character positions).",
+  )
+  (start, end)
 }
 
 /// The highlights of some inline code, as dictionaries with a `start`, an `end` (character positions, the end being excluded), a `fill`, a `radius` and a `code-style`.
@@ -41,12 +53,12 @@
   let manual = ut
     .single-to-list(manual)
     .map(h => {
-      let h = defaults + h
-      simplify(
+      ut.check-keys(
         h,
-        inline-position(h.at("start", default: auto), 0),
-        inline-position(h.at("end", default: auto), length),
+        defaults.keys() + ("start", "end", "range", "line", "ldel", "rdel"),
+        "a highlight of inline code",
       )
+      simplify(defaults + h, ..inline-bounds(h, length))
     })
 
   (delimited + manual).filter(h => h.start < h.end)
@@ -114,7 +126,7 @@
 ///
 /// - body (str, content): The code, as a string or an inline raw element (it can be used in a show rule on inline raw elements).
 /// - lang (none, str): The language of the code given as a string.
-/// - highlights (array, dictionary): The manual highlights, with a `start` and an `end` (character positions of the code without delimiters, the end being excluded, the default ones being the start and the end of the code), and a `fill`, a `radius`, a `stroke`, a `code-style` (a predefined highlight can be spread in it, e.g. `..highlights.alert()`, its delimiters being ignored). A single one can be given instead of an array.
+/// - highlights (array, dictionary): The manual highlights, with a `start` and an `end` (integers: character positions of the code without delimiters, the end being excluded, the default ones being the start and the end of the code) or a `range: (start, end)`, and a `fill`, a `radius`, a `stroke`, a `code-style` (a predefined highlight can be spread in it, e.g. `..highlights.alert()`, its delimiters being ignored). A single one can be given instead of an array.
 /// -> content
 #let uraw-inline(body, lang: none, highlights: ()) = {
   // The code displayed by this function is not displayed again (when it is used in a show rule)
@@ -136,7 +148,7 @@
 
   context {
     let highlight = cf.uncontext-category-getter("highlight", lang)
-    let pre-highlights = cf.uncontext-category-getter("highlights", none)
+    let pre-highlights = hs.list()
     let phls = pre-highlights
       .values()
       .map(h => hl.format-pre-highlight(h, highlight))

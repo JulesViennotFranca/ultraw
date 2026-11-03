@@ -84,61 +84,80 @@
   breakable: false,
   width: inset.left + width + inset.right,
   height: height,
-  inset: ut.grow-inset(inset, extra),
   radius: radius,
-  stroke: stroke,
   outset: ut.seam-outset(stroke, fill),
   fill: fill,
-  align(left, {
-    // Place highlights blocks
-    for (k, s, hl-block) in highlight-blocks {
-      place(
-        left + top,
-        dx: s * char-width,
-        dy: -.24em + k * (inset.top + char-height + inset.bottom),
-        hl-block,
-      )
-    }
-
-    ut.colored(
-      color,
-      l
-        .slines
-        .map(sl => h(sl.offset * char-width) + sl.body)
-        .join("\n", default: []),
-    )
-
-    // Lang tag
-    if lang-tag != none {
-      place(
-        right + top,
-        dy: (-inset.top + char-height + inset.bottom - measure(lang-tag).height)
-          / 2,
-        lang-tag,
-      )
-    }
-
-    // Indentation (over the sub-lines shown at the indentation, only over the first one otherwise)
-    if indentation != none {
-      let rows = if l.slines.any(sl => sl.offset > 0) { l.slines.len() } else {
-        1
+  // The content is clipped inside the stroke and the rounded corners (the highlights not covering them), and overlaps the next lines without stroke between them to hide their seam
+  block(
+    width: 100%,
+    height: 100%,
+    inset: ut.grow-inset(inset, extra),
+    radius: radius,
+    stroke: stroke,
+    outset: (:)
+      + for side in ("top", "bottom") {
+        if (
+          type(stroke) != dictionary or stroke.at(side, default: none) == none
+        ) {
+          ((side): .5pt)
+        }
+      },
+    clip: true,
+    align(top + left, {
+      // Place highlights blocks
+      for (k, s, hl-block) in highlight-blocks {
+        place(
+          left + top,
+          dx: s * char-width,
+          dy: -.24em + k * (inset.top + char-height + inset.bottom),
+          hl-block,
+        )
       }
-      for p in l.pos-indent.slice(0, -1) {
-        let x = p * char-width
-        place(left + top, line(
-          start: (x, -inset.top - extra.top),
-          end: (
-            x,
-            (rows - 1) * (inset.top + char-height + inset.bottom)
-              + char-height
-              + inset.bottom
-              + if rows == l.slines.len() { extra.bottom } else { 0pt },
-          ),
-          stroke: indentation,
-        ))
+
+      ut.colored(
+        color,
+        l
+          .slines
+          .map(sl => h(sl.offset * char-width) + sl.body)
+          .join("\n", default: []),
+      )
+
+      // Lang tag
+      if lang-tag != none {
+        place(
+          right + top,
+          dy: (
+            -inset.top + char-height + inset.bottom - measure(lang-tag).height
+          )
+            / 2,
+          lang-tag,
+        )
       }
-    }
-  }),
+
+      // Indentation (over the sub-lines shown at the indentation, only over the first one otherwise)
+      if indentation != none {
+        let rows = if l.slines.any(sl => sl.offset > 0) {
+          l.slines.len()
+        } else {
+          1
+        }
+        for p in l.pos-indent.slice(0, -1) {
+          let x = p * char-width
+          place(left + top, line(
+            start: (x, -inset.top - extra.top),
+            end: (
+              x,
+              (rows - 1) * (inset.top + char-height + inset.bottom)
+                + char-height
+                + inset.bottom
+                + if rows == l.slines.len() { extra.bottom } else { 0pt },
+            ),
+            stroke: indentation,
+          ))
+        }
+      }
+    }),
+  ),
 )
 
 /// Create a code cell.
@@ -281,7 +300,9 @@
     inset: c.inset,
     radius: radius,
     stroke: stroke,
-    outset: ut.seam-outset(stroke, c.fill),
+    // (a bottom separator covers the seam)
+    outset: ut.seam-outset(stroke, c.fill)
+      + if sep.bottom != none { (bottom: 0pt) },
     fill: c.fill,
     align(left + horizon, c.body),
   )
@@ -354,6 +375,38 @@
   row-cells.flatten()
 }
 
+/// The separator of a header (`side: bottom`) or of a footer (`side: top`), drawn inside its block (offset by half its thickness), between the strokes of the sides of the frame.
+///
+/// - stroke (dictionary): The stroke of the header or footer, with its separator.
+/// - inset (dictionary): The inset of the header or footer.
+/// - side (alignment): `top` or `bottom`.
+/// -> content
+#let hf-sep(stroke, inset, side) = {
+  let sep = stroke.at(repr(side), default: none)
+  if sep != none {
+    let thickness(s) = {
+      let t = if s != none { std.stroke(s).thickness }
+      if t == none or t == auto { 1pt } else { t }
+    }
+    let half(key) = if stroke.at(key, default: none) == none { 0pt } else {
+      thickness(stroke.at(key)) / 2
+    }
+    let t = thickness(sep)
+    let inset = ut.vertical-inset(inset) + ut.left-right-inset(inset)
+    place(
+      side + left,
+      dx: -inset.left + half("left"),
+      dy: if side == bottom { inset.bottom - t / 2 } else {
+        -inset.top + t / 2
+      },
+      line(
+        length: 100% + inset.left + inset.right - half("left") - half("right"),
+        stroke: sep,
+      ),
+    )
+  }
+}
+
 /// Create a header cell. Once repeated on another page, it has no top radius and no lang tag.
 ///
 /// - header (dictionary): The header parameters.
@@ -373,12 +426,13 @@
           height: header.height,
           radius: if first { header.radius } else { (:) },
           inset: header.inset,
-          stroke: header.stroke,
+          stroke: header.stroke + (bottom: none),
           outset: ut.seam-outset(header.stroke, header.fill),
           fill: header.fill,
           breakable: false,
           {
             align(header.align, header.content)
+            hf-sep(header.stroke, header.inset, bottom)
             // The lang tag placed in the header
             if first and header.at("tag", default: none) != none {
               place(right + horizon, header.tag)
@@ -410,11 +464,14 @@
           footer.radius
         } else { (:) },
         inset: footer.inset,
-        stroke: footer.stroke,
+        stroke: footer.stroke + (top: none),
         outset: ut.seam-outset(footer.stroke, footer.fill),
         fill: footer.fill,
         breakable: false,
-        align(footer.align, footer.content),
+        {
+          align(footer.align, footer.content)
+          hf-sep(footer.stroke, footer.inset, top)
+        },
       ),
     ),
   )
@@ -502,14 +559,36 @@
     row.comment.fill != none
   }
 
-  // Compute effective line heights and row gutters
+  // The separators of a comment: against code lines, and against comments without separator on this side (not at the frame, the header or the footer)
+  let separated(q, side) = (
+    0 <= q
+      and q < nr
+      and (
+        rows.at(q).kind == "code" or rows.at(q).comment.sep.at(side) == none
+      )
+  )
+  let has-sep(r, side) = (
+    rows.at(r).kind == "comment"
+      and rows.at(r).comment.sep.at(side) != none
+      and separated(
+        if side == "top" { r - 1 } else { r + 1 },
+        if side == "top" { "bottom" } else { "top" },
+      )
+  )
+
+  // Compute effective line heights and row gutters (two filled rows overlap to hide their seam, unless a separator covers it: the bottom of the first row would show at a page break)
 
   let height-offset = .5pt
 
   let row-gutters = ()
   let row-heights = ()
   for r in range(nr - 1) {
-    if is-filled(rows.at(r)) and is-filled(rows.at(r + 1)) {
+    if (
+      is-filled(rows.at(r))
+        and is-filled(rows.at(r + 1))
+        and not has-sep(r, "bottom")
+        and not has-sep(r + 1, "top")
+    ) {
       row-heights.push(row-height(rows.at(r)) + height-offset)
       row-gutters.push(-height-offset)
     } else {
@@ -628,14 +707,6 @@
     cells
   }
 
-  // The separators of a comment: against code lines, and against comments without separator on this side (not at the frame, the header or the footer)
-  let separated(q, side) = (
-    0 <= q
-      and q < nr
-      and (
-        rows.at(q).kind == "code" or rows.at(q).comment.sep.at(side) == none
-      )
-  )
   let comment-sep(r, c) = (
     top: if separated(r - 1, "bottom") { c.sep.top },
     bottom: if separated(r + 1, "top") { c.sep.bottom },
@@ -742,7 +813,7 @@
             // (the number fill of the commented line)
             (number.fill)(k)
           } else { c.marker-fill }
-          let in-number = c.placement == "numbers"
+          let in-number = c.marker-placement == "numbers"
           // (in the color of the numbers)
           c.marker = (number.color)(k, c.marker)
           (
@@ -779,15 +850,8 @@
   let header-cell = header-cell(header, frame, nbr-columns, id)
 
   let cells = if header-cell != none {
-    let sep = header.stroke.at("bottom", default: none)
-    let sep-thickness = if sep == none { 0mm } else if type(sep) == stroke {
-      sep.thickness
-    } else {
-      1pt
-    }
-
     row-heights.insert(0, header.height)
-    row-gutters.insert(0, sep-thickness / 2)
+    row-gutters.insert(0, 0mm)
 
     (header-cell,)
   } else { () }
@@ -1137,17 +1201,25 @@
           .filter(((side, _)) => side == "bottom")
           .to-dict(),
     )
+    // (a blank spanning over several rows is drawn after them: the one of the separated old code does not cover the new code, its seam outset and the half of the separator over it)
+    let sep-half = if (
+      c.b == "old-code" and has("new-gutter") and general.sep != none
+    ) {
+      let t = std.stroke(general.sep).thickness
+      (if t == auto { 1pt } else { t }) / 2
+    } else { 0pt }
+    if c.b == "old-code" { f.stroke.right = none }
     grid.cell(
       colspan: keys.position(k => k == c.b) - keys.position(k => k == c.a) + 1,
       rowspan: n,
-      over-frame(f, block(
-        width: width-between(c.a, c.b),
+      box(width: width-between(c.a, c.b) - sep-half, over-frame(f, block(
+        width: 100%,
         height: row-heights.slice(r, r + n).sum(),
         radius: f.radius,
         stroke: f.stroke + if c.a == "new-gutter" { (left: general.sep) },
         outset: ut.seam-outset(f.stroke, fill),
         fill: fill,
-      )),
+      ))),
     )
   }
 
@@ -1224,7 +1296,9 @@
     for gv in if same-code { ("old", "new") } else { (v,) } {
       if number.visible {
         cells.push(side(
-          if gv == v and c.placement == "numbers" { c.marker } else { [] },
+          if gv == v and c.marker-placement == "numbers" { c.marker } else {
+            []
+          },
           versions.at(gv).numbers-width,
           number.inset,
           fill,
@@ -1238,7 +1312,7 @@
     if versions.at(v).marker.visible {
       cells.push(marker-cell(
         v,
-        if c.placement == "markers" { c.marker },
+        if c.marker-placement == "markers" { c.marker },
         fill,
         height,
         extra,
@@ -1333,7 +1407,12 @@
           if versions.at(v).marker.visible {
             cells.push(marker-cell(
               v,
-              number-color(v, row.at(v), k, versions.at(v).markers.at(row.at(v))),
+              number-color(
+                v,
+                row.at(v),
+                k,
+                versions.at(v).markers.at(row.at(v)),
+              ),
               (versions.at(v).number.fill)(k),
               height,
               extra,
@@ -1405,6 +1484,7 @@
     heights.insert(0, auto)
     cells.insert(0, header-cell)
   }
+
   let footer-cell = footer-cell(footer, frame, keys.len(), id)
   if footer-cell != none {
     heights.push(auto)
@@ -1437,22 +1517,14 @@
 /// - lt (dictionary):
 /// - lt-block (block):
 /// -> place
-#let place-frame-lang-tag(lt, lt-block) = {
+#let place-frame-lang-tag(lt, lt-block, frame) = {
+  let x-align = if lt.placement.contains("left") { right } else { left }
+  let y-align = if lt.placement.contains("top") {
+    top
+  } else if lt.placement.contains("bottom") { bottom } else { horizon }
   place(
-    if lt.placement == "left-top" { left + top } else if lt.placement
-      == "left" { left + horizon } else if lt.placement == "left-bottom" {
-      left + bottom
-    } else if lt.placement == "right-top" { right + top } else if lt.placement
-      == "right" { right + horizon } else if lt.placement == "right-bottom" {
-      right + bottom
-    },
-
-    dx: if (
-      lt.placement == "left-top"
-        or lt.placement == "left"
-        or lt.placement == "left-bottom"
-    ) { -1.1em } else { 1.1em },
-
+    x-align + y-align,
+    dx: if x-align == left { frame.width } else { -frame.width },
     lt-block,
   )
 }

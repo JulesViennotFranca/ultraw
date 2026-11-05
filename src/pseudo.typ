@@ -94,7 +94,7 @@
         // Basic formatting (pseudo code has no lang tag)
         let lang-tag = (visible: false, placement: none, in-code: false)
         frame = formatting.frame(frame, lang-tag, with-default-thickness)
-        code = formatting.code(code, with-default-thickness)
+        code = formatting.code(code, frame, with-default-thickness)
         code.indent-size = code.indent-size.to-absolute()
 
         // Numbers (the lines without number are not counted)
@@ -111,7 +111,6 @@
           number,
           nbr-numbered,
           jumps,
-          code,
           with-default-thickness,
         )
         let (line-numbers, coloring-numbers) = formatting.pseudo-line-numbers(
@@ -125,13 +124,21 @@
         let marker = formatting.marker(
           general + (markers-over-numbers: false),
           number,
-          code,
         )
         let (number-markers, markers, marker) = formatting.markers(
           lines.map(_ => none),
           (),
           marker,
         )
+        let insets = formatting.cell-insets(
+          frame,
+          number,
+          marker.visible,
+          code.line-spacing,
+        )
+        number.inset = insets.number
+        marker.inset = insets.marker
+        code.inset = insets.code
         number = formatting.number-cells(
           number,
           general,

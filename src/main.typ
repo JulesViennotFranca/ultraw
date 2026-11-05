@@ -100,22 +100,23 @@
         // Continuation: the block follows or precedes another one, as at a page break
         let follows = args.at("follows", default: false)
         let precedes = args.at("precedes", default: false)
-        assert(
-          type(follows) in (bool, int),
-          message: "`follows` must be a boolean, or the number of the last line of the preceding block.",
+        // The last line of the preceding block (the lines being numbered from the next one), the largest number of the following blocks (the number column being wide enough for it), and the widest markers of both (the marker column being wide enough for them)
+        let (last-line, follows-marker) = formatting.continuation(
+          follows,
+          "follows",
         )
-        assert(
-          type(precedes) in (bool, int, str, content),
-          message: "`precedes` must be a boolean, the largest line number of the following blocks, or their widest number (as content).",
+        let (largest-line, precedes-marker) = formatting.continuation(
+          precedes,
+          "precedes",
         )
-        // The widest number of the following blocks, the number column being wide enough for it
-        let widest-number = if type(precedes) == int {
-          formatting.shown-number(number, precedes)
-        } else if type(precedes) in (str, content) { precedes }
-        let precedes = precedes != false
-        // An integer is the last line of the preceding block, the lines are numbered from the next one
-        if type(follows) == int { number.start = follows + 1 }
-        let follows = follows != false
+        if last-line != none { number.start = last-line + 1 }
+        let widest-number = if largest-line != none and number.format != none {
+          formatting.shown-number(number, largest-line)
+        }
+        let widest-markers = (follows-marker, precedes-marker).filter(m => (
+          m != none
+        ))
+        let (follows, precedes) = (follows != false, precedes != false)
         // The numbers start by default at the first line of the code (in its file)
         if number.start == auto { number.start = first-line }
 
@@ -156,7 +157,7 @@
             (none, none, none, none)
           }
         }
-        code = formatting.code(code, with-default-thickness)
+        code = formatting.code(code, frame, with-default-thickness)
 
         // Numbers and markers (the lines skipped by the jumps are not shown)
         number.visible = number.format != none
@@ -164,14 +165,13 @@
           jumps,
           number,
           it.lines.len(),
-          skip-lines: jump.skip-lines,
+          skip-lines: jump.at("skip-lines", default: false),
         )
         let nbr-lines = it.lines.len() - formatting.nbr-skipped(jumps)
         number = formatting.number(
           number,
           nbr-lines,
           jumps,
-          code,
           with-default-thickness,
         )
         let (line-numbers, line-index, kept) = formatting.line-numbers(
@@ -192,6 +192,12 @@
         // (the lang tag being in the color of the code of the first line by default)
         if lang-tag.color == auto { lang-tag.color = (code.color)(0) }
         lang-tag.block = formatting.lang-tag-block(it.lang, lang-tag, frame)
+        lang-tag.insert(
+          "width",
+          if lang-tag.visible and (lang-tag.in-code or lang-tag.in-header) {
+            measure(lang-tag.block).width + lang-tag.spacing.to-absolute()
+          },
+        )
 
         // Comments
         let single-comment(c, g, k) = (
@@ -221,12 +227,28 @@
         comments = jump-comments + comments
 
         // Markers
-        let marker = formatting.marker(general, number, code)
+        let marker = formatting.marker(general, number)
         let (number-markers, markers, marker) = formatting.markers(
           cf.parse-markers(markers, line-index, line-numbers),
           comments,
           marker,
         )
+        // (the column of the markers is wide enough for the widest markers of the preceding and following blocks, the marker column being shown)
+        if marker.over-numbers {
+          marker.number-markers += widest-markers
+        } else if widest-markers.len() > 0 {
+          marker.visible = true
+          marker.markers += widest-markers
+        }
+        let insets = formatting.cell-insets(
+          frame,
+          number,
+          marker.visible,
+          code.line-spacing,
+        )
+        number.inset = insets.number
+        marker.inset = insets.marker
+        code.inset = insets.code
         number = formatting.number-cells(
           number,
           general,
@@ -294,13 +316,6 @@
         // The width of the columns before the code
         let pre-width = numbers-width + markers-width
 
-        lang-tag.insert(
-          "width",
-          if lang-tag.visible and lang-tag.in-code {
-            measure(lang-tag.block).width + lang-tag.spacing.to-absolute()
-          },
-        )
-
         let code-width = me.available-code-width(
           layout-size,
           frame,
@@ -339,12 +354,7 @@
         )
 
         let header-width = if header.content != none {
-          (
-            measure(block(inset: header.inset, header.content)).width
-              + if header.tag != none {
-                measure(header.tag).width + lang-tag.spacing.to-absolute()
-              } else { 0pt }
-          )
+          measure(block(inset: header.inset, header.content)).width
         } else { 0mm }
         let footer-width = if footer.content != none {
           measure(block(inset: footer.inset, footer.content)).width
@@ -475,27 +485,55 @@
   }
 }
 
-/// Display raw code.
+/// Display raw code. For `markers`, `highlights`, `comments` and `jumps`, a single element or an array of elements are both valid entries.
 ///
-/// - args (arguments): The settings (see `uraw-set`), and the content whose raw blocks are displayed, or some code read from a file with `read-code` (or given by its `path`).
-/// - markers (array, dictionary): The markers of the lines, shown in the marker column (when it is visible), as `(line, content)` or `(line: line, content: content)` on the displayed line numbers. A single one can be given instead of an array.
-/// - highlights (array, dictionary): The highlights of the code, given by `line`, `range`, or `start` and `end`, and some `highlight` settings (a predefined highlight can be spread in it, e.g. `..highlights.alert()`, its delimiters being ignored). A single one can be given instead of an array.
-/// - comments (array, dictionary): The comments of the code, as `(line, content)` (after the line) or a dictionary with `after` or `before` (a line), `content`, and any `comment` setting except `style` (the content being styled directly). The comment starts (`indent`) at the left of the frame (`"frame"`), at the start of the code (`"code"`), at the indentation of the commented line (`"line"`), or there with the indentation guides (`"guideline"`). The marker of a comment (`marker`) is shown in the gutter, in the marker column or the number column (`placement`: `"markers"` or `"numbers"`, the marker column when the numbers are hidden). An empty marker (`marker: []`) keeps the gutter beside the comment, so that its separator is not interrupted. The separators of the comment (`sep`: a stroke, `(top: stroke, bottom: stroke)` or `none`) are drawn inside its top and bottom sides, against code lines and comments without separator on this side (not between two comments with separators, nor against the frame, the header or the footer). The fill of the gutter beside the comment (`marker-fill`) is the number fill of the commented line when `none`, and when `auto`, the fill of the comment, or the number fill of the commented line if the comment has no fill. A single one can be given instead of an array.
-/// - jumps (array, dictionary): The jumps of the number, as `(from, to)` or a dictionary with `from`, `to`, `skip-lines`, its `comment`, and the settings of this comment, named as for a comment (e.g. `fill`, not `comment-fill`). A jump skipping its lines (`skip-lines: true`) does not show the lines between `from` and `to` (which are in the code), instead of only jumping their numbers. A jump can start from `start` (before the first line) and, when skipping its lines, go to `end` (skipping the lines after `from`). A single one can be given instead of an array.
-/// - follows (bool, int): Wether the block continues a previous one, as after a page break: its top has no radius, no stroke and no vertical code inset (unless the header repeats), the header is only shown if it repeats, and the lang tag is removed if it is on the top (in the header, in the first line of code, or on the top of the frame). An integer is the number of the last line of the preceding block, the lines of this block being numbered from the next one (overriding `start`).
-/// - precedes (bool, int, content): Wether the block is continued by a next one, as before a page break: its bottom has no radius, no stroke and no vertical code inset (unless the footer repeats), the footer is only shown if it repeats, and the lang tag is removed if it is on the bottom of the frame. An integer is the largest line number of the following blocks (the number format being applied to it) and content is their widest number (or marker): the number column is made wide enough for it, so that it has the same width in the following blocks.
+/// #example(````
+/// #uraw(
+///   ```typ
+///   #let greeting(name) = "Hello " + name + "!"
+///
+///   #let greet(name, polite: true) = box(
+///     stroke: purple,
+///     inset: 2pt,
+///     if polite { greeting(name) + " Nice to meet you." } else { "<•>_<•>" }
+///   )
+///   ```,
+/// )
+/// ````)
+///
+/// Look at the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs] for a complete overview of what is possible with `uraw`.
+///
+/// - args (arguments): The settings (see `set-uraw`). Use `header: (content: ..., ...)` or `header: ...` to set the header of the block (same functioning for the footer).
+///
+/// - markers (array, dictionary): Each marker is given as `(line, content)` or `(line: line, content: content)`.
+///
+/// - highlights (array, dictionary): For each highlight, the range it covers is given either by `line` or `start` and `end`. `line` can take a single line number or a pair `(from, to)`. `start` and `end` both can take a single line number (meaning the start and end of that line) or a pair `(line, character)` to point at an exact code location. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, `sticky`, `expand`, see `set-uraw` for more details).
+///
+/// - comments (array, dictionary): Each comment is given as `(line, content)` (the comment is displayed after the line) or a dictionary with `after` / `before` indicating the targeted line, `content`, and styling parameters (`indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details).
+///
+/// - jumps (array, dictionary): Each jump is given as `(from, to)` or a dictionary `from`, `to`, wether to `skip-lines` of the raw text, and the associated comment parameters (`comment`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details).
+///
+/// - follows (bool, int, content, array): Wether the block continues a previous one, it then renders as after a page break (no top radius, no top stroke, etc). For a correct numbering and to display the accurate width of the left gutter, an integer value represents the last line of the preceding block, content is the widest marker of the preceding blocks (the marker column being shown and made wide enough for it), and a pair `(number, marker)` gives both.
+///
+/// - precedes (bool, int, content, array): Wether the block is continued by a next one, it then renders as before a page break (no bottom radius, no bottom stroke, etc). To display the accurate width of the left gutter, an integer value is the largest line number of the following blocks, content is their widest marker, and a pair `(number, marker)` gives both.
+///
+/// - body (content | raw | str | path): Either the whole document to apply the show rule (`#show: uraw`), some raw text block to format, a string or a path indicating the file to read the code from (see `read-code`).
+///
 /// -> content
 #let uraw(
-  ..args,
   markers: (),
   highlights: (),
   comments: (),
   jumps: (),
-  doc,
+  follows: false,
+  precedes: false,
+  body,
+  ..args,
 ) = {
-  let (doc, first-line) = cf.code-input(doc)
+  let (body, first-line) = cf.code-input(body)
   // Settings given by section or flat (e.g. `header-fill`)
   let args = cf.normalize-settings(args.named(), cf.uraw-spec)
+  args += (follows: follows, precedes: precedes)
 
   /// The show rules displaying the raw blocks, with the function giving the text style of the headers, footers, and comments.
   let with-base-style(base-style) = {
@@ -601,9 +639,7 @@
         el.location(),
         if supplement in (none, []) { [] } else { supplement + [~] }
           + fig-number
-          + if line-reference == auto {
-            "." + str(n) + if version != none { " (" + version + ")" }
-          } else if version != none {
+          + if version != none {
             line-reference(n, version)
           } else {
             line-reference(n)
@@ -612,8 +648,8 @@
     }
 
     // (for a single raw block, only this one: a raw block in one of its comments would take its comments, and be shown again inside itself)
-    let single = type(doc) == content and doc.func() == raw
-    show raw.where(block: true): it => if single and it.text != doc.text {
+    let single = type(body) == content and body.func() == raw
+    show raw.where(block: true): it => if single and it.text != body.text {
       it
     } else {
       context {
@@ -668,13 +704,13 @@
       }
     }
 
-    doc
+    body
   }
 
   // The style outside of the raw environments, used by the headers, footers and comments:
   // - for a whole document (`#show: uraw`), it is read directly, which costs no layout pass,
   // - for a raw block (which can be the body of a figure, whose kind is detected only if the raw block is not in a context), it is stored in a state
-  if type(doc) == content and doc.func() == raw {
+  if type(body) == content and body.func() == raw {
     context {
       let style = cf.outside-style()
       cf.uraw-style.update(styles => styles + (style,))

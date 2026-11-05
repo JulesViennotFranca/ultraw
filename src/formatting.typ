@@ -99,6 +99,7 @@
     "tag",
     if lang-tag.visible and lang-tag.placement == "header" { lang-tag.block },
   )
+  header.insert("tag-width", if header.tag != none { lang-tag.width })
 
   // (`auto` for the color of the code of the first or last line)
   let color(c, i) = if c == auto { (code.color)(i) } else { c }
@@ -124,6 +125,7 @@
   } else if footer.fill == none { code.frame-fill } else { footer.fill }
 
   header.inset = ut.full-inset(header.inset)
+  if header.tag != none { header.inset.right += lang-tag.width }
   footer.inset = ut.full-inset(footer.inset)
 
   header.radius = (
@@ -175,7 +177,7 @@
 // Numbering
 // -----------------------------------------------------------------------------
 
-#let number(number, nbr-lines, jumps, code, with-dst) = {
+#let number(number, nbr-lines, jumps, with-dst) = {
   assert(
     number.format in (none, auto) or type(number.format) in (str, function),
     message: "The `format` of the numbers must be `none` (hidden), `auto`, a string or a function.",
@@ -196,9 +198,6 @@
   } else {
     number.start
   }
-
-  if number.inset == auto { number.inset = code.inset }
-  number.inset = ut.line-inset(number.inset, code.line-spacing)
 
   number.sep = with-dst(number.sep)
 
@@ -238,6 +237,37 @@
 } else {
   let n = (number.format)(n)
   if type(n) == int { str(n) } else { n }
+}
+
+/// The line number and the widest marker given by `follows` or `precedes`: a line number, a marker, or both as a pair `(number, marker)`.
+///
+/// - value (bool, int, str, content, array): The value of `follows` or `precedes`.
+/// - name (str): `"follows"` or `"precedes"`.
+/// -> array: the line number and the marker (`none` when not given)
+#let continuation(value, name) = {
+  assert(
+    type(value) in (bool, int, str, content)
+      or (
+        type(value) == array
+          and value.len() == 2
+          and type(value.first()) == int
+          and type(value.last()) in (str, content)
+      ),
+    message: "`"
+      + name
+      + "` must be a boolean, "
+      + if name == "follows" {
+        "the last line number of the preceding block, the widest marker of the preceding blocks"
+      } else {
+        "the largest line number of the following blocks, their widest marker"
+      }
+      + " (as content), or both as a pair `(number, marker)`.",
+  )
+  if type(value) == array { value } else if type(value) == int {
+    (value, none)
+  } else if type(value) in (str, content) { (none, value) } else {
+    (none, none)
+  }
 }
 
 /// Format the number cells, a marker of `number-markers` taking the place of the number of its line.
@@ -334,13 +364,9 @@
 // Marker
 // -----------------------------------------------------------------------------
 
-#let marker(general, number, code) = {
+#let marker(general, number) = {
   let marker = (:)
   marker.over-numbers = general.markers-over-numbers and number.visible
-
-  marker.inset = if number.visible { number.inset } else { code.inset }
-  marker.inset = ut.line-inset(marker.inset, code.line-spacing)
-
   return marker
 }
 
@@ -375,19 +401,53 @@
 // Code
 // -----------------------------------------------------------------------------
 
-#let code(code, with-dst) = {
+#let code(code, frame, with-dst) = {
   code.indentation = with-dst(code.indentation)
 
   code.color = if code.color != auto { code.color }
 
-  let edge = ut.vertical-inset(code.inset)
+  // The top and bottom of the frame inset are on the first and last lines
+  let edge = ut.vertical-inset(frame.inset)
   code.edge = (
     top: edge.top.to-absolute(),
     bottom: edge.bottom.to-absolute(),
   )
-  code.inset = ut.line-inset(code.inset, code.line-spacing)
 
   return code
+}
+
+/// The insets of the cells, left and right (their top and bottom being half the line spacing): the frame inset on the sides of the frame, between the number and marker columns (left) and between the diff marker and code columns (right), and the numbers gutter between the columns before the code and the code (the separator being at its center).
+///
+/// - frame (dictionary): The frame parameters.
+/// - number (dictionary): The number parameters, with their visibility.
+/// - marker-visible (bool): Wether the marker column is visible.
+/// - line-spacing (length):
+/// - diff-marker-visible (bool): Wether the diff marker column is visible.
+/// -> dictionary: the insets of the `number`, `marker`, `diff-marker` and `code` cells
+#let cell-insets(
+  frame,
+  number,
+  marker-visible,
+  line-spacing,
+  diff-marker-visible: false,
+) = {
+  let (left, right) = ut.left-right-inset(frame.inset)
+  let gutter = if number.gutter == auto { left + right } else { number.gutter }
+  assert(
+    type(gutter) == length,
+    message: "The `gutter` of the numbers must be auto or a length.",
+  )
+  let half = gutter / 2
+  let first = if number.visible or marker-visible { half } else { left }
+  (
+    number: (left: left, right: if marker-visible { 0pt } else { half }),
+    marker: (left: left, right: half),
+    diff-marker: (left: first, right: 0pt),
+    code: (left: if diff-marker-visible { right } else { first }, right: right),
+  )
+    .pairs()
+    .map(((k, inset)) => (k, ut.line-inset(inset, line-spacing)))
+    .to-dict()
 }
 
 // -----------------------------------------------------------------------------
@@ -606,6 +666,7 @@
     "in-code",
     lang-tag.placement == "code" or lang-tag.placement == "inline",
   )
+  lang-tag.insert("in-header", lang-tag.placement == "header")
   lang-tag.insert(
     "on-frame",
     lang-tag.placement not in ("code", "inline", "header"),
@@ -809,19 +870,14 @@
   if comment.fill == none { comment.fill = code.frame-fill }
 
   let body = comment.content
-  if comment.style != none {
-    body = (comment.style)(body)
-    if comment.marker != none {
-      comment.marker = (comment.style)(comment.marker)
-    }
-  }
+  if comment.style != none { body = (comment.style)(body) }
   // The comments look as they would outside of the raw block, in the color of the code of the line before them (which their style overrides)
   let color = (code.color)(gap - 1)
   comment.body = ut.colored(color, with-style(base-style(), body))
   // (the marker being colored as the numbers when rendered)
-  if comment.marker != none {
-    comment.marker = with-style(base-style(), comment.marker)
-  }
+  // if comment.marker != none {
+  //   comment.marker = with-style(base-style(), comment.marker)
+  // }
 
   return comment
 }
@@ -840,7 +896,7 @@
 
       let settings = (:)
       for k in comment.keys() {
-        let v = j.at(k, default: jump.at("comment-" + k))
+        let v = j.at(k, default: jump.at(k))
         settings.insert(k, if v == auto { comment.at(k) } else { v })
       }
 
@@ -1526,7 +1582,6 @@
   nbr-lines,
   first-lines,
   new-to-old,
-  code,
   with-dst,
   skip-lines,
 ) = {
@@ -1546,7 +1601,6 @@
       diff-number,
       nbr-lines.at(version) - nbr-skipped(version-jumps),
       version-jumps,
-      code,
       with-dst,
     )
     let (version-line-numbers, line-index, kept) = line-numbers(
@@ -1679,7 +1733,6 @@
     span-rows(spans-after) + top + middle + bottom + span-rows(spans-before)
   }
 
-  let rows = comment-rows(comments.old.at(0), comments.new.at(0))
   let line-rows = ()
   for item in diff.items {
     if item.kind == "same" {
@@ -1697,12 +1750,37 @@
       }
     }
   }
-  for (k, row) in line-rows.enumerate() {
-    rows.push(row + (k: k))
-    rows += comment-rows(
-      if row.old != none { comments.old.at(row.old + 1) } else { () },
-      if row.new != none { comments.new.at(row.new + 1) } else { () },
+  // The comments between two rows (`none` at the start and the end): the ones after the lines of the first row, and the ones before the lines of the second row (of each version)
+  let gap-rows(prev, next, last) = {
+    let (after, before) = (
+      cs => cs.filter(c => c.copy-before),
+      cs => cs.filter(c => not c.copy-before),
     )
+    let of(v) = (
+      (
+        if prev == none { after(comments.at(v).at(0)) } else if (
+          prev.at(v) != none
+        ) { after(comments.at(v).at(prev.at(v) + 1)) } else { () }
+      )
+        + if next == none {
+          before(comments.at(v).at(last.at(v) + 1))
+        } else if next.at(v) != none {
+          before(comments.at(v).at(next.at(v)))
+        } else {
+          ()
+        }
+    )
+    comment-rows(of("old"), of("new"))
   }
-  rows
+  // (the last line of each version, before the comments at the end)
+  let last = (old: -1, new: -1)
+  let rows = ()
+  for (k, row) in line-rows.enumerate() {
+    rows += gap-rows(if k > 0 { line-rows.at(k - 1) }, row, last)
+    rows.push(row + (k: k))
+    for v in ("old", "new") {
+      if row.at(v) != none { last.at(v) = row.at(v) }
+    }
+  }
+  rows + gap-rows(line-rows.at(-1, default: none), none, last)
 }

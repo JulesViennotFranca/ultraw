@@ -50,7 +50,7 @@
 #let underline(color: black) = (
   ldel: "*_",
   rdel: "_*",
-  code-style: std.underline.with(offset: 2pt, stroke: 1.5pt + color),
+  code-style: std.underline.with(offset: 1.5pt, stroke: 1pt + color),
   stroke: none,
   fill: none,
 )

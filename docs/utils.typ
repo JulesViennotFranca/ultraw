@@ -1,4 +1,4 @@
-#import "@mine/ultraw:0.0.1": code-themes, get-uraw, style, themes, uraw
+#import "@mine/ultraw:0.0.1": get-uraw, raw-themes, style, themes, uraw
 #import "@preview/octique:0.1.1": *
 
 #let merge-diagram = {
@@ -144,8 +144,8 @@
     width: 100%,
     ..nargs.map(v => if v.trim().starts-with("style.") {
       eval("import \"@mine/ultraw:0.0.1\": style\n" + v)
-    } else if v.trim().starts-with("code-themes.") {
-      eval("import \"@mine/ultraw:0.0.1\": code-themes\n" + v)
+    } else if v.trim().starts-with("raw-themes.") {
+      eval("import \"@mine/ultraw:0.0.1\": raw-themes\n" + v)
     } else { eval(v) }),
     ..hidden-args,
     output-code,
@@ -230,10 +230,10 @@
   ) { jumps = (jumps,) }
   source(
     width: 100%,
-    code-inset: (bottom: 0pt, top: 2.5pt, x: 3pt),
-    jump-comment-fill: none,
-    jump-comment-marker: [],
-    jump-comment-indent: "guideline",
+    frame-inset: (bottom: 0pt, top: 2.5pt, x: 3pt),
+    jump-fill: none,
+    jump-marker: [],
+    jump-indent: "guideline",
     ..args,
     jumps: jumps,
     comments: comments

@@ -1,4 +1,4 @@
-#import "code.typ": *
+#import "raw.typ": *
 #import "style.typ": hatch
 
 // -----------------------------------------------------------------------------
@@ -6,19 +6,30 @@
 // -----------------------------------------------------------------------------
 
 #let pre-default = (
+  code: (
+    line-spacing: .65em,
+    indentation: gray,
+    indent-size: auto,
+    indented-line-return: true,
+    theme: auto,
+    color: auto,
+    fill: none,
+  ),
+  numbers: (
+    format: auto,
+    start: auto,
+    end: none,
+    color: auto,
+    fill: auto,
+    gutter: auto,
+    align: top + right,
+    sep: none,
+  ),
   general: (
     coloring-follow-numbers: true,
     default-stroke-thickness: .5pt,
-    line-reference: it => ", line " + str(it),
+    line-reference: n => ", line " + str(n) + ",",
     markers-over-numbers: false,
-  ),
-  frame: (
-    breakable: true,
-    sharp-page-break: true,
-    fill: none,
-    radius: 1mm,
-    stroke: none,
-    width: auto,
   ),
   header: (
     align: left + horizon,
@@ -40,53 +51,14 @@
     repeat: false,
     sep: auto,
   ),
-  numbers: (
-    format: auto,
-    start: auto,
-    end: none,
-    color: auto,
-    fill: auto,
-    inset: auto,
-    align: top + right,
-    sep: none,
-  ),
-  code: (
-    inset: (x: 3pt),
-    line-spacing: .65em,
-    indentation: gray,
-    indent-size: auto,
-    indented-line-return: true,
-    theme: auto,
-    color: auto,
+  frame: (
+    breakable: true,
+    sharp-page-break: true,
     fill: none,
-  ),
-  comment: (
-    indent: "frame",
-    marker: none,
-    marker-fill: auto,
-    marker-placement: "numbers",
-    fill: luma(245),
-    style: text.with(style: "italic"),
-    sep: none,
-  ),
-  jump: (
-    skip-lines: false,
-    comment: none,
-    comment-indent: auto,
-    comment-marker: auto,
-    comment-marker-fill: auto,
-    comment-marker-placement: auto,
-    comment-fill: auto,
-    comment-style: auto,
-    comment-sep: auto,
-  ),
-  highlight: (
-    expand: auto,
-    sticky: auto,
-    radius: 3pt,
-    fill: none,
+    radius: 1mm,
     stroke: none,
-    code-style: it => it,
+    width: auto,
+    inset: (x: 3pt),
   ),
   lang-tag: (
     visible: true,
@@ -99,9 +71,36 @@
     spacing: 5pt,
     placement: "code",
   ),
+  comment: (
+    indent: "frame",
+    marker: none,
+    marker-fill: auto,
+    marker-placement: "numbers",
+    fill: luma(245),
+    style: text.with(style: "italic"),
+    sep: none,
+  ),
+  highlight: (
+    expand: auto,
+    sticky: auto,
+    radius: 3pt,
+    fill: none,
+    stroke: none,
+    code-style: it => it,
+  ),
+  jump: (
+    comment: none,
+    indent: auto,
+    marker: auto,
+    marker-fill: auto,
+    marker-placement: auto,
+    fill: auto,
+    style: auto,
+    sep: auto,
+  ),
   diff: (
     general: (
-      line-reference: (k, version) => ", " + version + " line " + str(k),
+      line-reference: (n, version) => ", " + version + " line " + str(n) + ",",
       columns: (auto, auto),
       column-gutter: 0pt,
       blank-fill: hatch(luma(200)),
@@ -109,7 +108,6 @@
     ),
     diff-marker: (
       visible: true,
-      inset: auto,
       unchanged: [],
     ),
     old: (
@@ -162,11 +160,10 @@
 // -----------------------------------------------------------------------------
 
 #let pre-note = (
-  frame: (fill: luma(250), stroke: black),
+  frame: (fill: luma(250), stroke: black, inset: (x: 3pt, y: 2.5pt)),
   numbers: (align: top + left, sep: black),
-  code: (inset: (x: 3pt, y: 2.5pt)),
   comment: (style: it => it, sep: auto),
-  jump: (comment-sep: none),
+  jump: (sep: none),
   lang-tag: (fill: auto, placement: "top-right"),
   diff: (general: (blank-fill: hatch(black), sep: black)),
 )
@@ -194,7 +191,7 @@
   general: (
     coloring-follow-numbers: true,
     default-stroke-thickness: .5pt,
-    line-reference: it => ", line " + str(it),
+    line-reference: n => ", line " + str(n) + ",",
     algorithm-figure: true,
   ),
   frame: (
@@ -204,6 +201,7 @@
     radius: (:),
     stroke: (top: 1pt + black, bottom: 1pt + black),
     width: auto,
+    inset: (x: .25em),
   ),
   header: (
     align: left + horizon,
@@ -231,12 +229,11 @@
     end: none,
     color: auto,
     fill: auto,
-    inset: .25em,
+    gutter: auto,
     align: right,
     sep: none,
   ),
   code: (
-    inset: (x: .25em),
     line-spacing: .65em,
     indentation: none,
     indent-size: 15pt,

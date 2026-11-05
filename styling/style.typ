@@ -19,7 +19,7 @@
   }
 }
 
-#let read-lines-col(l) = (read-lines(l.first()), l.last())
+#let read-lines-col((l, c)) = (read-lines(l), c)
 
 #let exact(..lines, rest: none) = {
   let lines = lines
@@ -35,9 +35,18 @@
   }
 }
 
-#let focus(..lines, color: black, dim: 80%) = {
-  return exact(..lines.pos().map(l => (l, color)), color.transparentize(dim))
+#let focus(..lines, color: black, dim: 60%) = {
+  return exact(
+    ..lines.pos().map(l => (l, color)),
+    rest: color.transparentize(dim),
+  )
 }
+
+#let hatch(color) = tiling(size: (4pt, 4pt), line(
+  start: (0pt, 4pt),
+  end: (4pt, 0pt),
+  stroke: .3pt + color,
+))
 
 // -----------------------------------------------------------------------------
 // Numbers
@@ -59,14 +68,16 @@
   color: color,
 ))
 
-#let callout-marker(n, color: black) = circle(
-  radius: .8em,
+#let callout-marker(body, color: black) = circle(
+  radius: .6em,
   stroke: .5pt + color,
-  place(center + horizon, text(.7em, str(n))),
+  place(center + horizon, text(color, .9em, if type(body) == int {
+    str(body)
+  } else { body })),
 )
 
 #let badge-marker(color: black) = box(height: .8em, align(horizon, circle(
-  radius: 4pt,
+  radius: .3em,
   fill: color,
   stroke: none,
 )))
@@ -93,12 +104,6 @@
 // -----------------------------------------------------------------------------
 // Other
 // -----------------------------------------------------------------------------
-
-#let hatch(color) = tiling(size: (4pt, 4pt), line(
-  start: (0pt, 4pt),
-  end: (4pt, 0pt),
-  stroke: .3pt + color,
-))
 
 #let window(body) = stack(
   dir: ltr,

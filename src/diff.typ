@@ -80,22 +80,23 @@
         // Continuation: the diff follows or precedes another one, as at a page break
         let follows = args.at("follows", default: false)
         let precedes = args.at("precedes", default: false)
-        assert(
-          type(follows) in (bool, int),
-          message: "`follows` must be a boolean, or the number of the last line of the preceding block.",
+        // The last line of the preceding block (the lines being numbered from the next one), the largest number of the following blocks (the number column being wide enough for it), and the widest markers of both (the marker column being wide enough for them)
+        let (last-line, follows-marker) = formatting.continuation(
+          follows,
+          "follows",
         )
-        assert(
-          type(precedes) in (bool, int, str, content),
-          message: "`precedes` must be a boolean, the largest line number of the following blocks, or their widest number (as content).",
+        let (largest-line, precedes-marker) = formatting.continuation(
+          precedes,
+          "precedes",
         )
-        // The widest number of the following blocks, the number columns being wide enough for it
-        let widest-number = if type(precedes) == int {
-          formatting.shown-number(number, precedes)
-        } else if type(precedes) in (str, content) { precedes }
-        let precedes = precedes != false
-        // An integer is the last line of the preceding block, the lines are numbered from the next one
-        if type(follows) == int { number.start = follows + 1 }
-        let follows = follows != false
+        if last-line != none { number.start = last-line + 1 }
+        let widest-number = if largest-line != none and number.format != none {
+          formatting.shown-number(number, largest-line)
+        }
+        let widest-markers = (follows-marker, precedes-marker).filter(m => (
+          m != none
+        ))
+        let (follows, precedes) = (follows != false, precedes != false)
 
         // Basic formatting
         lang-tag.visible = (
@@ -134,7 +135,7 @@
             (none, none, none, none)
           }
         }
-        code = formatting.code(code, with-default-thickness)
+        code = formatting.code(code, frame, with-default-thickness)
         general.sep = with-default-thickness(general.sep)
 
         // Difference
@@ -154,9 +155,8 @@
           nbr-lines,
           first-lines,
           diff.new-to-old,
-          code,
           with-default-thickness,
-          jump.skip-lines,
+          jump.at("skip-lines", default: false),
         )
         // The lines skipped by the jumps are not shown, nor compared
         let kept = (old: numbers.old.kept, new: numbers.new.kept)
@@ -176,6 +176,12 @@
         // (the lang tag being in the color of the code of the first line by default)
         if lang-tag.color == auto { lang-tag.color = (colored-code.color)(0) }
         lang-tag.block = formatting.lang-tag-block(lang, lang-tag, frame)
+        lang-tag.insert(
+          "width",
+          if lang-tag.visible and (lang-tag.in-code or lang-tag.in-header) {
+            measure(lang-tag.block).width + lang-tag.spacing.to-absolute()
+          } else { 0pt },
+        )
 
         // The comments of each version, the ones of the jumps of both versions spanning over both codes (on the new numbers)
         let comments = (:)
@@ -197,7 +203,11 @@
           let jumps-of(version) = formatting
             .of-version(entries.jumps, version)
             .filter(j => (
-              number.visible or j.at("skip-lines", default: jump.skip-lines)
+              number.visible
+                or j.at("skip-lines", default: jump.at(
+                  "skip-lines",
+                  default: false,
+                ))
             ))
           comments.insert(
             v,
@@ -242,7 +252,7 @@
         let versions = (:)
         for v in ("old", "new") {
           let n = numbers.at(v)
-          let marker = formatting.marker(general, n.number, code)
+          let marker = formatting.marker(general, n.number)
           let (number-markers, markers, marker) = formatting.markers(
             cf.parse-markers(
               formatting.of-version(entries.markers, v),
@@ -252,6 +262,13 @@
             marker-comments.at(v),
             marker,
           )
+          // (the column of the markers is wide enough for the widest markers of the preceding and following blocks, the marker column being shown)
+          if marker.over-numbers {
+            marker.number-markers += widest-markers
+          } else if widest-markers.len() > 0 {
+            marker.visible = true
+            marker.markers += widest-markers
+          }
           let version-number = formatting.number-cells(
             n.number,
             general,
@@ -341,6 +358,45 @@
         }
         (frame, header, footer) = formatting.frame-block(frame, header, footer)
 
+        // The merged codes share their marker column
+        if same-code {
+          let visible = (
+            versions.old.marker.visible or versions.new.marker.visible
+          )
+          let markers = (
+            versions.old.marker.markers + versions.new.marker.markers
+          )
+          for v in ("old", "new") {
+            versions.at(v).marker.visible = visible
+            versions.at(v).marker.markers = markers
+          }
+        }
+
+        // The insets of the cells (the merged old numbers being followed by the new ones, the frame inset on each side)
+        let side-visible = (
+          versions.old.marker.visible or versions.new.marker.visible
+        )
+        diff-marker.inset = formatting
+          .cell-insets(frame, number, side-visible, code.line-spacing)
+          .diff-marker
+        let code-insets = (:)
+        for v in ("old", "new") {
+          let insets = formatting.cell-insets(
+            frame,
+            number,
+            versions.at(v).marker.visible,
+            code.line-spacing,
+            diff-marker-visible: diff-marker.visible,
+          )
+          versions.at(v).number.inset = insets.number
+          versions.at(v).marker.inset = insets.marker
+          code-insets.insert(v, insets.code)
+        }
+        if same-code {
+          versions.old.number.inset.right = versions.old.number.inset.left
+        }
+        code.inset = code-insets.new
+
         // Widths before the codes
 
         let char-width = measure("#").width
@@ -355,21 +411,6 @@
           versions.at(v).markers-width = markers-width
         }
 
-        // The merged codes share their marker column
-        if same-code {
-          let marker = versions.new.marker
-          marker.visible = versions.old.marker.visible or marker.visible
-          marker.markers = versions.old.marker.markers + marker.markers
-          let markers-width = me.numbers-markers-width(number, marker).last()
-          for v in ("old", "new") {
-            versions.at(v).marker.visible = marker.visible
-            versions.at(v).markers-width = markers-width
-          }
-        }
-
-        diff-marker.inset = if diff-marker.inset == auto { number.inset } else {
-          ut.line-inset(diff-marker.inset, code.line-spacing)
-        }
         diff-marker.width = if diff-marker.visible {
           (
             diff-marker.inset.left
@@ -404,7 +445,7 @@
 
         // The gutter of each version (both number columns for merged codes), and the start of its code
         for v in ("old", "new") {
-          versions.at(v).code = code
+          versions.at(v).code = code + (inset: code-insets.at(v))
           versions.at(v).pre-width = if same-code {
             (
               versions.old.numbers-width
@@ -418,12 +459,6 @@
         }
         versions.old.code.inset.right += gutter
 
-        lang-tag.insert(
-          "width",
-          if lang-tag.visible and lang-tag.in-code {
-            measure(lang-tag.block).width + lang-tag.spacing.to-absolute()
-          } else { 0pt },
-        )
         // The lang tag in the code is on the first line (of the new code for separated codes)
         let lang-tag-of(v) = if same-code or v == "new" { lang-tag } else {
           lang-tag + (visible: false, width: 0pt)
@@ -513,12 +548,7 @@
           code,
         )
         let header-width = if header.content != none {
-          (
-            measure(block(inset: header.inset, header.content)).width
-              + if header.tag != none {
-                measure(header.tag).width + lang-tag.spacing.to-absolute()
-              } else { 0pt }
-          )
+          measure(block(inset: header.inset, header.content)).width
         } else { 0pt }
         let footer-width = if footer.content != none {
           measure(block(inset: footer.inset, footer.content)).width
@@ -627,8 +657,8 @@
 /// - highlights (array, dictionary): The highlights, on the line numbers of their `version`. A single one can be given instead of an array.
 /// - comments (array, dictionary): The comments, as `(line, content)`, `(version, line, content)` or dictionaries with a `version`, as for `uraw`, and `span` (bool): wether the comment spans over both separated codes (over the separator), its text staying at the same place in its code and its marker being in the gutter of the old code. A single one can be given instead of an array.
 /// - jumps (array, dictionary): The jumps of the number, as `(from, to)`, `(version, from, to)` or dictionaries with a `version`: `"old"`, `"new"`, or `"both"` for a jump given on the new numbers, which jumps the same number of lines in the old code (its comment spans over both separated codes, as a new comment). A jump skipping its lines (`skip-lines`, as for `uraw`, as well as `start` and `end`) does not show them, the codes being compared without them. A single one can be given instead of an array.
-/// - follows (bool, int): Wether the diff continues a previous one, as for `uraw` (an integer being the number of the last line of the preceding block, for both versions).
-/// - precedes (bool, int, content): Wether the diff is continued by a next one, as for `uraw`.
+/// - follows (bool, int, content, array): Wether the diff continues a previous one, as for `uraw` (an integer being the number of the last line of the preceding block, for both versions).
+/// - precedes (bool, int, content, array): Wether the diff is continued by a next one, as for `uraw`.
 /// -> content
 #let uraw-diff(
   ..args,

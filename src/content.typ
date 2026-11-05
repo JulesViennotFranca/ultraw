@@ -22,10 +22,10 @@
 /// -> bool
 #let is-whitespace-line(line) = line.trim().len() == 0
 
-/// The size of an indentation level: the most frequent increase of the leading spaces between consecutive lines (the smallest one among the most frequent).
+/// The size of an indentation level: the most frequent change (increase or decrease) of the leading spaces between consecutive lines (the smallest one among the most frequent).
 ///
 /// - texts (array): The texts of the lines.
-/// - default (int): The size when no line is more indented than the previous one.
+/// - default (int): The size when all the lines have the same indentation.
 /// -> int
 #let infer-indent-size(texts, default) = {
   let spaces = texts
@@ -33,7 +33,8 @@
     .map(t => t.len() - t.trim(" ", at: start).len())
   let counts = (:)
   for (a, b) in spaces.zip(spaces.slice(1, spaces.len())) {
-    if b > a { counts.insert(str(b - a), counts.at(str(b - a), default: 0) + 1) }
+    let d = str(calc.abs(b - a))
+    if a != b { counts.insert(d, counts.at(d, default: 0) + 1) }
   }
   if counts.len() == 0 { return default }
   let (size, _) = counts

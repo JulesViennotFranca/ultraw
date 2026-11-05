@@ -122,13 +122,13 @@
 
 /// Fix the range of the highlight, and complete it with the default highlight settings.
 ///
-/// - hl (dictionary): The highlight, given by `line`, `range`, or `start` and `end`, and some style fields (delimiters being ignored, so that a predefined highlight can be spread in it).
+/// - hl (dictionary): The highlight, given by `line`, or `start` and `end`, and some style fields (delimiters being ignored, so that a predefined highlight can be spread in it).
 /// - defaults (dictionary): The `highlight` settings, giving the value of the missing style fields.
 /// -> dictionary
 #let format-highlight(hl, defaults) = {
   ut.check-keys(
     hl,
-    defaults.keys() + ("line", "range", "start", "end", "ldel", "rdel"),
+    defaults.keys() + ("line", "start", "end", "ldel", "rdel"),
     "a highlight",
   )
   let style = ut.filter-add-dict(defaults, hl)
@@ -147,8 +147,6 @@
       message: "The first line of a highlight must be before the last one.",
     )
     ((k1, 0), (k2, auto))
-  } else if "range" in hl {
-    hl.range
   } else {
     assert("start" in hl, message: "A highlight has no starting point.")
     assert("end" in hl, message: "A highlight has no ending point.")
@@ -340,7 +338,8 @@
 
 /// Create a highlight from a pre-highlight and a delimitation from the raw text.
 #let make-highlight(phl, del) = (
-  range: (del.start, del.end),
+  start: del.start,
+  end: del.end,
   expand: phl.expand,
   sticky: phl.sticky,
   radius: phl.radius,

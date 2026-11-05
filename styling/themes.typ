@@ -1,4 +1,5 @@
-// (imports inside blocks, so that the module only gives the themes and the functions making them)
+/// This module contains the themes of this package and support functions for creating new themes.
+
 #let (make, make-diff, make-pseudo) = {
   import "../src/config.typ": make-diff-theme, make-pseudo-theme, make-theme
   (make-theme, make-diff-theme, make-pseudo-theme)

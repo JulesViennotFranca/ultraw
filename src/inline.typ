@@ -47,8 +47,8 @@
 
   let delimited = delimited.map(h => simplify(
     h,
-    h.range.first().last(),
-    h.range.last().last(),
+    h.start.last(),
+    h.end.last(),
   ))
   let manual = ut
     .single-to-list(manual)

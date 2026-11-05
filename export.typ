@@ -9,5 +9,5 @@
 #import "src/diff.typ": uraw-diff
 #import "src/pseudo.typ": indent, no-number, uraw-pseudo
 #import "styling/themes.typ" as themes
-#import "styling/code.typ" as code-themes
+#import "styling/raw.typ" as raw-themes
 #import "styling/style.typ" as style

@@ -419,27 +419,28 @@
     repeat: header.repeat,
     grid.cell(
       colspan: nbr-columns,
-      context {
-        let first = id == none or on-anchor-page(id, "start")
-        block(
-          width: frame.width,
-          height: header.height,
-          radius: if first { header.radius } else { (:) },
-          inset: header.inset,
-          stroke: header.stroke + (bottom: none),
-          outset: ut.seam-outset(header.stroke, header.fill),
-          fill: header.fill,
-          breakable: false,
-          {
-            align(header.align, header.content)
-            hf-sep(header.stroke, header.inset, bottom)
-            // The lang tag placed in the header
-            if first and header.at("tag", default: none) != none {
-              place(right + horizon, header.tag)
-            }
-          },
-        )
-      },
+      context block(
+        width: frame.width,
+        height: header.height,
+        radius: if id == none
+          or not frame.sharp-page-break
+          or on-anchor-page(id, "start") {
+          header.radius
+        } else { (:) },
+        inset: header.inset,
+        stroke: header.stroke + (bottom: none),
+        outset: ut.seam-outset(header.stroke, header.fill),
+        fill: header.fill,
+        breakable: false,
+        {
+          align(header.align, header.content)
+          hf-sep(header.stroke, header.inset, bottom)
+          // The lang tag placed in the header
+          if header.at("tag", default: none) != none {
+            place(right + horizon, dx: header.tag-width, header.tag)
+          }
+        },
+      ),
     ),
   )
 }
@@ -456,11 +457,13 @@
     repeat: footer.repeat,
     grid.cell(
       colspan: nbr-columns,
-      // Repeated on another page than the last one, it has no bottom radius
+      // When sharp page break is set, repeated on another page than the last one, it has no bottom radius
       context block(
         width: frame.width,
         height: footer.height,
-        radius: if id == none or on-anchor-page(id, "end") {
+        radius: if id == none
+          or not frame.sharp-page-break
+          or on-anchor-page(id, "end") {
           footer.radius
         } else { (:) },
         inset: footer.inset,
@@ -1111,7 +1114,7 @@
     side(
       body,
       versions.at(v).numbers-width,
-      number.inset,
+      versions.at(v).number.inset,
       number-fill(v, i, k),
       number.align,
       height,
@@ -1300,7 +1303,7 @@
             []
           },
           versions.at(gv).numbers-width,
-          number.inset,
+          versions.at(gv).number.inset,
           fill,
           number.align,
           height,

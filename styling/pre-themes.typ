@@ -1,3 +1,5 @@
+/// This module contains the different pre-themes.
+
 #import "raw.typ": *
 #import "style.typ": hatch
 
@@ -5,6 +7,7 @@
 // Default
 // -----------------------------------------------------------------------------
 
+/// The default pre-theme.
 #let pre-default = (
   code: (
     line-spacing: .65em,
@@ -129,6 +132,7 @@
 // Dark
 // -----------------------------------------------------------------------------
 
+/// The pre-theme for the dark theme.
 #let pre-dark = (
   frame: (fill: luma(25)),
   code: (
@@ -159,6 +163,7 @@
 // Note
 // -----------------------------------------------------------------------------
 
+/// The pre-theme for the note theme.
 #let pre-note = (
   frame: (fill: luma(250), stroke: black, inset: (x: 3pt, y: 2.5pt)),
   numbers: (align: top + left, sep: black),
@@ -172,7 +177,7 @@
 // Window
 // -----------------------------------------------------------------------------
 
-
+/// The pre-theme for the window theme.
 #let pre-window = (
   frame: (stroke: 1pt + luma(240), radius: 5pt),
   header: (fill: luma(240), sep: none),
@@ -187,6 +192,7 @@
 // Pseudo
 // -----------------------------------------------------------------------------
 
+/// The default pre-theme for `uraw-pseudo`.
 #let pseudo-pre-default = (
   general: (
     coloring-follow-numbers: true,

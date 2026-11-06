@@ -490,12 +490,12 @@
 /// #example(````
 /// #uraw(
 ///   ```typ
-///   #let greeting(name) = "Hello " + name + "!"
+///   #let *|greeting|*(name) = "Hello " + name + "!"
 ///
 ///   #let greet(name, polite: true) = box(
 ///     stroke: purple,
-///     inset: 2pt,
-///     if polite { greeting(name) + " Nice to meet you." } else { "<•>_<•>" }
+///     inset: *!2pt!*,
+///     if polite { *|greeting|*(name) + " Nice to meet you." } else { "<•>_<•>" }
 ///   )
 ///   ```,
 /// )
@@ -660,9 +660,9 @@
 
         // Reading highlights from the raw text
         let pre-highlights = hs.list()
-        let formatted-pre-highlights = pre-highlights
-          .values()
-          .map(h => hl.format-pre-highlight(h, highlight))
+        let formatted-pre-highlights = pre-highlights.map(
+          h => hl.format-pre-highlight(h, highlight),
+        )
         let (dels, lines) = hl.parse-delimiters(
           it.lines.map(l => l.text),
           formatted-pre-highlights,

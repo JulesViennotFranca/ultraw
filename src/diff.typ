@@ -702,9 +702,9 @@
       context {
         let highlight = cf.diff-category-parser("highlight", args, lang)
         let pre-highlights = hs.list()
-        let formatted-pre-highlights = pre-highlights
-          .values()
-          .map(h => hl.format-pre-highlight(h, highlight))
+        let formatted-pre-highlights = pre-highlights.map(
+          h => hl.format-pre-highlight(h, highlight),
+        )
 
         // The highlights read from the delimiters, and the texts without them
         let texts = (:)

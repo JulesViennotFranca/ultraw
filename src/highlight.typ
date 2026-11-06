@@ -46,9 +46,8 @@
 
 /// Check that no pre-highlights share both delimiters.
 ///
-/// - hls (dictionary): The pre-highlights by name.
+/// - hls (array): The pre-highlights.
 #let check-pre-highlights(hls) = {
-  let hls = hls.values()
   for i in range(hls.len()) {
     for j in range(i + 1, hls.len()) {
       assert(

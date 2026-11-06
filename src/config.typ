@@ -357,6 +357,20 @@
       )
       ut.check-keys(value, parameters, "`" + name + "`")
       settings.insert(name, settings.at(name, default: (:)) + value)
+    } else if name == "diff" and spec != pseudo-spec {
+      // The settings of diffs (as in a theme): they override the other ones for a diff, and are kept apart otherwise (for `set-uraw`)
+      assert(
+        type(value) == dictionary,
+        message: "The `diff` settings must be a dictionary.",
+      )
+      let is-diff = "old" in spec.categories
+      let target = if is-diff { settings } else {
+        settings.at("diff", default: (:))
+      }
+      for (c, v) in normalize-settings(value, diff-spec) {
+        target.insert(c, target.at(c, default: (:)) + v)
+      }
+      if is-diff { settings = target } else { settings.diff = target }
     } else if name in spec.additional {
       settings.insert(name, value)
     } else if name in spec.flat-names {
@@ -397,6 +411,25 @@
     .to-dict()
 )
 
+/// Store some normalized settings of diffs, overriding the stored ones (the ones of a language if one is given).
+#let update-diff(settings, lang) = {
+  let add(diff) = {
+    for (category, value) in settings {
+      diff.insert(category, diff.at(category, default: (:)) + value)
+    }
+    diff
+  }
+  if lang == none {
+    uraw-config-state.update(config => config + (diff: add(config.diff)))
+  } else {
+    uraw-lang-configs-state.update(lang-configs => {
+      let configs = lang-configs.at(lang, default: (:))
+      configs.diff = add(configs.at("diff", default: (:)))
+      lang-configs + ((lang): configs)
+    })
+  }
+}
+
 /// Set the uraw configuration, specific to a language if one is mentioned. Here is an example changing the appearance for Typst raw blocks:
 ///
 /// #example(`
@@ -425,7 +458,7 @@
 ///     - `color (function | color | gradient | tiling | auto | none) = auto` the color of the code, `auto` and `none` colorate the code with the document's text color, a function return the code's color based on the line number
 ///     - `indentation (length | color | gradient | stroke | tiling | none) = gray` the style of indentation guidelines, set to `none` for no guidelines
 ///     - `indeted-line-return (bool) = true` wether the code after a line return starts at the indentation level of the line or on the left
-///     - `indent-size (int | auto) = auto` the size in blank spaces of indents, if set to `auto` it is detected automatically based on the most common indent size
+///     - `indent-size (int | auto) = auto` the size in blank spaces of indents, if set to `auto` it is detected automatically based on the most common indent size #(" ")
 ///   increase
 ///
 ///   - *numbers*
@@ -436,14 +469,14 @@
 ///     - `color (function | color | gradient | tiling | auto | none) = auto` the color of numbers, `auto` means the same color as the code, `none` means the same color as the document's text, a function returns the numbers color based on the number
 ///     - `gutter (length | auto) = auto` the space between the numbers and the code, `auto` fix it to `frame.inset.left + frame.inset.right`
 ///     - `sep (length | color | gradient | stroke | tiling | none) = none` the separator line between the numbers and markers column and the code column
-///     - `align (alignment) = top + right` the alignment of numbers in their
+///     - `align (alignment) = top + right` the alignment of numbers in their #(" ")
 ///   cell
 ///
 ///   - *general*
 ///     - `coloring-follow-numbers (bool) = true` wether the coloring functions follow the line numbers or the absolute line position in the raw block
 ///     - `markers-over-numbers (bool) = false` wether markers appear over numbers or not, when a marker appears over a number the line can't be labeled
 ///     - `line-reference (function) = n => ", line " + str(n)` the text written after "Listing ..." when referencing a precise line
-///     - `default-stroke-thickness (relative) = .5pt` the default thickness of strokes of raw
+///     - `default-stroke-thickness (relative) = .5pt` the default thickness of strokes of raw #(" ")
 ///   blocks
 ///
 ///   - *header* and *footer* (they have the same parameters)
@@ -454,7 +487,7 @@
 ///     - `height (relative | fraction | auto) = auto` the height of the header or footer block
 ///     - `inset (relative | dictionary) = 5pt` the inset of the header or footer block
 ///     - ` align (alignment) = left + horizon` controls the alignment of the content of the header or the footer
-///     - `code-aligned (bool) = false` wether to align the header or footer content with the code (when numbers or markers are
+///     - `code-aligned (bool) = false` wether to align the header or footer content with the code (when numbers or markers are #(" ")
 ///   visible)
 ///
 ///   - *frame*
@@ -464,7 +497,7 @@
 ///     - `fill (color | gradient | tiling | none) = none` the background color of the whole raw block
 ///     - `stroke (length | color | gradient | stroke | tiling | dictionary | none) = none` the border of the raw block
 ///     - `radius (relative | dictionary) = 1mm` the radius of the raw block
-///     - `inset (relative | dictionary) = (x: 3pt)` the inset of the raw
+///     - `inset (relative | dictionary) = (x: 3pt)` the inset of the raw #(" ")
 ///   block
 ///
 ///   - *lang-tag*
@@ -476,7 +509,7 @@
 ///     - `fill (color | gradient | tiling | auto | none) = luma(230)` the background color of the lang tag, `auto` default to the frame's background color
 ///     - `color (color | gradient | tiling | auto | none) = auto` the color of the language name in the lang tag, `auto` is the same as the code's color, `none` is the same as the document's text color
 ///     - `stroke (length | color | gradient | stroke | tiling | dictionary | auto | none) = auto` the border of the lang tag, `auto` default to the frame's border
-///     - `radius (relative | dictionary) = 2pt` the radius of the lang
+///     - `radius (relative | dictionary) = 2pt` the radius of the lang #(" ")
 ///   tag
 ///
 ///   - *highlight* default parameter for highlights
@@ -485,7 +518,7 @@
 ///     - `radius (relative | dictionary) = 3pt` the radius of the highlight block
 ///     - `code-style (function) = it => it` a style function to apply to the highlighted content
 ///     - `sticky (bool | auto) = auto` wether the highlight parts should merge from a line to the next (the stroke and radius are changed accordingly), `auto` sets this parameter automatically: a highlight defined with `line` is sticky while others not
-///     - `expand (alignment | auto | none) = auto` indicates the side on which the highlight should expand when going from a line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides), `auto` sets this parameter automatically: a highlight defined with `line` expand on both side while others don't
+///     - `expand (alignment | auto | none) = auto` indicates the side on which the highlight should expand when going from a line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides), `auto` sets this parameter automatically: a highlight defined with `line` expand on both side while others don't #(" ")
 ///   expand
 ///
 ///   - *comment* default styling parameter for comments
@@ -495,12 +528,15 @@
 ///     - `sep (length | color | gradient | stroke | tiling | dictionary: (top: ..., bottom: ...) | none )`: the separators at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side, if it is not a dictionary the style applies to both separators
 ///     - `marker (content | none) = none`: the marker of the comment
 ///     - `marker-fill (color | gradient | tiling | auto | none)`: the background color of the comment's marker, `auto` is the comment's background color, `none` is the numbers column background color
-///     - `marker-placement ("numbers" | "markers") = "numbers"`: the placement of the marker inside the numbers
+///     - `marker-placement ("numbers" | "markers") = "numbers"`: the placement of the marker inside the numbers #(" ")
 ///   column
 ///
 ///   - *jump* default styling parameter for jumps
 ///     - `comment (content | function | none) = none` the default comment content associated to jumps, a function takes the bounds of the jump `from` and `to` as arguments
-///     - `style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement` as for `comment`, `auto` is the default value for all of these and it means taking the corresponding `comment` parameter
+///     - `style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement` as for `comment`, `auto` is the default value for all of these and it means taking the corresponding `comment` #(" ")
+///   parameter
+///
+///   - *diff* the settings of diffs, as for `set-uraw-diff`
 ///
 /// -> content
 #let set-uraw(..args) = {
@@ -510,6 +546,9 @@
     if sec in settings {
       category-setter(sec, arguments(..lang, ..settings.at(sec)))
     }
+  }
+  if "diff" in settings {
+    update-diff(settings.diff, resolve-args(arguments(..lang)).first())
   }
 }
 
@@ -597,46 +636,63 @@
 // Diff
 // -----------------------------------------------------------------------------
 
-// The settings of diffs are the ones of uraw, overridden by the ones stored for diffs
+/// The settings specific to diffs, by category (in a context): the global ones, overridden by the ones of the language if one is given.
+///
+/// - lang (none, str):
+/// -> dictionary
+#let uncontext-diff-getter(lang) = {
+  let diff = uraw-config-state.get().diff
+  let lang-diff = if lang == none { (:) } else {
+    uraw-lang-configs-state
+      .get()
+      .at(lang, default: (:))
+      .at("diff", default: (:))
+  }
+  for (category, value) in lang-diff {
+    diff.insert(category, diff.at(category, default: (:)) + value)
+  }
+  diff
+}
+
+// The settings of diffs are the ones of uraw, overridden by the ones stored for diffs (global, then of the language)
 #let diff-category-parser(category, args, lang) = ut.filter-add-dict(
   (
     if category in diff-categories { (:) } else {
       uncontext-category-getter(category, lang)
     }
-      + uraw-config-state.get().diff.at(category, default: (:))
+      + uncontext-diff-getter(lang).at(category, default: (:))
   ),
   args.at(category, default: (:)),
 )
 
-/// Get the settings specific to diffs (in a context), the other ones being the ones of `uraw`.
+/// Get the settings specific to diffs (in a context), the other ones being the ones of `uraw`, specific to a language if one is mentioned.
+///
+/// - lang (arguments): The optional language name as a positional argument.
 /// -> dictionary
-#let get-uraw-diff() = uraw-config-state.get().diff
+#let get-uraw-diff(..lang) = uncontext-diff-getter(resolve-args(lang).first())
 
-/// Set the settings of diffs, by category or flat, overriding the ones of `uraw` for diffs: the ones of `uraw` (see `uraw-set`), and the ones specific to diffs: \ **diff-marker**: **visible** (bool, also given by `diff-marker: bool`), **unchanged** (content): the diff marker of the unchanged lines \ **old** and **new**: **diff-marker** (content): the diff marker of the changed lines, **numbers-color** and **numbers-fill**: the color and background of the numbers of the changed lines (`auto` for the ones of the numbers), **fill**: the background of the changes \ the general settings **line-reference** (function): how a reference to a line is displayed after "Listing n", a function of the number and of the version (`"old"` or `"new"`), **columns** (int | array): the widths of the codes, as for a grid: one column merges the codes, two columns separate them (`(auto, auto)` by default, which become `(1fr, 1fr)` when the codes are too large), **column-gutter** (relative): the space between the separated codes (with the separator at its center), **blank-fill**: the background of the space left by a line which is only in one version, **sep**: the separator between the separated codes.
+/// Set the settings of diffs, specific to a language if one is mentioned (as a positional argument), by category or flat, overriding the ones of `uraw` for diffs: the ones of `uraw` (see `uraw-set`), and the ones specific to diffs: \ **diff-marker**: **visible** (bool, also given by `diff-marker: bool`), **unchanged** (content): the diff marker of the unchanged lines \ **old** and **new**: **diff-marker** (content): the diff marker of the changed lines, **numbers-color** and **numbers-fill**: the color and background of the numbers of the changed lines (`auto` for the ones of the numbers), **fill**: the background of the changes \ the general settings **line-reference** (function): how a reference to a line is displayed after "Listing n", a function of the number and of the version (`"old"` or `"new"`), **columns** (int | array): the widths of the codes, as for a grid: one column merges the codes, two columns separate them (`(auto, auto)` by default, which become `(1fr, 1fr)` when the codes are too large), **column-gutter** (relative): the space between the separated codes (with the separator at its center), **blank-fill**: the background of the space left by a line which is only in one version, **sep**: the separator between the separated codes.
 /// -> content
 #let set-uraw-diff(..args) = {
-  assert(
-    args.pos().len() == 0,
-    message: "The settings of diffs do not depend on a language.",
-  )
-  let settings = normalize-settings(args.named(), diff-spec)
-  uraw-config-state.update(config => {
-    for (category, value) in settings {
-      config.diff.insert(
-        category,
-        config.diff.at(category, default: (:)) + value,
-      )
-    }
-    return config
-  })
+  let (lang, settings) = resolve-args(args)
+  update-diff(normalize-settings(settings, diff-spec), lang)
 }
 
-/// Reset the settings of diffs to their initial value.
+/// Reset the settings of diffs to their initial value, the ones of a language if one is mentioned (removed).
 /// -> content
-#let reset-uraw-diff() = uraw-config-state.update(config => {
-  config.diff = initial-config.diff
-  return config
-})
+#let reset-uraw-diff(..lang) = {
+  let lang = resolve-args(lang).first()
+  if lang == none {
+    uraw-config-state.update(config => config + (diff: initial-config.diff))
+  } else {
+    uraw-lang-configs-state.update(lang-configs => {
+      if lang in lang-configs {
+        let _ = lang-configs.at(lang).remove("diff", default: none)
+      }
+      lang-configs
+    })
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Themes
@@ -683,42 +739,21 @@
   merge-categories(pre-default, pre-theme) + (diff: diff)
 }
 
-/// Make a theme of `uraw` from a pre-theme (the settings by category which differ from the default ones, as the ones of `pre-themes`, with the settings specific to diffs in `diff`), given with `uraw(..theme)` or `set-uraw(..theme)`: its flat settings (all of them, the missing ones being the default ones, so that a theme does not depend on the settings set before), without the settings of diffs, and the `none` name and icon of the lang tag (so that the ones of the languages apply). The settings given after the theme override it (`uraw(..theme, header: [Title])` keeps the other header settings of the theme).
+/// Make a theme of `uraw` and `uraw-diff` from a pre-theme.
 ///
-/// - pre-theme (dictionary):
+/// - pre-theme (dictionary): The pre-theme to format, look at `themes.pre-themes.pre-default` for an example.
 /// -> dictionary
-#let make-theme(pre-theme) = {
+#let make(pre-theme) = {
   let pre-theme = complete-pre-theme(pre-theme)
-  let theme = pre-theme
-    .pairs()
-    .filter(((k, _)) => k in uraw-spec.categories)
-    .to-dict()
-  flatten-theme(theme, uraw-spec)
+  let diff = pre-theme.remove("diff")
+  flatten-theme(pre-theme, uraw-spec) + (diff: flatten-theme(diff, diff-spec))
 }
 
-/// Make a theme of `uraw-diff` from a pre-theme (see `make-theme`), given with `uraw-diff(..theme)` or `set-uraw-diff(..theme)`: its flat settings, the ones of its `diff` overriding the other ones. A pre-theme without `diff` is the one of diffs only (its categories being the ones of `diff`: `old`, `new`, `diff-marker`, and the ones of `uraw`).
+/// Make a theme of `uraw-pseudo` from a pre-theme.
 ///
-/// - pre-theme (dictionary):
+/// - pre-theme (dictionary): The pre-theme to format, look at `themes.pre-themes.pseudo-pre-default` for an example.
 /// -> dictionary
-#let make-diff-theme(pre-theme) = {
-  let pre-theme = complete-pre-theme(
-    if "diff" in pre-theme { pre-theme } else { (diff: pre-theme) },
-  )
-  let theme = pre-theme
-    .pairs()
-    .filter(((k, _)) => k in uraw-spec.categories)
-    .to-dict()
-  for (k, v) in pre-theme.at("diff", default: (:)) {
-    theme.insert(k, theme.at(k, default: (:)) + v)
-  }
-  flatten-theme(theme, diff-spec)
-}
-
-/// Make a theme of `uraw-pseudo` from a pre-theme of pseudo code (the settings by category which differ from `pseudo-pre-default`), given with `uraw-pseudo(..theme)` or `set-uraw-pseudo(..theme)`: its flat settings (all of them, the missing ones being the default ones).
-///
-/// - pre-theme (dictionary):
-/// -> dictionary
-#let make-pseudo-theme(pre-theme) = {
+#let make-pseudo(pre-theme) = {
   ut.check-keys(pre-theme, pseudo-spec.categories.keys(), "a pre-theme")
   flatten-theme(merge-categories(pseudo-pre-default, pre-theme), pseudo-spec)
 }

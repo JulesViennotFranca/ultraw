@@ -44,25 +44,13 @@
 #pagebreak()
 
 #highlights.add(
-  safety: (
-    ldel: "*$",
-    rdel: "$*",
-    ..highlights.base-style(olive),
-    sticky: true,
-  ),
-  blue-code: (
-    ldel: "*b",
-    rdel: "b*",
-    code-style: text.with(rgb("#4C69C6")),
-  ),
-  black-code: (ldel: "*k", rdel: "k*", code-style: text.with(black)),
-  rainbow-code: (
+  (ldel: "*$", rdel: "$*", ..highlights.base-style(olive), sticky: true),
+  (ldel: "*b", rdel: "b*", code-style: text.with(rgb("#4C69C6"))),
+  (ldel: "*k", rdel: "k*", code-style: text.with(black)),
+  (
     ldel: "*g|",
     rdel: "|g*",
-    code-style: it => box(text(
-      fill: gradient.linear(..color.map.rainbow),
-      it,
-    )),
+    code-style: it => box(text(fill: gradient.linear(..color.map.rainbow), it)),
   ),
 )
 
@@ -132,7 +120,7 @@
 
     uraw(
       ..themes.window,
-      header: style.window[The Merge Sort algorithm in python.],
+      header: style.window-header[The Merge Sort algorithm in python.],
       line-spacing: 0.8em,
       lang-tag-fill: blue.lighten(75%),
       highlights: (
@@ -214,7 +202,7 @@
   #set par(spacing: 1cm)
 
   #uraw-diff(
-    ..themes.diff-dark,
+    ..themes.dark,
     header: [`merge_sort` correction],
     line-spacing: 0.8em,
     lang-tag-fill: blue.darken(30%),
@@ -741,19 +729,10 @@ The #ultraw package provides a simple and efficient highlighting. The main featu
   column-gutter: 3mm,
 
   [
+    #highlights.remove((ldel: "*|", rdel: "|*"), (ldel: "*!", rdel: "!*"))
     #highlights.add(
-      base: (
-        ldel: "*||",
-        rdel: "||*",
-        ..highlights.base-style(yellow),
-        sticky: true,
-      ),
-      alert: (
-        ldel: "*!!",
-        rdel: "!!*",
-        ..highlights.alert-style(red),
-        sticky: true,
-      ),
+      (ldel: "*||", rdel: "||*", ..highlights.base-style(yellow), sticky: true),
+      (ldel: "*!!", rdel: "!!*", ..highlights.alert-style(red), sticky: true),
     )
 
     #source(
@@ -769,7 +748,8 @@ The #ultraw package provides a simple and efficient highlighting. The main featu
       ````,
     )
 
-    #highlights.add(base: highlights.base(), alert: highlights.alert())
+    #highlights.add(highlights.base(), highlights.alert())
+    #highlights.remove((ldel: "*||", rdel: "||*"), (ldel: "*!!", rdel: "!!*"))
   ],
 
   [
@@ -806,13 +786,13 @@ You can define your own highlights by providing a left and a right delimiters an
     ),
     ````typ
     #highlights.add(
-      rainbow: (
+      (
         ldel: "*r",
         rdel: "r*",
         code-style: it => box(text(fill: gradient.linear(..color.map.rainbow), it)),
       ),
-      purple-base: (del: "*p*", sticky: true, ..highlights.base-style(purple)),
-      flare: (ldel: "*#", rdel: "#*", expand: right, fill: gradient.linear(..color.map.flare)),
+      (del: "*p*", sticky: true, ..highlights.base-style(purple)),
+      (ldel: "*#", rdel: "#*", expand: right, fill: gradient.linear(..color.map.flare)),
     )
 
     ```rs
@@ -831,7 +811,7 @@ You can define your own highlights by providing a left and a right delimiters an
   )
 
   highlights.add(
-    rainbow: (
+    (
       ldel: "*r",
       rdel: "r*",
       code-style: it => box(text(
@@ -839,8 +819,8 @@ You can define your own highlights by providing a left and a right delimiters an
         it,
       )),
     ),
-    purple-base: (del: "*p*", sticky: true, ..highlights.base-style(purple)),
-    flare: (
+    (del: "*p*", sticky: true, ..highlights.base-style(purple)),
+    (
       ldel: "*#",
       rdel: "#*",
       expand: right,
@@ -915,19 +895,9 @@ Highlights can also be defined per block through the `highlights` argument of #u
 
 A simpler version of #urawf for inline raw text exists. It inherits its appearence from #urawf and can contain highlights. Here is an example of such inline formatted raw text:
 
+#highlights.remove((ldel: "*!", rdel: "!*"))
 #highlights.add(
-  base: (
-    ldel: "*||",
-    rdel: "||*",
-    ..highlights.base-style(yellow),
-    sticky: true,
-  ),
-  alert: (
-    ldel: "*!!",
-    rdel: "!!*",
-    ..highlights.alert-style(red),
-    sticky: true,
-  ),
+  (ldel: "*!!", rdel: "!!*", ..highlights.alert-style(red), sticky: true),
 )
 
 #grid(
@@ -935,12 +905,13 @@ A simpler version of #urawf for inline raw text exists. It inherits its appearen
   column-gutter: 1cm,
   align: horizon,
   text(0.8em, source(numbers: none, lang-tag: false, ```typ
-  uraw-inline(highlights: (end: 5, ..highlights.base()), `ult*!raw!*`)
+  uraw-inline(highlights: (end: 5, ..highlights.base()), `ult*!!*!!!*raw*!!!*!!*`)
   ```)),
   uraw-inline(highlights: (end: 5, ..highlights.base()), `ult*!!raw!!*`),
 )
 
-#highlights.add(base: highlights.base(), alert: highlights.alert())
+#highlights.add(highlights.alert())
+#highlights.remove((ldel: "*!!", rdel: "!!*"))
 
 = Comments <comments>
 
@@ -1317,7 +1288,7 @@ A theme is a collection of settings that is spread into functions to change thei
 
 == Creation
 
-First create a `pre-theme` holding your settings as you would write them inside of #urawf. Then, format it to a proper #urawf theme with #f[themes.make]. Diffs themes are formatted with #f[themes.make-diff], pseudo code themes are formatted with #f[themes.make-pseudo]. A pre-theme can be used for both raw blocks and diffs by having a `diff` category containing diff-only settings (useful to keep things more centralized).
+First create a `pre-theme` holding your settings as you would write them inside of #urawf. Then, format it to a proper theme with #f[themes.make]. The formatted theme can apply both to `uraw` and `uraw-diff`. Pseudo code themes are formatted with #f[themes.make-pseudo].
 // TODO add the reference to make theme functions
 
 #text(0.8em, source(```typ
@@ -1371,10 +1342,10 @@ Additionally, helper styling functions are provided through the `style` module. 
 #text(40pt, font: "Geist Mono", weight: "bold")[Library] <library>
 
 #highlights.add(
-  hide: highlights.hole(color: none),
-  strike: highlights.strike(),
-  underline: highlights.underline(),
-  red-underline: (..highlights.underline(color: red), ldel: "*r_", rdel: "_r*"),
+  highlights.hole(color: none),
+  highlights.strike(),
+  highlights.underline(),
+  (..highlights.underline(color: red), ldel: "*r_", rdel: "_r*"),
 )
 
 = Arguments forms <args-forms>
@@ -1393,7 +1364,7 @@ Functions of this package can receive arguments under two forms: a *grouped form
 
 For all arguments, the grouped form is #uraw-inline(`*r_category_r*: (..., *r_parameter_r*: value, ...)`) and the direct form is #uraw-inline(`*r_category_r*-*r_parameter_r*: value`). For organization purpose, throughout the rest of the documentation arguments will be given under their grouped form.
 
-To enable a fast access to common and unambiguous parameters, some arguments can be given under a *short form*. The short form is straightforward, it is #uraw-inline(`*r_parameter_r*: value`) in most case. Here is the list of eligible arguments along with their short form:
+To enable a fast access to common and unambiguous parameters, some arguments can be given under a *short form*. The short form is straightforward, it is #uraw-inline(`*r_parameter_r*: value`) in most cases. Here is the list of eligible arguments along with their short form:
 
 #align(center, uraw(
   numbers: none,
@@ -1451,22 +1422,6 @@ To enable a fast access to common and unambiguous parameters, some arguments can
     style.................................................................style
   ```,
 ))
-
-// #alert[
-//   Before going any further, a note about arguments of functions of this package (#urawf, #f("set-uraw"), etc) must be made. Most arguments are grouped by categories (`frame`, `numbers`, etc) to which they refer to. Such arguments can be given under two form: a *grouped form* or a *direct form*. The grouped form groups arguments of the same category together while the direct form points to the arguments directly as follow:
-
-//   #align(center, grid(
-//     columns: 2,
-//     column-gutter: 1cm,
-//     row-gutter: 5mm,
-//     align: center,
-//     [*Grouped form*], [*Direct form*],
-//     uraw-inline(`#set-uraw(*|frame|*: (*|fill|*: purple))`),
-//     uraw-inline(`#set-uraw(*|frame-fill|*: purple)`),
-//   ))
-
-//   Look at the #link(<args-forms-table>)[Arguments forms table] for a precise correspondence between grouped and direct forms of arguments.
-// ] <args-forms-disclaimer>
 
 = #urawf <uraw-lib>
 
@@ -1587,18 +1542,16 @@ It also provides predefined highlights with their delimiters, and the styles of 
     .flatten(),
 ))
 
-#highlights.remove("hide", "strike", "underline")
-
 = Themes & Style
 
 #arg(
   "themes",
   "module",
-)[The themes of #urawf (`default`, `note`, `dark`), of #uraw-difff (`diff-default`, `diff-note`, `diff-dark`) and of #uraw-pseudof (`pseudo-default`), to spread in the functions (see #link(<themes>)[Themes]).]
+)[The themes of #urawf and #uraw-difff (`default`, `note`, `dark`, `window`) and of #uraw-pseudof (`pseudo-default`), to spread in the functions (see #link(<themes>)[Themes]).]
 #arg(
   "themes.make(pre-theme)",
   "dictionary",
-)[A theme of #urawf from its settings by category (and the settings of diffs in `diff`). `themes.make-diff` and `themes.make-pseudo` make the themes of diffs and of pseudo code.]
+)[A theme of #urawf and #uraw-difff from its settings by category (and the settings of diffs in `diff`). `themes.make-pseudo` makes the themes of pseudo code.]
 #arg(
   "raw-themes",
   "module",

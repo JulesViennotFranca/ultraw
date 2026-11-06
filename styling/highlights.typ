@@ -1,36 +1,61 @@
+/// This module provides styling and managing functions for highlights.
+
 // -----------------------------------------------------------------------------
 // Style
 // -----------------------------------------------------------------------------
 
+/// Return the styling parameters of the base highlight: a dimmed background with a plain border.
+///
+/// - color (color, gradient, tiling): The color of the highlight.
+/// -> dictionary
 #let base-style(color) = (
   fill: color.transparentize(70%),
   stroke: color,
 )
 
+/// The base highlight: a dimmed background and a plain border.
+///
+/// - color (color, gradient, tiling): The color of the highlight.
+/// -> dictionary
 #let base(color: yellow) = (
   ldel: "*|",
   rdel: "|*",
   ..base-style(color),
 )
 
+/// Return the styling parameters of a square highlight: no border and a plain background.
+///
+/// - color (color, gradient, tiling): The color of the highlight.
+/// -> dictionary
 #let square-style(color) = (
   radius: 0pt,
   fill: color,
   stroke: none,
 )
 
+/// Return the styling parameters of an alert highlight: no border, a plain background and a strong white highlighted code.
+///
+/// - color (color, gradient, tiling): The color of the highlight.
+/// -> dictionary
 #let alert-style(color) = (
-  radius: 0pt,
-  fill: color,
+  ..square-style(color),
   code-style: it => strong(text(fill: white, it)),
 )
 
+/// The alert highlight: no border, a plain background and a strong white highlighted code.
+///
+/// - color (color, gradient, tiling): The color of the highligt.
+/// -> dictionary
 #let alert(color: red) = (
   ldel: "*!",
   rdel: "!*",
   ..alert-style(color),
 )
 
+/// The hole highlight: no background, a hidden code and a dashed border.
+///
+/// - color (color, gradient, tiling): The color of the dashed border.
+/// -> dictionary
 #let hole(color: black) = (
   ldel: "*?",
   rdel: "?*",
@@ -39,6 +64,10 @@
   fill: none,
 )
 
+/// A highlight that strikes through the code.
+///
+/// - color (color, gradient, tiling): The color of the strike line.
+/// -> dictionary
 #let strike(color: red) = (
   ldel: "*-",
   rdel: "-*",
@@ -47,6 +76,10 @@
   fill: none,
 )
 
+/// A highlight that underlines the code.
+///
+/// - color (color, gradient, tiling): The color of the underlining line.
+/// -> dictionary
 #let underline(color: black) = (
   ldel: "*_",
   rdel: "_*",
@@ -55,6 +88,7 @@
   fill: none,
 )
 
+/// A highlight that renders the code bold.
 #let strong = (
   del: "***", // Third * needed for Typst code
   code-style: std.strong,
@@ -66,21 +100,32 @@
 // Management
 // -----------------------------------------------------------------------------
 
-#import "../src/highlight.typ" as hl
+/// The state storing highlights.
+#let highlights-state = state("uraw-highlights", (base(), alert()))
 
-/// The highlights defined by delimiters, by name.
-#let highlights-state = state("uraw-highlights", (base: base(), alert: alert()))
-
-/// Add highlights by name, a highlight replacing the one with the same name. A highlight has delimiters (`ldel` and `rdel`, or `del` when they are the same) and some `highlight` settings.
+/// Add highlights to use it in raw text.
+///
+/// #example(`
+/// #add(
+///   (ldel: "*~", rdel: "~*", fill: teal, code-style: it => text(white, strong(it))),
+///   (del: "*-*", stroke: olive, radius: 0pt, expand: left),
+/// )
+/// `)
+///
+/// - highlights (arguments): Each highlight to register is given as a dictionary. If some keys are omitted their default value is given by the `highlight` setting of `uraw` or `uraw-diff`. The keys of the dictionary are
+///   - `ldel (str) + rdel (str)` or `del (str)` (shortcut when `ldel = rdel`) the delimiters of the highlight inside the raw text: writing `... ldelsome coderdel ...` will remove `ldel` and `rdel` from the code and highlight `some code`
+///   - `fill (color | gradient | tiling | none)` the background color of the highlight block
+///   - `stroke (length | color | gradient | stroke | tiling | none)` the border of the highlight block
+///   - `radius (relative | dictionary)` the radius of the highlight block
+///   - `code-style (function)` a style function to apply to the highlighted content
+///   - `sticky (bool)` wether the highlight parts should merge from a line to the next (the stroke and radius are changed accordingly)
+///   - `expand (alignment | none)` indicates the side on which the highlight should expand when going from a line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides)
 ///
 /// -> content
-#let add(..args) = {
-  assert(args.pos().len() == 0, message: "The highlights are given by name.")
-  let added = args
-    .named()
-    .pairs()
-    .map(((name, h)) => (name, hl.pre-highlight(h)))
-    .to-dict()
+#let add(..highlights) = {
+  import "../src/highlight.typ" as hl
+
+  let added = highlights.pos().map(hl.pre-highlight)
   highlights-state.update(hls => {
     let hls = hls + added
     let _ = hl.check-pre-highlights(hls)
@@ -88,25 +133,53 @@
   })
 }
 
-/// Remove highlights by name.
+/// Remove highlights.
 ///
+/// #example(`
+/// #remove((ldel: "*!", rdel: "!*"), (del: "***"))
+/// `)
+///
+/// - delimiters (arguments): Each highlight delimiters is a dictionary with either two keys `ldel` and `rdel` representing the left and right delimiters or a single key `del` representing both delimiters.
 /// -> content
-#let remove(..names) = highlights-state.update(hls => {
-  for name in names.pos() { let _ = hls.remove(name, default: none) }
-  hls
-})
+#let remove(..delimiters) = {
+  let delimiters = delimiters
+    .pos()
+    .map(ds => if "del" in ds { (ds.del, ds.del) } else if "ldel" in ds
+      and "rdel" in ds { (ds.ldel, ds.rdel) })
+    .filter(ds => ds != none)
 
-/// The settings of a highlight (in a context).
-///
-/// - name (str):
-/// -> dictionary
-#let get(name) = {
-  let hls = highlights-state.get()
-  assert(name in hls, message: "There is no highlight `" + name + "`.")
-  hls.at(name)
+  highlights-state.update(hls => hls.filter(h => {
+    not (h.ldel, h.rdel) in delimiters
+  }))
 }
 
-/// The highlights by name (in a context).
+/// Return the parameters of a highlight. The context must be known to call this function.
 ///
+/// #example(`
+/// #context get(ldel: "*!", rdel: "!*")
+/// `)
+///
+/// - del (str | none): `del` represents both delimiters of the highlight. It overrides `ldel` and `rdel` if given.
+/// - ldel (str | none): The left delimiter of the highlight.
+/// - rdel (str | none): The right delimiter of the highlight.
 /// -> dictionary
+#let get(del: none, ldel: none, rdel: none) = {
+  assert(
+    del != none or (ldel != none and rdel != none),
+    message: "Either `del` or `ldel` and `rdel` must be fixed.",
+  )
+  if del != none { (ldel, rdel) = (del, del) }
+
+  let h = highlights-state.get().filter(h => (h.ldel, h.rdel) == (ldel, rdel))
+  assert(h.len() > 0, message: "There is no highlight with these delimiters.")
+  h.first()
+}
+
+/// List highlights. The context must be known to call this function.
+///
+/// #example(`
+/// #context list()
+/// `)
+///
+/// -> array
 #let list() = highlights-state.get()

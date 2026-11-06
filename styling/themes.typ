@@ -1,26 +1,18 @@
-/// This module contains the themes of this package and support functions for creating new themes.
+/// This module contains the themes of this package and support functions for making new themes.
 
-#let (make, make-diff, make-pseudo) = {
-  import "../src/config.typ": make-diff-theme, make-pseudo-theme, make-theme
-  (make-theme, make-diff-theme, make-pseudo-theme)
-}
+#import "../src/config.typ": make, make-pseudo
+#import "pre-themes.typ"
 
-#let (default, diff-default, pseudo-default) = {
-  import "pre-themes.typ": pre-default, pseudo-pre-default
-  (make(pre-default), make-diff(pre-default), make-pseudo(pseudo-pre-default))
-}
+/// The default theme of `uraw` and `uraw-diff`.
+#let default = make(pre-themes.pre-default)
+/// The default `uraw-pseudo` theme.
+#let pseudo-default = make-pseudo(pre-themes.pseudo-pre-default)
 
-#let (dark, diff-dark) = {
-  import "pre-themes.typ": pre-dark
-  (make(pre-dark), make-diff(pre-dark))
-}
+/// A dark theme.
+#let dark = make(pre-themes.pre-dark)
 
-#let (note, diff-note) = {
-  import "pre-themes.typ": pre-note
-  (make(pre-note), make-diff(pre-note))
-}
+/// A theme with a more structured and boxed aesthetic.
+#let note = make(pre-themes.pre-note)
 
-#let (window, diff-window) = {
-  import "pre-themes.typ": pre-window
-  (make(pre-window), make-diff(pre-window))
-}
+/// A theme resembling a neat and light computer window.
+#let window = make(pre-themes.pre-window)

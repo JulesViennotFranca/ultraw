@@ -4,17 +4,8 @@
 #import "config.typ" as cf
 #import "utils.typ" as ut
 
-/// The start and the end of a manual highlight of inline code (character positions, the end being excluded): its `range`, or its `start` and `end` (the start and the end of the code by default).
 #let inline-bounds(h, length) = {
-  assert(
-    "line" not in h,
-    message: "A highlight of inline code has no `line`, it is given by its `start` and `end`, or its `range`.",
-  )
   let (start, end) = if "range" in h {
-    assert(
-      "start" not in h and "end" not in h,
-      message: "A highlight of inline code is given by its `range`, or by its `start` and `end`, not both.",
-    )
     assert(
       type(h.range) == array and h.range.len() == 2,
       message: "The `range` of a highlight of inline code must be a pair `(start, end)`.",
@@ -122,11 +113,18 @@
   result
 }
 
-/// Display inline code with highlights: the highlights delimiters of `uraw` (`*|...|*`, ...) and manual highlights.
+/// Display inline code by following the same settings as `uraw`.
 ///
-/// - body (str, content): The code, as a string or an inline raw element (it can be used in a show rule on inline raw elements).
-/// - lang (none, str): The language of the code given as a string.
-/// - highlights (array, dictionary): The manual highlights, with a `start` and an `end` (integers: character positions of the code without delimiters, the end being excluded, the default ones being the start and the end of the code) or a `range: (start, end)`, and a `fill`, a `radius`, a `stroke`, a `code-style` (a predefined highlight can be spread in it, e.g. `..highlights.alert()`, its delimiters being ignored). A single one can be given instead of an array.
+/// #example(```
+/// #uraw-inline(lang: "py", `print("*|Hello|* world!")`)
+/// ```)
+///
+/// - body (str, raw, content): The code to be displayed.
+///
+/// - lang (none, str): The language of the code.
+///
+/// - highlights (array, dictionary): For each highlight, the range it covers is given either by `start (int)` and `end (int)` or `range ((int, int))`. Default values of `start` and `end` are the first and the last characters. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, `sticky`, `expand`, see `set-uraw` for more details).
+///
 /// -> content
 #let uraw-inline(body, lang: none, highlights: ()) = {
   // The code displayed by this function is not displayed again (when it is used in a show rule)
@@ -149,9 +147,7 @@
   context {
     let highlight = cf.uncontext-category-getter("highlight", lang)
     let pre-highlights = hs.list()
-    let phls = pre-highlights
-      .values()
-      .map(h => hl.format-pre-highlight(h, highlight))
+    let phls = pre-highlights.map(h => hl.format-pre-highlight(h, highlight))
     let (dels, lines) = hl.parse-delimiters(text.split("\n"), phls)
     let delimited = dels.map(del => hl.make-highlight(phls.at(del.idx), del))
     let code = lines.join("\n", default: "")

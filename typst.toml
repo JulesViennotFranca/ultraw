@@ -2,7 +2,7 @@
 name = "ultraw"
 version = "0.0.1"
 compiler = "0.15.0"
-entrypoint = "export.typ"
+entrypoint = "export/main.typ"
 authors = ["Jules Viennot Franca"]
 license = "MIT"
 description = "Ultimate raw environments."

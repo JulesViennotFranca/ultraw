@@ -346,7 +346,7 @@
 /// -> metadata
 #let row-anchor(id, kind) = metadata((uraw-anchor: (id: id, kind: kind)))
 
-/// Wether the current page is the one of an anchor of a block (`true` when there is no such anchor).
+/// Whether the current page is the one of an anchor of a block (`true` when there is no such anchor).
 ///
 /// - id (int): The identifier of the block.
 /// - kind (str): `"start"` or `"end"`.
@@ -421,7 +421,6 @@
       colspan: nbr-columns,
       context block(
         width: frame.width,
-        height: header.height,
         radius: if id == none
           or not frame.sharp-page-break
           or on-anchor-page(id, "start") {
@@ -460,7 +459,6 @@
       // When sharp page break is set, repeated on another page than the last one, it has no bottom radius
       context block(
         width: frame.width,
-        height: footer.height,
         radius: if id == none
           or not frame.sharp-page-break
           or on-anchor-page(id, "end") {
@@ -499,7 +497,6 @@
 /// - highlights (array): The list of highlights per line.
 /// - comments (array): The list of comments placed before the first line, then after each line.
 /// - line-cell (none, function): The function creating the cell of a line from its index, height, radius, stroke, fill, color and extra space (top and bottom), instead of a code cell.
-/// - spanning (array): For each line, wether its cell (made by `line-cell`) spans over the gutter and the code.
 /// - marker (dictionary): The marker column parameters (formatted, see `format-marker`), only its visibility is needed when it is not visible.
 /// - markers-width (length): The width of the marker column.
 /// - markers (array): For each line, its marker (`none` if it has none).
@@ -523,7 +520,6 @@
   highlights,
   comments,
   line-cell: none,
-  spanning: (),
   marker: (visible: false),
   markers-width: 0pt,
   markers: (),
@@ -678,8 +674,8 @@
     ))
   } else { cell }
 
-  // The cells of the gutter of a row: the number column then the marker column (when visible)
-  let gutter-cells(r, height, extra, number-body, marker-body, fill) = {
+  // The cells of the gutter of a row: the number column then the marker column (when visible), a marker being centered (`marked` when it is in the number column)
+  let gutter-cells(r, height, extra, number-body, marker-body, fill, marked) = {
     let cells = ()
     if number.visible {
       cells.push(side-cell(
@@ -691,7 +687,7 @@
         side-stroke(r, true),
         fill,
         none,
-        number.align,
+        if marked { center + number.align.y } else { number.align },
       ))
     }
     if marker.visible {
@@ -704,7 +700,7 @@
         side-stroke(r, not number.visible),
         fill,
         none,
-        number.align.y + right,
+        center + number.align.y,
       ))
     }
     cells
@@ -723,21 +719,7 @@
       let height = row-heights.at(r)
       let extra = edge(r)
 
-      if row.kind == "code" and spanning.at(row.i, default: false) {
-        // A line over the gutter and the code (with the fill and color of the code)
-        let i = row.i
-        (
-          grid.cell(colspan: nbr-columns, line-cell(
-            i,
-            height,
-            full-radius(r),
-            full-stroke(r),
-            (code.fill)(i),
-            (code.color)(i),
-            extra,
-          )),
-        )
-      } else if row.kind == "code" {
+      if row.kind == "code" {
         let i = row.i
         let code-cell = if line-cell != none {
           line-cell(
@@ -779,6 +761,7 @@
             (number.color)(i, number.cells.at(i)),
             (number.color)(i, markers.at(i, default: none)),
             (number.fill)(i),
+            number.marked.at(i),
           )
             + (with-sep(code-cell, height),)
         )
@@ -827,6 +810,7 @@
               if in-number { c.marker },
               if not in-number { c.marker },
               fill,
+              in-number,
             )
               + (
                 with-sep(
@@ -853,7 +837,7 @@
   let header-cell = header-cell(header, frame, nbr-columns, id)
 
   let cells = if header-cell != none {
-    row-heights.insert(0, header.height)
+    row-heights.insert(0, auto)
     row-gutters.insert(0, 0mm)
 
     (header-cell,)
@@ -864,7 +848,7 @@
   let footer-cell = footer-cell(footer, frame, nbr-columns, id)
 
   if footer-cell != none {
-    row-heights.push(footer.height)
+    row-heights.push(auto)
     row-gutters.push(0mm)
 
     cells.push(footer-cell)
@@ -1059,7 +1043,10 @@
     ))
   } else { body }
 
-  let code-fill(v, i, k) = if versions.at(v).status.at(i) == "whole" {
+  // (a whole changed line takes the fill of the changes, the code fill when it is `none`)
+  let code-fill(v, i, k) = if (
+    versions.at(v).status.at(i) == "whole" and versions.at(v).conf.fill != none
+  ) {
     versions.at(v).conf.fill
   } else { (code.fill)(k) }
 
@@ -1086,11 +1073,15 @@
   )
 
   // The fill of the number of the line `i` of the version `v` (of key `k`)
+  // (for a changed line: `auto` for the fill of the changes, `none` or no fill of the changes for the fill of the numbers)
   let number-fill(v, i, k) = {
     let conf = versions.at(v).conf
-    if versions.at(v).status.at(i) != "same" and conf.numbers-fill != auto {
+    let fill = if conf.numbers-fill == auto { conf.fill } else {
       conf.numbers-fill
-    } else { (versions.at(v).number.fill)(k) }
+    }
+    if versions.at(v).status.at(i) == "same" or fill == none {
+      (versions.at(v).number.fill)(k)
+    } else { fill }
   }
 
   // The number color of the line `i` of the version `v` (of key `k`), applied to `it`
@@ -1116,7 +1107,9 @@
       versions.at(v).numbers-width,
       versions.at(v).number.inset,
       number-fill(v, i, k),
-      number.align,
+      if versions.at(v).number.marked.at(i) { center + number.align.y } else {
+        number.align
+      },
       height,
       extra,
       f,
@@ -1128,7 +1121,7 @@
     versions.at(v).markers-width,
     versions.at(v).marker.inset,
     fill,
-    number.align.y + right,
+    center + number.align.y,
     height,
     extra,
     f,
@@ -1305,7 +1298,7 @@
           versions.at(gv).numbers-width,
           versions.at(gv).number.inset,
           fill,
-          number.align,
+          center + number.align.y,
           height,
           extra,
           framing(r, key(gv, "numbers"), key(gv, "numbers")),
@@ -1373,7 +1366,7 @@
           cells.push(marker-cell(
             "new",
             m,
-            (number.fill)(k),
+            number-fill(v, row.at(v), k),
             height,
             extra,
             framing(r, "markers", "markers"),
@@ -1416,7 +1409,7 @@
                 k,
                 versions.at(v).markers.at(row.at(v)),
               ),
-              (versions.at(v).number.fill)(k),
+              number-fill(v, row.at(v), k),
               height,
               extra,
               framing(r, key(v, "markers"), key(v, "markers")),

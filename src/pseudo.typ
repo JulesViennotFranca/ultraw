@@ -8,40 +8,49 @@
 // Helpers
 // -----------------------------------------------------------------------------
 
-/// Indent pseudo code by one level (nest it to indent by more levels).
+/// Write a comment in pseudo code, between the lines where it is written.
 ///
-/// - contents (arguments): The indented contents, each one starting a new line.
+/// - body (content): The content of the comment.
+/// - args (arguments): The settings of the comment (`indent`, `fill`, `sep`, `marker`, `marker-fill`, see `set-uraw-pseudo`).
 /// -> content
-#let indent(..contents) = {
+#let pseudo-comment(body, ..args) = {
   assert(
-    contents.named().len() == 0 and contents.pos().len() > 0,
-    message: "`indent` takes the indented contents.",
+    args.pos().len() == 0,
+    message: "`pseudo-comment` takes a single content.",
   )
-  metadata((uraw-indent: contents.pos()))
+  ut.check-keys(
+    args.named(),
+    cf.pseudo-pre-default.comment.keys(),
+    "a comment of pseudo code",
+  )
+  metadata((uraw-pseudo-comment: args.named() + (content: body)))
 }
 
-/// Write lines of pseudo code without numbers (they are not counted).
+/// Write a special information comment in pseudo code.
 ///
-/// - contents (arguments): The contents, each one starting a new line.
-/// - indent (bool): Wether the lines are indented as the other lines (in the code), otherwise they span over the numbers and the code (from the left of the frame, without indentation).
+/// #example(`
+/// #uraw-pseudo[
+///   #pseudo-info[*Input* a number $n$]
+///   + *return* $n + 1$
+/// ]
+/// `)
+///
+/// - body (content): The information.
 /// -> content
-#let no-number(..contents, indent: true) = {
-  assert(
-    contents.named().len() == 0 and contents.pos().len() > 0,
-    message: "`no-number` takes the contents of the lines without numbers.",
-  )
-  assert(
-    type(indent) == bool,
-    message: "The `indent` of `no-number` must be a bool.",
-  )
-  metadata((uraw-no-number: contents.pos(), indent: indent))
-}
+#let pseudo-info(body) = pseudo-comment(
+  indent: "frame",
+  fill: none,
+  sep: none,
+  marker: none,
+  style: none,
+  body,
+)
 
 // -----------------------------------------------------------------------------
 // Rendering
 // -----------------------------------------------------------------------------
 
-#let pseudo-to-uraw(args, lines, jumps, base-style) = {
+#let pseudo-to-uraw(args, lines, comments, base-style) = {
   // The blocks of uraw (including the one of `layout`) do not take the block settings of the document
   set block(
     above: auto,
@@ -74,7 +83,10 @@
     let footer = cf.pseudo-category-parser("footer", args)
     let number = cf.pseudo-category-parser("numbers", args)
     let code = cf.pseudo-category-parser("code", args)
+    let comment = cf.pseudo-category-parser("comment", args)
 
+    // (`auto` is the leading of the paragraphs around)
+    if code.line-spacing == auto { code.line-spacing = par.leading }
     set par(leading: code.line-spacing)
 
     layout(layout-size => {
@@ -83,12 +95,13 @@
       // The measures only take the settings above into account in a new context
       context {
         // (the settings are modified below)
-        let (frame, header, footer, number, code) = (
+        let (frame, header, footer, number, code, comment) = (
           frame,
           header,
           footer,
           number,
           code,
+          comment,
         )
 
         // Basic formatting (pseudo code has no lang tag)
@@ -97,37 +110,55 @@
         code = formatting.code(code, frame, with-default-thickness)
         code.indent-size = code.indent-size.to-absolute()
 
-        // Numbers (the lines without number are not counted)
+        // Numbers
         let nbr-lines = lines.len()
-        let nbr-numbered = lines.filter(l => l.numbered).len()
         number.visible = number.format != none
-        let (jumps, jumps-map) = formatting.jumps(
-          jumps,
-          number,
-          nbr-numbered,
-          skip-lines: none,
-        )
         number = formatting.number(
           number,
-          nbr-numbered,
-          jumps,
+          nbr-lines,
+          (),
           with-default-thickness,
         )
-        let (line-numbers, coloring-numbers) = formatting.pseudo-line-numbers(
-          lines,
+        let line-numbers = range(nbr-lines).map(k => number.start + k)
+
+        // Coloring
+        (number, code) = formatting.coloring(
           number,
-          jumps,
-          jumps-map,
+          code,
+          general,
+          frame,
+          line-numbers,
+          nbr-lines,
         )
 
-        // Pseudo code has no markers
+        // Comments (at the level where they are written, their marker being in the number column)
+        let comments = comments.map(c => {
+          let f = formatting.single-comment(
+            ut.filter-add-dict(
+              comment + (marker-placement: "numbers"),
+              c.settings,
+            )
+              + (content: c.settings.content, copy-before: true),
+            c.gap,
+            none,
+            number,
+            code,
+            base-style,
+            with-default-thickness,
+          )
+          // (the indentation positions, in indent sizes)
+          f.pos-indent = range(c.level + 1)
+          f
+        })
+
+        // Markers (pseudo code only has the ones of its comments)
         let marker = formatting.marker(
           general + (markers-over-numbers: false),
           number,
         )
         let (number-markers, markers, marker) = formatting.markers(
           lines.map(_ => none),
-          (),
+          comments,
           marker,
         )
         let insets = formatting.cell-insets(
@@ -144,16 +175,6 @@
           general,
           number-markers,
           line-numbers,
-        )
-
-        // Coloring
-        (number, code) = formatting.coloring(
-          number,
-          code,
-          general,
-          frame,
-          coloring-numbers,
-          nbr-lines,
         )
 
         // Header & footer
@@ -189,6 +210,17 @@
           code,
           pre-width,
         )
+        let max-code-width = code-width
+
+        // Comments position (the indentation positions being in indent sizes)
+        comments = formatting.comments-position(
+          comments,
+          (),
+          code,
+          pre-width,
+          marker.inset,
+          code.indent-size,
+        )
 
         // Width
 
@@ -206,19 +238,20 @@
           measure(block(inset: footer.inset, footer.content)).width
         } else { 0mm }
 
-        code-width = me.pseudo-code-width(
-          frame,
-          code-width,
-          bodies,
-          lines,
-          pre-width,
-        )
+        code-width = me.pseudo-code-width(frame, code-width, bodies)
         code-width = me.hf-code-width(
           header-width,
           pre-width,
           code,
           code-width,
           footer-width,
+        )
+        code-width = me.comments-code-width(
+          frame,
+          comments,
+          code,
+          code-width,
+          max-code-width,
         )
         if frame.width == auto {
           frame.width = (
@@ -231,11 +264,21 @@
         let char-height = measure("#").height
         let lines-height = me.pseudo-lines-height(
           bodies,
-          lines,
           code,
           code-width,
-          pre-width,
           char-height,
+        )
+
+        // Comments size
+        let comments-map = formatting.comments-by-gap(
+          comments,
+          code,
+          code-width,
+          number,
+          numbers-width,
+          marker,
+          markers-width,
+          nbr-lines,
         )
 
         // Rendering
@@ -245,8 +288,7 @@
             lines.at(i),
             bodies.at(i),
             code,
-            // (a spanning line is also over the columns before the code)
-            code-width + if lines.at(i).spanning { pre-width } else { 0pt },
+            code-width,
             height,
             radius,
             stroke,
@@ -269,12 +311,12 @@
           footer,
           lang-tag,
           none,
-          measure("#").width,
+          // (the indentation guides of the comments being spaced by the indent size)
+          code.indent-size,
           char-height,
           range(nbr-lines).map(_ => ()),
-          range(nbr-lines + 1).map(_ => ()),
+          comments-map,
           line-cell: line-cell,
-          spanning: lines.map(l => l.spanning),
           marker: marker,
           markers-width: markers-width,
           markers: markers,
@@ -295,24 +337,43 @@
   }
 }
 
-/// Display pseudo code: lines of content, numbered and framed like raw code.
+/// Display pseudo code.
 ///
-/// - args (arguments): The lines (each content starting a new line, indented with `indent`, without number with `no-number`), and the settings (see `uraw-pseudo-set`).
-/// - jumps (array, dictionary): The jumps in the number, as `(from, to)` pairs or `(from: .., to: ..)` dictionaries, `from` being possibly `start` (before the first line). A single one can be given instead of an array.
+/// #example(`
+/// #uraw-pseudo(header: [*Algorithm* Sleeping])[
+///   #pseudo-info[*Output* sleep instruction]
+///   + *if* you're tired *then*
+///     + sleep
+///   + *else*
+///     + don't sleep
+///   + *end if*
+/// ]
+/// `)
+///
+/// Lines of an `uraw-pseudo` in a labeled figure can be referenced with `@label.n`.
+///
+/// - args (arguments): The settings (see `set-uraw-pseudo` for their description).
+///
+/// - body (content): The lines of pseudo code as a numbered list. Comments are written with `pseudo-comment`.
+///
 /// -> content
-#let uraw-pseudo(..args, jumps: ()) = {
+#let uraw-pseudo(body, ..args) = {
+  assert(
+    args.pos().len() == 0 and type(body) == content,
+    message: "`uraw-pseudo` takes its lines as a numbered list (`+ ...`) in a single content block.",
+  )
   // Settings given by category or flat (e.g. `header-fill`)
   let settings = cf.normalize-settings(args.named(), cf.pseudo-spec)
-  let lines = formatting.pseudo-lines(args.pos())
+  let (lines, comments) = formatting.pseudo-lines(body)
 
   // Mark the pseudo code, so that the figures containing it can be algorithms
   formatting.pseudo-marker(
     settings.at("general", default: (:)).at("algorithm-figure", default: auto),
   )
 
-  // The style outside of the pseudo code, used by the headers and footers
+  // The style outside of the pseudo code, used by the headers, footers and comments
   context {
     let style = cf.outside-style()
-    pseudo-to-uraw(settings, lines, jumps, () => style)
+    pseudo-to-uraw(settings, lines, comments, () => style)
   }
 }

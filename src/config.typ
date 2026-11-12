@@ -1,5 +1,5 @@
 #import "highlight.typ" as hl
-#import "../styling/icons.typ": pre-icons
+#import "languages.typ": lang-tag-config
 #import "../styling/pre-themes.typ": pre-default, pseudo-pre-default
 #import "utils.typ" as ut
 
@@ -57,16 +57,13 @@
 // Initialization
 // -----------------------------------------------------------------------------
 
-#let initial-config = {
-  let config = pre-default
-  config.header += (content: none)
-  config.footer += (content: none)
-  config
-}
+#let initial-config = pre-default
 
 #let initial-lang-configs = {
   let configs = (:)
-  for (lang, lt) in pre-icons { configs.insert(lower(lang), (lang-tag: lt)) }
+  for (lang, lt) in lang-tag-config {
+    configs.insert(lower(lang), (lang-tag: lt))
+  }
   configs
 }
 
@@ -139,12 +136,12 @@
   args.at(category, default: (:)),
 )
 
-/// Read some code from a file, to display it with `uraw` or `uraw-diff`: its lines are numbered from the first line read (when the `start` of the numbers is `auto`).
+/// Read some code from a file, to display it with `uraw` or `uraw-diff`.
 ///
-/// - file (path): The file, given with `path` (a string would be read relative to the package).
+/// - file (path): The file, given with `path` (a simple string is refused as it would be read relative to the package).
 /// - from (int): The first line read.
-/// - to (none, int): The last line read, `none` for the end of the file.
-/// - lang (auto, none, str): The language of the code, `auto` for the extension of the file.
+/// - to (int, none): The last line read, `none` for the end of the file.
+/// - lang (str, auto, none): The language of the code, `auto` for the extension of the file.
 /// -> dictionary
 #let read-code(file, from: 1, to: none, lang: auto) = {
   if type(file) == str {
@@ -226,11 +223,7 @@
 
 #let make-spec(default, categories, shortcuts, additional) = {
   let categories = categories
-    .map(sec => (
-      sec,
-      default.at(sec).keys()
-        + if sec in ("header", "footer") { ("content",) } else { () },
-    ))
+    .map(sec => (sec, default.at(sec).keys()))
     .to-dict()
 
   let flat-names = (
@@ -281,10 +274,18 @@
 
 #let diff-categories = ("diff-marker", "old", "new")
 
-#let diff-spec = make-spec(
+// (the settings of diffs: the ones of uraw, completed by the ones specific to diffs)
+#let diff-default = (
   pre-default
-    + (general: pre-default.general + pre-default.diff.general)
-    + diff-categories.map(c => (c, pre-default.diff.at(c))).to-dict(),
+    + pre-default
+      .diff
+      .pairs()
+      .map(((c, s)) => (c, pre-default.at(c, default: (:)) + s))
+      .to-dict()
+)
+
+#let diff-spec = make-spec(
+  diff-default,
   diff-categories + uraw-spec.categories.keys(),
   (
     line-spacing: ("code", "line-spacing"),
@@ -297,16 +298,13 @@
     breakable: ("frame", "breakable"),
     sharp-page-break: ("frame", "sharp-page-break"),
   )
-    + (pre-default.general + pre-default.diff.general)
-      .keys()
-      .map(k => (k, ("general", k)))
-      .to-dict(),
+    + diff-default.general.keys().map(k => (k, ("general", k))).to-dict(),
   ("follows", "precedes"),
 )
 
 #let pseudo-spec = make-spec(
   pseudo-pre-default,
-  ("code", "numbers", "general", "header", "footer", "frame"),
+  ("code", "numbers", "general", "header", "footer", "frame", "comment"),
   (
     line-spacing: ("code", "line-spacing"),
     indentation: ("code", "indentation"),
@@ -380,7 +378,7 @@
         settings.at(section, default: (:)) + ((key): value),
       )
     } else {
-      panic("Unknown uraw setting `" + name + "`.")
+      panic("Unknown setting `" + name + "`.")
     }
   }
 
@@ -391,13 +389,13 @@
 // Main functions
 // -----------------------------------------------------------------------------
 
-/// Get the current uraw configuration, specific to a language if one is mentioned. The context must be known to call this function.
+/// Get the current `uraw` configuration, specific to a language if one is mentioned. The context must be known to call this function.
 ///
 /// #example(`
 /// #context get-uraw("typ")
 /// `)
 ///
-/// - lang (arguments): The optional language name as a positional arguments.
+/// - lang (arguments): The optional language name as a positional argument.
 ///
 /// -> dictionary
 #let get-uraw(..lang) = (
@@ -430,7 +428,7 @@
   }
 }
 
-/// Set the uraw configuration, specific to a language if one is mentioned. Here is an example changing the appearance for Typst raw blocks:
+/// Set the `uraw` configuration, specific to a language if one is mentioned. Here is an example changing the appearance for Typst raw blocks:
 ///
 /// #example(`
 /// #set-uraw("typ",
@@ -447,92 +445,92 @@
 /// #set-uraw(code-fill: purple.transparentize(80%))
 /// `)
 ///
-/// To have a better view of all the possible parameters, it is recommanded to read the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs].
+/// To have a better view of all the possible parameters, it is recommended to read the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs].
 ///
-/// - args (arguments): The optional language and the configuration settings. The language is given as a positional argument, the settings are given as named arguments. Here is the complete list of settings with their type and default value:
+/// - args (arguments): The optional language and the configuration settings. The language is given as a positional argument, the settings are given as named arguments. Here is the complete list of settings with their type and default value (set by `themes.pre-themes.pre-default`):
 ///
 ///   - *code*
-///     - `line-spacing (length) = 0.65em` the space between lines
-///     - `fill (function | color | gradient | tiling | none) = none` the background color of the code, with `none` it is the background color of the frame, a function returns the background color based on the line number (e.g., `n => if calc.even(n) {blue} else {red}`)
-///     - `theme (bytes | str | auto | none) = auto` the theme used for the raw code, the same as the `theme` parameter of the `std.raw` function
-///     - `color (function | color | gradient | tiling | auto | none) = auto` the color of the code, `auto` and `none` colorate the code with the document's text color, a function return the code's color based on the line number
-///     - `indentation (length | color | gradient | stroke | tiling | none) = gray` the style of indentation guidelines, set to `none` for no guidelines
-///     - `indeted-line-return (bool) = true` wether the code after a line return starts at the indentation level of the line or on the left
-///     - `indent-size (int | auto) = auto` the size in blank spaces of indents, if set to `auto` it is detected automatically based on the most common indent size #(" ")
+///     - `line-spacing (relative | auto) = auto` the space between lines, `auto` is the leading of the paragraphs (`par.leading`)
+///     - `theme (bytes | str | auto | none) = auto` the syntax highlighting theme, as the `theme` of `raw`
+///     - `color (function | color | gradient | tiling | auto | none) = auto` the color of the code, `auto` and `none` being the color of the text of the document, a function gives the color from the line number (e.g. `n => if calc.even(n) { blue } else { red }`)
+///     - `fill (function | color | gradient | tiling | none) = none` the background of the code, `none` being the one of the frame, a function gives the background from the line number
+///     - `indentation (relative | color | gradient | stroke | tiling | none) = gray` the stroke of the indentation guidelines, `none` for no guidelines
+///     - `indented-line-return (bool) = true` whether the code after a line return starts at the indentation of its line, or at the left
+///     - `indent-size (int | auto) = auto` the number of spaces of an indent, `auto` detecting it from the most common indent #(" ")
 ///   increase
 ///
 ///   - *numbers*
-///     - `start (int | auto) = auto` the starting number of raw blocks, `auto` is 1 or inherits the correct line number of code provided with `read_code`
-///     - `end (int | none) = none` the ending number of raw blocks, if different from `none` it overrides `start`
-///     - `format (function | str | auto | none) = auto` controls how numbers are displayed: a function takes the number as input and returns an integer or some content (e.g., `n => strong(str(n))`); a string must contain a 1 which will be replaced by the actual number (e.g., `"1:"`); `auto` display the number directly; `none` hides the numbers
-///     - `fill (function | color | gradient | tiling | auto | none) = auto` the background color of numbers, with `auto` it is the background color of the code, with `none` it is the one of the frame, a function returns the background color based on the number
-///     - `color (function | color | gradient | tiling | auto | none) = auto` the color of numbers, `auto` means the same color as the code, `none` means the same color as the document's text, a function returns the numbers color based on the number
-///     - `gutter (length | auto) = auto` the space between the numbers and the code, `auto` fix it to `frame.inset.left + frame.inset.right`
-///     - `sep (length | color | gradient | stroke | tiling | none) = none` the separator line between the numbers and markers column and the code column
-///     - `align (alignment) = top + right` the alignment of numbers in their #(" ")
-///   cell
+///     - `start (int | auto) = auto` the number of the first line, `auto` being 1 or the first line read with `read-code`
+///     - `end (int | none) = none` the number of the last line, which overrides `start` when it is not `none`
+///     - `format (function | str | auto | none) = auto` how the numbers are displayed: a function gives some content from the number (e.g. `n => strong(str(n))`), a string must contain a `1` replaced by the number (e.g. `"1:"`), `auto` displays the number and `none` hides the numbers
+///     - `color (function | color | gradient | tiling | auto | none) = auto` the color of the numbers, `auto` being the one of the code, `none` the color of the text of the document, a function gives it from the line number
+///     - `fill (function | color | gradient | tiling | auto | none) = auto` the background of the numbers, `auto` being the one of the code, `none` the one of the frame, a function gives it from the line number
+///     - `gutter (relative | array | auto) = auto` the space between the numbers and the code: a pair `(before, after)` gives the spaces before and after the separator, a relative length `l` is `(l / 2, l / 2)`, `auto` is `(frame.inset.left, frame.inset.right)`
+///     - `sep (relative | color | gradient | stroke | tiling | none) = none` the separator line between the numbers (and markers) and the code
+///     - `align (alignment) = top + right` the alignment of the numbers in their cells (markers share the same vertical alignment but are centered #(" ")
+///   horizontally)
 ///
 ///   - *general*
-///     - `coloring-follow-numbers (bool) = true` wether the coloring functions follow the line numbers or the absolute line position in the raw block
-///     - `markers-over-numbers (bool) = false` wether markers appear over numbers or not, when a marker appears over a number the line can't be labeled
-///     - `line-reference (function) = n => ", line " + str(n)` the text written after "Listing ..." when referencing a precise line
-///     - `default-stroke-thickness (relative) = .5pt` the default thickness of strokes of raw #(" ")
-///   blocks
+///     - `coloring-follow-numbers (bool) = true` whether the coloring functions (`fill`, `color`) take the line numbers, or the absolute positions of the lines in the block
+///     - `markers-over-numbers (bool) = false` whether the markers are displayed over the numbers (rather than in their own column), a line whose number is hidden by a marker can still be referenced with `@label.n`
+///     - `line-reference (function) = n => ", line " + str(n) + ","` the text written after "Listing ..." when referencing a line
+///     - `default-stroke-thickness (relative) = .5pt` the thickness of the strokes given without #(" ")
+///   one
 ///
 ///   - *header* and *footer* (they have the same parameters)
-///     - `fill (color | gradient | tiling | auto | none) = none` the background color, with `auto` is the code background color at line `numbers.start - 1` (useful for striped code style), with `none` is the background color of the frame
-///     - `color (color | gradient | tiling | auto | none) = auto` the color of headers and footers text, `auto` means the same color as the code, `none` means the same color as the document's text
-///     - `repeat (bool) = false` wether the header or footer of a raw block should be repeated at page break or when chaining blocks with `follows` and `precedes`
-///     - `sep (length | color | gradient | stroke | tiling | auto | none) = auto` the separator line between the header or footer and the code, `auto` is the same as the frame's stroke
-///     - `height (relative | fraction | auto) = auto` the height of the header or footer block
+///     - `content (content | none) = none` the content of the header or footer, `none` for no header or footer
+///     - `color (color | gradient | tiling | auto | none) = auto` the color of the text of the header or footer, `auto` being the one of the code, `none` being the color of the text of the document
+///     - `fill (color | gradient | tiling | auto | none) = none` the background color, with `auto` it is the code background color at line `numbers.start - 1` (useful for striped code style), with `none` it is the background color of the frame
+///     - `repeat (bool) = false` whether the header or footer of a raw block should be repeated at page breaks or when chaining blocks with `follows` and `precedes`
+///     - `sep (relative | color | gradient | stroke | tiling | auto | none) = auto` the separator line between the header or footer and the code, `auto` is the same as the frame's stroke
 ///     - `inset (relative | dictionary) = 5pt` the inset of the header or footer block
-///     - ` align (alignment) = left + horizon` controls the alignment of the content of the header or the footer
-///     - `code-aligned (bool) = false` wether to align the header or footer content with the code (when numbers or markers are #(" ")
+///     - `align (alignment) = left + horizon` controls the alignment of the content of the header or the footer
+///     - `code-aligned (bool) = false` whether to align the header or footer content with the code (when numbers or markers are #(" ")
 ///   visible)
 ///
 ///   - *frame*
-///     - `breakable (bool) = true` wether the raw block is breakable
+///     - `breakable (bool) = true` whether the raw block is breakable
 ///     - `sharp-page-break (bool) = true` at page breaks, when `false` the raw block is displayed within two frame blocks (normal Typst processing), when `true` the frame block appears cut in half (no border, no radius, no inset along the page break)
 ///     - `width (relative | auto) = auto` the total width of the raw block
 ///     - `fill (color | gradient | tiling | none) = none` the background color of the whole raw block
-///     - `stroke (length | color | gradient | stroke | tiling | dictionary | none) = none` the border of the raw block
+///     - `stroke (relative | color | gradient | stroke | tiling | dictionary | none) = none` the border of the raw block
 ///     - `radius (relative | dictionary) = 1mm` the radius of the raw block
 ///     - `inset (relative | dictionary) = (x: 3pt)` the inset of the raw #(" ")
 ///   block
 ///
-///   - *lang-tag*
-///     - `visible (bool) = true` wether to show the lang tag or not
+///   - *lang-tag* (updated by default for common languages)
+///     - `visible (bool) = true` whether to show the lang tag or not
 ///     - `name (content | auto | none) = auto` the language name displayed in the lang tag, `auto` defaults to the raw block `lang`
 ///     - `icon (content | none) = none` the icon displayed in the lang tag
-///     - `placement ("inline" | "code" | "header" | "top-left" | "top" | "top-right" | "bottom-left" | "bottom" | "bottom-right" | "left-top" | "left" | "left-bottom" | "right-top" | "right" | "right-bottom" | ) = "code"` controls where the lang tag is displayed: `"inline"` places it on the first line of code; `"code"` is like `"inline"` but the vertical space for the lang tag is reserved on all code's lines; `"header"` places it in the header and defaults to `"code"` when there is no header; the rest place it on the border of the frame, the first location indicates the frame side while the second indicates the placement on that side (no second location is like `center` or `horizon`)
+///     - `placement ("inline" | "code" | "header" | "top-left" | "top" | "top-right" | "bottom-left" | "bottom" | "bottom-right" | "left-top" | "left" | "left-bottom" | "right-top" | "right" | "right-bottom") = "code"` controls where the lang tag is displayed: `"inline"` places it on the first line of code; `"code"` is like `"inline"` but the vertical space for the lang tag is reserved on all code's lines; `"header"` places it in the header and defaults to `"code"` when there is no header; the rest place it on the border of the frame, the first location indicates the frame side while the second indicates the placement on that side (no second location is like `center` or `horizon`)
 ///     - `spacing (relative) = 5pt` the spacing between the lang tag and the content when the placement is `"inline"`, `"code"` or `"header"`
-///     - `fill (color | gradient | tiling | auto | none) = luma(230)` the background color of the lang tag, `auto` default to the frame's background color
 ///     - `color (color | gradient | tiling | auto | none) = auto` the color of the language name in the lang tag, `auto` is the same as the code's color, `none` is the same as the document's text color
-///     - `stroke (length | color | gradient | stroke | tiling | dictionary | auto | none) = auto` the border of the lang tag, `auto` default to the frame's border
+///     - `fill (color | gradient | tiling | auto | none) = luma(230)` the background color of the lang tag, `auto` defaults to the frame's background color
+///     - `stroke (relative | color | gradient | stroke | tiling | dictionary | auto | none) = auto` the border of the lang tag, `auto` defaults to the frame's border
 ///     - `radius (relative | dictionary) = 2pt` the radius of the lang #(" ")
 ///   tag
 ///
-///   - *highlight* default parameter for highlights
+///   - *highlight* default parameters for highlights
 ///     - `fill (color | gradient | tiling | none) = none` the background color of the highlight block
-///     - `stroke (length | color | gradient | stroke | tiling | none) = none` the border of the highlight block
+///     - `stroke (relative | color | gradient | stroke | tiling | none) = none` the border of the highlight block
 ///     - `radius (relative | dictionary) = 3pt` the radius of the highlight block
-///     - `code-style (function) = it => it` a style function to apply to the highlighted content
-///     - `sticky (bool | auto) = auto` wether the highlight parts should merge from a line to the next (the stroke and radius are changed accordingly), `auto` sets this parameter automatically: a highlight defined with `line` is sticky while others not
-///     - `expand (alignment | auto | none) = auto` indicates the side on which the highlight should expand when going from a line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides), `auto` sets this parameter automatically: a highlight defined with `line` expand on both side while others don't #(" ")
+///     - `code-style (function) = it => it` a styling function to apply to the highlighted content
+///     - `sticky (bool | auto) = auto` whether the highlight parts should merge from a line to the next (the stroke and radius are changed accordingly), `auto` sets this parameter automatically: a highlight defined with `line` is sticky while others are not
+///     - `expand (alignment | auto | none) = auto` indicates the side on which the highlight should expand when going from a line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides), `auto` sets this parameter automatically: a highlight defined with `line` expands on both sides while others don't #(" ")
 ///   expand
 ///
-///   - *comment* default styling parameter for comments
+///   - *comment* default styling parameters for comments
 ///     - `style (function) = text.with(style: "italic")` a basic style to apply to all comments contents
 ///     - `indent ("frame" | "code" | "line" | "guideline") = "frame"` `"frame"` to align with the left of the frame; `"code"` to start at the same left inset as the code; `"line"` to have the same indentation as the targeted line; `"guideline"` to further draw indentation lines in the comment
-///     - `fill (color | gradient | tiling | none) = luma(245)`: the background color of the comment, `none` is the same as the frame's background color
-///     - `sep (length | color | gradient | stroke | tiling | dictionary: (top: ..., bottom: ...) | none )`: the separators at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side, if it is not a dictionary the style applies to both separators
-///     - `marker (content | none) = none`: the marker of the comment
-///     - `marker-fill (color | gradient | tiling | auto | none)`: the background color of the comment's marker, `auto` is the comment's background color, `none` is the numbers column background color
-///     - `marker-placement ("numbers" | "markers") = "numbers"`: the placement of the marker inside the numbers #(" ")
-///   column
+///     - `fill (color | gradient | tiling | none) = luma(245)` the background color of the comment, `none` is the same as the frame's background color
+///     - `sep (relative | color | gradient | stroke | tiling | dictionary: (top: ..., bottom: ...) | none) = none` the separators at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side, if it is not a dictionary the style applies to both separators
+///     - `marker (content | none) = none` the marker of the comment
+///     - `marker-fill (color | gradient | tiling | auto | none) = auto` the background color of the comment's marker, `auto` is the comment's background color, `none` is the numbers column background color
+///     - `marker-placement ("numbers" | "markers") = "numbers"` the placement of the marker inside the numbers column, the space reserved for `"numbers"` or for #(" ")
+///   `"markers"`
 ///
-///   - *jump* default styling parameter for jumps
-///     - `comment (content | function | none) = none` the default comment content associated to jumps, a function takes the bounds of the jump `from` and `to` as arguments
+///   - *jump* default styling parameters for jumps
+///     - `comment (content | function | none) = none` the default comment content associated with jumps, a function takes the bounds of the jump `from` and `to` as arguments
 ///     - `style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement` as for `comment`, `auto` is the default value for all of these and it means taking the corresponding `comment` #(" ")
 ///   parameter
 ///
@@ -552,43 +550,11 @@
   }
 }
 
-// TODO add header and footer content to `uraw` doc
-
-/// Reset the uraw configuration to its default value, specific to a language if one is mentioned.
-///
-/// #example(`
-/// #reset-uraw()
-/// `)
-///
-/// - lang (arguments): The optional language name as a positional arguments.
-///
-/// -> content
-#let reset-uraw(..lang) = {
-  let lang = resolve-args(lang).first()
-  if lang == none {
-    uraw-config-state.update(initial-config)
-  } else {
-    uraw-lang-configs-state.update(lang-configs => {
-      if lang in initial-lang-configs {
-        lang-configs.insert(lang, initial-lang-configs.at(lang))
-      } else {
-        let _ = lang-configs.remove(lang, default: none)
-      }
-      lang-configs
-    })
-  }
-}
-
 // -----------------------------------------------------------------------------
 // Pseudo code
 // -----------------------------------------------------------------------------
 
-#let initial-pseudo-config = {
-  let config = pseudo-pre-default
-  config.header += (content: none)
-  config.footer += (content: none)
-  config
-}
+#let initial-pseudo-config = pseudo-pre-default
 
 #let uraw-pseudo-config-state = state(
   "uraw-pseudo-config-state",
@@ -605,12 +571,36 @@
   args.at(category, default: (:)),
 )
 
-/// Get the settings of pseudo code (in a context).
+/// Get the current `uraw-pseudo` configuration. The context must be known to call this function.
+///
+/// #example(`
+/// #context get-uraw-pseudo()
+/// `)
 ///
 /// -> dictionary
 #let get-uraw-pseudo() = uraw-pseudo-config-state.get()
 
-/// Set the settings of pseudo code, by category (**general**, **frame**, **header**, **footer**, **numbers**, **code**) or flat (`category-key`, with the shortcuts `width`, `breakable`, `sharp-page-break`, `start`, `end`, `line-spacing`, `indentation`, `indent-size`, `style`, the general settings, and `numbers: format` for the format of the numbers). They are the same as for raw code, except for the code settings **indent-size** (length): the width of an indentation level, **style** (none | function): the style of the lines (`none` for the style of the document, or a function applied to the content of each line), and the general setting **algorithm-figure** (bool): wether a figure containing pseudo code is an "Algorithm" (with its own number) instead of a "Figure".
+/// Set the `uraw-pseudo` configuration. Here is an example changing the appearance of pseudo codes:
+///
+/// #example(`
+/// #set-uraw-pseudo(
+///   numbers: (format: "1.", align: top + left, sep: teal),
+///   frame: (fill: teal.transparentize(95%), stroke: black),
+///   code: (style: emph, indent-size: 5pt),
+/// )
+/// `)
+///
+/// The following two calls are equivalent:
+///
+/// #example(`
+/// #set-uraw-pseudo(code: (fill: purple.transparentize(80%)))
+/// #set-uraw-pseudo(code-fill: purple.transparentize(80%))
+/// `)
+///
+/// To have a better view of all the possible parameters, it is recommended to read the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs].
+///
+/// - args (arguments): Pseudo codes have the same `code`, `numbers`, `general`, `header`, `footer`, `frame` and `comment` settings as `uraw` (see `set-uraw` for their description), except for an additional `style` parameter for `code` that lets you define a styling function to apply to pseudo code lines (set to `none` by default), and comments without `style` and `marker-placement`. To see the precise default values for other parameters, look at `themes.pre-themes.pseudo-pre-default`.
+///
 /// -> content
 #let set-uraw-pseudo(..args) = {
   assert(
@@ -625,12 +615,6 @@
     return config
   })
 }
-
-/// Reset the settings of pseudo code to their initial value.
-/// -> content
-#let reset-uraw-pseudo() = uraw-pseudo-config-state.update(
-  initial-pseudo-config,
-)
 
 // -----------------------------------------------------------------------------
 // Diff
@@ -665,33 +649,71 @@
   args.at(category, default: (:)),
 )
 
-/// Get the settings specific to diffs (in a context), the other ones being the ones of `uraw`, specific to a language if one is mentioned.
+/// Get the current `uraw-diff` configuration, specific to a language if one is mentioned. The context must be known to call this function.
+///
+/// #example(`
+/// #context get-uraw-diff("typ")
+/// `)
 ///
 /// - lang (arguments): The optional language name as a positional argument.
+///
 /// -> dictionary
 #let get-uraw-diff(..lang) = uncontext-diff-getter(resolve-args(lang).first())
 
-/// Set the settings of diffs, specific to a language if one is mentioned (as a positional argument), by category or flat, overriding the ones of `uraw` for diffs: the ones of `uraw` (see `uraw-set`), and the ones specific to diffs: \ **diff-marker**: **visible** (bool, also given by `diff-marker: bool`), **unchanged** (content): the diff marker of the unchanged lines \ **old** and **new**: **diff-marker** (content): the diff marker of the changed lines, **numbers-color** and **numbers-fill**: the color and background of the numbers of the changed lines (`auto` for the ones of the numbers), **fill**: the background of the changes \ the general settings **line-reference** (function): how a reference to a line is displayed after "Listing n", a function of the number and of the version (`"old"` or `"new"`), **columns** (int | array): the widths of the codes, as for a grid: one column merges the codes, two columns separate them (`(auto, auto)` by default, which become `(1fr, 1fr)` when the codes are too large), **column-gutter** (relative): the space between the separated codes (with the separator at its center), **blank-fill**: the background of the space left by a line which is only in one version, **sep**: the separator between the separated codes.
+/// Set the `uraw-diff` configuration, specific to a language if one is mentioned. Here is an example changing the appearance for Typst diffs:
+///
+/// #example(`
+/// #set-uraw-diff("typ",
+///   numbers: (format: "1.", align: top + left, sep: teal),
+///   lang-tag: (fill: teal.transparentize(75%), stroke: teal, name: "Typst"),
+///   old: (fill: orange.lighten(80%), numbers-fill: orange.lighten(40%)),
+///   new: (fill: blue.lighten(85%), numbers-fill: blue.lighten(50%)),
+/// )
+/// `)
+///
+/// The following two calls are equivalent:
+///
+/// #example(`
+/// #set-uraw-diff(code: (fill: purple.transparentize(80%)))
+/// #set-uraw-diff(code-fill: purple.transparentize(80%))
+/// `)
+///
+/// To have a better view of all the possible parameters, it is recommended to read the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs].
+///
+/// - args (arguments): The optional language and the configuration settings. The language is given as a positional argument, the settings are given as named arguments. By default, diffs inherit the same settings as `uraw` (set by `set-uraw`) but `set-uraw-diff` updates the configuration for diffs only. In addition to the settings of `uraw` (see `set-uraw` for their description), here is the complete list of diff-only settings with their type and default value (set by `themes.pre-themes.pre-default`):
+///
+///   - *general* parameters specific to diffs
+///     - `columns (relative | ratio | array | auto) = (auto, auto)` the columns of the diff, one column means both versions are displayed in the same code part, it works the same as the `columns` parameter of `grid`
+///     - `column-gutter (relative) = 0pt` a separator space when there are two columns
+///     - `sep (relative | color | gradient | stroke | tiling | none) = gray` a separator line when there are two columns
+///     - `blank-fill (color | gradient | tiling | none) = style.hatch(luma(200))` the background color of spaces that don't contain anything
+///     - `line-reference (function) = (n, version) => ", " + version + " line " + str(n) + ","` the text written after "Listing ..." when referencing a precise #(" ")
+///   line
+///
+///   - *old* and *new* versions parameters
+///     - `diff-marker (content) = text(red.darken(20%))[-] / text(olive)[+]` the marker associated with changes on old / new lines
+///     - `fill (color | gradient | tiling | none) = red.lighten(75%) / rgb("#32C04C").lighten(75%)` the background color of old / new lines of code where changes happened, `none` doesn't change the background
+///     - `numbers-color (color | gradient | tiling | auto | none) = auto` the color of the numbers on old / new lines that change, `auto` is the same color as numbers, `none` is the same as the document's text color
+///     - `numbers-fill (color | gradient | tiling | auto | none) = rgb("#FF8B85") / rgb("#7CCBA7")` the background color of numbers on old / new lines that change, `auto` is the same as `fill`, `none` is the background color of #(" ")
+///   numbers
+///
+///   - *diff-marker*
+///     - `visible (bool) = true` whether the markers specific to diffs (lying in the code part) are shown
+///     - `unchanged (content) = []` the markers to use for lines with no #(" ")
+///   changes
+///
+///   - *comment* parameters specific to diffs
+///     - `span (bool) = false` whether the comments span over both code versions, their marker being in the numbers column of the old #(" ")
+///   code
+///
+///   - *jump* parameters specific to diffs
+///     - `span (bool | auto) = auto` as for `comment`, `auto` means the same value as regular #(" ")
+///   comments
+///
 /// -> content
 #let set-uraw-diff(..args) = {
   let (lang, settings) = resolve-args(args)
   update-diff(normalize-settings(settings, diff-spec), lang)
-}
-
-/// Reset the settings of diffs to their initial value, the ones of a language if one is mentioned (removed).
-/// -> content
-#let reset-uraw-diff(..lang) = {
-  let lang = resolve-args(lang).first()
-  if lang == none {
-    uraw-config-state.update(config => config + (diff: initial-config.diff))
-  } else {
-    uraw-lang-configs-state.update(lang-configs => {
-      if lang in lang-configs {
-        let _ = lang-configs.at(lang).remove("diff", default: none)
-      }
-      lang-configs
-    })
-  }
 }
 
 // -----------------------------------------------------------------------------

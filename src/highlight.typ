@@ -200,7 +200,7 @@
 // Parsing
 // -----------------------------------------------------------------------------
 
-/// Indicate wether a delimiter is forbidden: before the end of the last chosen left delimiter, or over a chosen right delimiter (whose positions are the keys of `taken`).
+/// Indicate whether a delimiter is forbidden: before the end of the last chosen left delimiter, or over a chosen right delimiter (whose positions are the keys of `taken`).
 #let is-forbidden(del, last-end, taken) = (
   del.start < last-end or range(del.start, del.end).any(p => str(p) in taken)
 )
@@ -368,7 +368,7 @@
 #let continues-before(hl, i) = hl.range.first().first() < i or open-start(hl)
 #let continues-after(hl, i) = i < hl.range.last().first() or open-end(hl)
 
-/// Determine wether a highlight span on a sub-line.
+/// Determine whether a highlight span on a sub-line.
 #let highlight-on-sub-line(i, line-end, sl, hl) = {
   if hl.is-line { return true }
 

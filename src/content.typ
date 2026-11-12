@@ -1,3 +1,17 @@
+/// An element with a new body, keeping its other fields (the ones given positionally before the body, as the `alignment` of `align`, being given positionally).
+///
+/// - elem (content): An element with a `body`.
+/// - body (content): The new body.
+/// -> content
+#let with-body(elem, body) = {
+  let fields = elem.fields()
+  let _ = fields.remove("body")
+  let positional = ("dest", "alignment", "angle", "factor")
+    .filter(k => k in fields)
+    .map(k => fields.remove(k))
+  (elem.func())(..positional, ..fields, body)
+}
+
 // The positions in a text are counted in characters (grapheme clusters), not in bytes as `str.len` and `str.slice` do.
 
 /// The number of characters of some text.
@@ -16,16 +30,16 @@
   text.clusters().slice(start, end).sum(default: "")
 )
 
-/// Check wether a line is only composed of white spaces.
+/// Check whether a line is only composed of white spaces.
 ///
 /// - line (content):
 /// -> bool
 #let is-whitespace-line(line) = line.trim().len() == 0
 
-/// The size of an indentation level: the most frequent change (increase or decrease) of the leading spaces between consecutive lines (the smallest one among the most frequent).
+/// The size of an indentation level: the most frequent increase of the leading spaces between consecutive lines (the smallest one among the most frequent), a block being opened one level deeper (while several can be closed at once).
 ///
 /// - texts (array): The texts of the lines.
-/// - default (int): The size when all the lines have the same indentation.
+/// - default (int): The size when the indentation never increases.
 /// -> int
 #let infer-indent-size(texts, default) = {
   let spaces = texts
@@ -33,8 +47,8 @@
     .map(t => t.len() - t.trim(" ", at: start).len())
   let counts = (:)
   for (a, b) in spaces.zip(spaces.slice(1, spaces.len())) {
-    let d = str(calc.abs(b - a))
-    if a != b { counts.insert(d, counts.at(d, default: 0) + 1) }
+    let d = str(b - a)
+    if b > a { counts.insert(d, counts.at(d, default: 0) + 1) }
   }
   if counts.len() == 0 { return default }
   let (size, _) = counts
@@ -91,7 +105,7 @@
   0
 }
 
-/// Check wether some content is empty.
+/// Check whether some content is empty.
 ///
 /// - elem (content):
 /// -> bool
@@ -112,7 +126,7 @@
 
 /// Map some splited content.
 ///
-/// - split (array): An array containing the content, the number of removed character, and wether the content has been emptied.
+/// - split (array): An array containing the content, the number of removed character, and whether the content has been emptied.
 /// - fun (function): The function applied to the content.
 /// -> array
 #let map-split(split, fun) = {
@@ -161,7 +175,7 @@
   }
   (if inc < 0 { [] } else { nc.slice(0, inc + 1).sum(default: []) } + t, i, e)
 } else if elem.has("body") {
-  map-split(content-trim-end(elem.body), e => (elem.func())(e))
+  map-split(content-trim-end(elem.body), e => with-body(elem, e))
 } else {
   ([], 0, true)
 }
@@ -201,7 +215,7 @@
   }
   (t + if inc == nc.len() { [] } else { nc.slice(inc).sum(default: []) }, i, e)
 } else if elem.has("body") {
-  map-split(content-trim-start(elem.body), e => (elem.func())(e))
+  map-split(content-trim-start(elem.body), e => with-body(elem, e))
 } else {
   ([], 0, true)
 }
@@ -303,7 +317,7 @@
   } else if elem.has("body") {
     map-split(
       content-split-word-pos(elem.body, pos),
-      e => elem.func()(e) + [],
+      e => with-body(elem, e) + [],
     )
   }
 }
@@ -345,7 +359,7 @@
 
     (before, after)
   } else if elem.has("body") {
-    content-split-pos(elem.body, pos).map(e => elem.func()(e) + [])
+    content-split-pos(elem.body, pos).map(e => with-body(elem, e) + [])
   } else {
     ([], [])
   }
@@ -502,5 +516,5 @@
 } else if elem.has("children") {
   elem.children.map(e => content-map-text(e, fun)).sum(default: [])
 } else if elem.has("body") {
-  (elem.func())(content-map-text(elem.body, fun))
+  with-body(elem, content-map-text(elem.body, fun))
 }

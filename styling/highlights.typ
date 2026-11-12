@@ -1,4 +1,4 @@
-/// This module provides styling and managing functions for highlights.
+#import "../src/highlight.typ" as hl
 
 // -----------------------------------------------------------------------------
 // Style
@@ -44,7 +44,7 @@
 
 /// The alert highlight: no border, a plain background and a strong white highlighted code.
 ///
-/// - color (color, gradient, tiling): The color of the highligt.
+/// - color (color, gradient, tiling): The color of the highlight.
 /// -> dictionary
 #let alert(color: red) = (
   ldel: "*!",
@@ -59,7 +59,7 @@
 #let hole(color: black) = (
   ldel: "*?",
   rdel: "?*",
-  code-style: std.hide,
+  code-style: hide,
   stroke: (paint: color, dash: "dashed"),
   fill: none,
 )
@@ -90,7 +90,7 @@
 
 /// A highlight that renders the code bold.
 #let strong = (
-  del: "***", // Third * needed for Typst code
+  del: "***", // Third * needed for Markdown code
   code-style: std.strong,
   stroke: none,
   fill: none,
@@ -103,7 +103,7 @@
 /// The state storing highlights.
 #let highlights-state = state("uraw-highlights", (base(), alert()))
 
-/// Add highlights to use it in raw text.
+/// Add highlights to use them in raw text.
 ///
 /// #example(`
 /// #add(
@@ -117,14 +117,12 @@
 ///   - `fill (color | gradient | tiling | none)` the background color of the highlight block
 ///   - `stroke (length | color | gradient | stroke | tiling | none)` the border of the highlight block
 ///   - `radius (relative | dictionary)` the radius of the highlight block
-///   - `code-style (function)` a style function to apply to the highlighted content
-///   - `sticky (bool)` wether the highlight parts should merge from a line to the next (the stroke and radius are changed accordingly)
+///   - `code-style (function)` a styling function to apply to the highlighted content
+///   - `sticky (bool)` whether the highlight parts should merge from a line to the next (the stroke and radius are changed accordingly)
 ///   - `expand (alignment | none)` indicates the side on which the highlight should expand when going from a line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides)
 ///
 /// -> content
 #let add(..highlights) = {
-  import "../src/highlight.typ" as hl
-
   let added = highlights.pos().map(hl.pre-highlight)
   highlights-state.update(hls => {
     let hls = hls + added
@@ -139,7 +137,7 @@
 /// #remove((ldel: "*!", rdel: "!*"), (del: "***"))
 /// `)
 ///
-/// - delimiters (arguments): Each highlight delimiters is a dictionary with either two keys `ldel` and `rdel` representing the left and right delimiters or a single key `del` representing both delimiters.
+/// - delimiters (arguments): The delimiters of each highlight are a dictionary with either two keys `ldel` and `rdel` representing the left and right delimiters or a single key `del` representing both delimiters.
 /// -> content
 #let remove(..delimiters) = {
   let delimiters = delimiters

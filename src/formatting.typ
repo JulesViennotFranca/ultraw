@@ -276,7 +276,7 @@
 /// - general (dictionary): The general parameters.
 /// - number-markers (array): The markers shown in the number column, for each line (`none` if it has none).
 /// - line-numbers (array): The displayed line numbers.
-/// -> dictionary
+/// -> dictionary: the number parameters, with the `cells` and whether each line has a marker in place of its number (`marked`)
 #let number-cells(
   number,
   general,
@@ -288,10 +288,12 @@
     .enumerate()
     .map(((i, n)) => if number-markers.at(i) != none {
       number-markers.at(i)
+      add-line-label(n, general.line-reference, version: version)
     } else if n == none or not number.visible { [] } else {
       shown-number(number, n)
       add-line-label(n, general.line-reference, version: version)
     })
+  number.marked = number-markers.map(m => m != none)
 
   return number
 }
@@ -416,13 +418,13 @@
   return code
 }
 
-/// The insets of the cells, left and right (their top and bottom being half the line spacing): the frame inset on the sides of the frame, between the number and marker columns (left) and between the diff marker and code columns (right), and the numbers gutter between the columns before the code and the code (the separator being at its center).
+/// The insets of the cells, left and right (their top and bottom being half the line spacing): the frame inset on the sides of the frame, between the number and marker columns (left) and between the diff marker and code columns (right), and the numbers gutter between the columns before the code and the code (the separator being between its two parts).
 ///
 /// - frame (dictionary): The frame parameters.
 /// - number (dictionary): The number parameters, with their visibility.
-/// - marker-visible (bool): Wether the marker column is visible.
+/// - marker-visible (bool): Whether the marker column is visible.
 /// - line-spacing (length):
-/// - diff-marker-visible (bool): Wether the diff marker column is visible.
+/// - diff-marker-visible (bool): Whether the diff marker column is visible.
 /// -> dictionary: the insets of the `number`, `marker`, `diff-marker` and `code` cells
 #let cell-insets(
   frame,
@@ -432,16 +434,21 @@
   diff-marker-visible: false,
 ) = {
   let (left, right) = ut.left-right-inset(frame.inset)
-  let gutter = if number.gutter == auto { left + right } else { number.gutter }
+  // (the parts of the gutter before and after the separator, a length being split in two halves)
+  let gutter = if number.gutter == auto { (left, right) } else if (
+    type(number.gutter) == length
+  ) { (number.gutter / 2,) * 2 } else { number.gutter }
   assert(
-    type(gutter) == length,
-    message: "The `gutter` of the numbers must be auto or a length.",
+    type(gutter) == array
+      and gutter.len() == 2
+      and gutter.all(g => type(g) == length),
+    message: "The `gutter` of the numbers must be auto, a length or an array of two lengths (before and after the separator).",
   )
-  let half = gutter / 2
-  let first = if number.visible or marker-visible { half } else { left }
+  let (before, after) = gutter
+  let first = if number.visible or marker-visible { after } else { left }
   (
-    number: (left: left, right: if marker-visible { 0pt } else { half }),
-    marker: (left: left, right: half),
+    number: (left: left, right: if marker-visible { 0pt } else { before }),
+    marker: (left: left, right: before),
     diff-marker: (left: first, right: 0pt),
     code: (left: if diff-marker-visible { right } else { first }, right: right),
   )
@@ -529,7 +536,7 @@
   message: "Wrong placement for the language tag.",
 )
 
-/// Return for every position wether the lang tag occupies it.
+/// Return for every position whether the lang tag occupies it.
 ///
 /// - lt (dictionary):
 /// -> array
@@ -727,7 +734,7 @@
 /// - code-width (length): The width of the code.
 /// - lang-tag (dictionary): The lang tag parameters, with its `width`.
 /// - char-width (length):
-/// - indented (bool): Wether the sub-lines after the first one start at the indentation of the line (when it leaves at least half of the width).
+/// - indented (bool): Whether the sub-lines after the first one start at the indentation of the line (when it leaves at least half of the width).
 /// -> array
 #let break-lines(lines, code-width, lang-tag, char-width, indented: false) = {
   let width = (
@@ -882,15 +889,14 @@
   return comment
 }
 
-// The comments of the jumps (the style of a comment being given by its content, a jump has no comment `style`), with the `extra` keys of the jumps (with their default value). A jump gives its comment settings as a comment (e.g. `fill`), and the `jump` settings with a `comment-` prefix.
-#let jump-comments(jumps, jump, comment, line-index, format, extra: (:)) = {
+// The comments of the jumps (the style of a comment being given by its content, a jump has no comment `style`). A jump gives its comment settings as a comment (e.g. `fill`), and the `jump` settings with a `comment-` prefix.
+#let jump-comments(jumps, jump, comment, line-index, format) = {
   jumps
     .map(j => {
       ut.check-keys(
         j,
         ("from", "to", "skip-lines", "comment")
-          + comment.keys().filter(k => k != "style")
-          + extra.keys(),
+          + comment.keys().filter(k => k != "style"),
         "a jump",
       )
 
@@ -905,10 +911,6 @@
       if content != none {
         format(
           settings
-            + extra
-              .keys()
-              .map(k => (k, j.at(k, default: extra.at(k))))
-              .to-dict()
             + (
               content: content,
               copy-before: true,
@@ -921,8 +923,8 @@
     .filter(c => c != none)
 }
 
-// The comments (the style of a comment being given by its content, a comment has no `style`), with their `extra` keys (with their default value)
-#let comments(comments, comment, line-numbers, format, extra: (:)) = {
+// The comments (the style of a comment being given by its content, a comment has no `style`)
+#let comments(comments, comment, line-numbers, format) = {
   // (a for loop rather than a closure, whose captured line numbers would be hashed at each call)
   let formatted = ()
   for c in ut.single-to-list(comments) {
@@ -942,9 +944,7 @@
     )
     ut.check-keys(
       c,
-      comment.keys().filter(k => k != "style")
-        + ("after", "before", "content")
-        + extra.keys(),
+      comment.keys().filter(k => k != "style") + ("after", "before", "content"),
       "a comment",
     )
 
@@ -965,7 +965,6 @@
 
     formatted.push(format(
       ut.filter-add-dict(comment, c)
-        + extra.keys().map(k => (k, c.at(k, default: extra.at(k)))).to-dict()
         + (
           content: c.content,
           copy-before: after,
@@ -1000,7 +999,8 @@
 ) = comments.map(c => {
   let code-start = if code-start == auto { pre-width } else { code-start }
   // An indented comment takes the indentation of the line before it (or after it for `before`)
-  if c.indented {
+  // (unless it is already given, as for pseudo code)
+  if c.indented and not "pos-indent" in c {
     let k = if c.copy-before { c.gap - 1 } else { c.gap }
     c.pos-indent = if 0 <= k and k < lines.len() {
       lines.at(k).pos-indent
@@ -1078,7 +1078,7 @@
 // Jumps
 // -----------------------------------------------------------------------------
 
-// The jumps, checked, with wether they skip their lines (`skip-lines`, `none` when it is not supported), and stored by starting line
+// The jumps, checked, with whether they skip their lines (`skip-lines`, `false` by default), and stored by starting line
 #let jumps(jumps, number, nbr-lines, skip-lines: false) = {
   jumps = ut
     .single-to-list(jumps)
@@ -1100,13 +1100,7 @@
           and (type(j.to) == int or j.to == end),
         message: "The `from` and `to` lines of a jump must be integers (or `start` and `end`).",
       )
-      if skip-lines == none {
-        assert(
-          not "skip-lines" in j,
-          message: "The jumps of pseudo code cannot skip lines.",
-        )
-      }
-      j.skip-lines = j.at("skip-lines", default: skip-lines == true)
+      j.skip-lines = j.at("skip-lines", default: skip-lines)
       assert(
         type(j.skip-lines) == bool,
         message: "The `skip-lines` of a jump must be a boolean.",
@@ -1227,7 +1221,7 @@
 
 /// Mark pseudo code, so that the figures containing it can be detected.
 ///
-/// - algorithm-figure (auto, bool): Wether the figure is an algorithm, `auto` to use the configured setting.
+/// - algorithm-figure (auto, bool): Whether the figure is an algorithm, `auto` to use the configured setting.
 #let pseudo-marker(algorithm-figure) = metadata((
   uraw-pseudo: (algorithm-figure: algorithm-figure),
 ))
@@ -1254,78 +1248,53 @@
   none
 }
 
-/// The contents given to a pseudo code helper (`indent` or `no-number`), `none` if it is not one.
+/// Split pseudo code in lines and comments: each item of its numbered list is a line, its nested items being indented by one more level, and each comment (`pseudo-comment`, `pseudo-info`) is placed where it is written.
 ///
-/// - it (any): A positional argument of pseudo code.
-/// - key (str): The key of the helper (`"uraw-indent"` or `"uraw-no-number"`).
-/// -> array, none
-#let pseudo-helper-contents(it, key) = if (
-  type(it) == content
-    and it.func() == metadata
-    and type(it.value) == dictionary
-    and key in it.value
-) { it.value.at(key) }
-
-/// Split the arguments of pseudo code in lines, with their indentation level.
-///
-/// - args (array): The positional arguments: each content starts a new line, the contents of indented blocks (`indent`) are indented by one level, and the ones of `no-number` have no number.
-/// -> array: the lines, as dictionaries with a `body` (content), a `level` (int), wether they are `numbered`, and wether they span over the numbers and the code (`spanning`, without indentation)
-#let pseudo-lines(args) = {
-  let lines = ()
-  for it in args {
-    let indented = pseudo-helper-contents(it, "uraw-indent")
-    let unnumbered = pseudo-helper-contents(it, "uraw-no-number")
-    if indented != none {
-      for l in pseudo-lines(indented) {
-        lines.push(l + (level: if l.spanning { 0 } else { l.level + 1 }))
-      }
-    } else if unnumbered != none {
-      let spanning = not it.value.indent
-      for l in pseudo-lines(unnumbered) {
-        lines.push(
-          l
-            + (numbered: false, spanning: l.spanning or spanning)
-            + if l.spanning or spanning { (level: 0) },
-        )
-      }
-    } else {
-      lines.push((body: it, level: 0, numbered: true, spanning: false))
-    }
-  }
-  return lines
-}
-
-/// The number of each line of pseudo code, the lines without numbers not being counted.
-///
-/// - lines (array): The lines (see `pseudo-lines`).
-/// - number (dictionary): The number parameters.
-/// - jumps (array): The jumps.
-/// - jumps-map (dictionary): The jumps by starting line.
-/// -> array: the numbers of the lines (`none` for the lines without number), and the numbers used to color them (the one of the previous numbered line for the lines without number)
-#let pseudo-line-numbers(lines, number, jumps, jumps-map) = {
-  let (numbers, ..) = line-numbers(
-    number,
-    lines.filter(l => l.numbered).len(),
-    jumps,
-    jumps-map,
+/// - body (content): The numbered list of the lines (`+ ...`), with comments.
+/// -> array: the lines, as dictionaries with a `body` (content) and a `level` (int), and the comments, as dictionaries with their `settings` (and `content`), their `gap` (the number of lines before them) and the `level` where they are written
+#let pseudo-lines(body) = {
+  let children(it) = if it.func() == [].func() { it.children } else { (it,) }
+  let blank(it) = it.func() in ([ ].func(), parbreak)
+  let is-comment(it) = (
+    it.func() == metadata
+      and type(it.value) == dictionary
+      and "uraw-pseudo-comment" in it.value
   )
 
-  let line-numbers = ()
-  let coloring-numbers = ()
-  let k = 0
-  for l in lines {
-    if l.numbered {
-      line-numbers.push(numbers.at(k))
-      k += 1
-    } else {
-      line-numbers.push(none)
+  // (the lines before the items being `before`)
+  let parse(items, level, before) = {
+    let (lines, comments) = ((), ())
+    for it in items {
+      if blank(it) { continue }
+      if it.func() == enum.item {
+        // The content of the item (its line), then its nested lines and comments
+        let cs = children(it.body)
+        let k = cs.position(c => c.func() == enum.item or is-comment(c))
+        let (own, nested) = if k == none { (cs, ()) } else {
+          (cs.slice(0, k), cs.slice(k))
+        }
+        while own.len() > 0 and blank(own.first()) { own = own.slice(1) }
+        while own.len() > 0 and blank(own.last()) { let _ = own.pop() }
+        lines.push((body: own.sum(default: []), level: level))
+        let (l, c) = parse(nested, level + 1, before + lines.len())
+        lines += l
+        comments += c
+      } else if is-comment(it) {
+        comments.push((
+          settings: it.value.uraw-pseudo-comment,
+          gap: before + lines.len(),
+          level: level,
+        ))
+      } else {
+        panic(
+          "The lines of pseudo code are the items of a numbered list (`+ ...`), with comments (`pseudo-comment`, `pseudo-info`).",
+        )
+      }
     }
-    coloring-numbers.push(if k > 0 { numbers.at(k - 1) } else {
-      number.start
-    })
+    (lines, comments)
   }
 
-  return (line-numbers, coloring-numbers)
+  parse(children(body), 0, 0)
 }
 
 /// The content of a line of pseudo code, indented and styled.
@@ -1455,7 +1424,7 @@
   (old: changed-ranges(a, old-changed), new: changed-ranges(b, new-changed))
 }
 
-// The difference between two codes: the `items` (`(kind: "same", old: i, new: j)` or `(kind: "hunk", dels: .., adds: ..)`), for each version the `status` of its lines (`"same"`, `"mod"` or `"whole"`) and the changed `ranges` of the modified lines, and for each new line the old line at the same place (`new-to-old`, -1 if there is none)
+// The difference between two codes: the `items` (`(kind: "same", old: i, new: j)` or `(kind: "hunk", dels: .., adds: ..)`), for each version the `status` of its lines (`"same"`, `"mod"` or `"whole"`) and the changed `ranges` of the modified lines
 #let compute-diff(old-texts, new-texts) = {
   let items = ()
   let (dels, adds) = ((), ())
@@ -1480,24 +1449,12 @@
     items: items,
     old: (status: old-texts.map(_ => "same"), ranges: old-texts.map(_ => ())),
     new: (status: new-texts.map(_ => "same"), ranges: new-texts.map(_ => ())),
-    new-to-old: new-texts.map(_ => -1),
   )
 
-  let last-old = -1
   for item in items {
-    if item.kind == "same" {
-      diff.new-to-old.at(item.new) = item.old
-      last-old = item.old
-      continue
-    }
+    if item.kind == "same" { continue }
     for i in item.dels { diff.old.status.at(i) = "whole" }
-    for (k, j) in item.adds.enumerate() {
-      diff.new.status.at(j) = "whole"
-      diff.new-to-old.at(j) = item.dels.at(k, default: if item.dels.len() > 0 {
-        item.dels.last()
-      } else { last-old })
-    }
-    if item.dels.len() > 0 { last-old = item.dels.last() }
+    for j in item.adds { diff.new.status.at(j) = "whole" }
 
     // The lines replacing each other are compared
     for k in range(calc.min(item.dels.len(), item.adds.len())) {
@@ -1534,36 +1491,55 @@
   columns
 }
 
-// The entries of a diff (comments, jumps, markers, highlights) with their version: arrays `(..keys)` or `(version, ..keys)`, or dictionaries with an optional `version` (`"new"` by default)
-#let versioned(entries, keys, both: false) = {
-  let entries = if (
+// The entries of a diff (comments, jumps, markers, highlights) with their version: arrays `(version, ..keys)` or dictionaries with a `version`, or a dictionary grouping them by version (`(old: ..., new: ...)`, without their version); a single entry can be given instead of an array
+#let versioned(entries, keys) = {
+  let versions = ("old", "new")
+  let as-array(entries) = if (
     type(entries) == dictionary
       or (entries.len() > 0 and type(entries.first()) in (int, str, alignment))
   ) { (entries,) } else { entries }
-  let versions = ("old", "new") + if both { ("both",) } else { () }
-
-  entries.map(e => {
+  let entry(e, version) = {
+    let n = keys.len() + if version == none { 1 } else { 0 }
     if type(e) == array {
       assert(
-        e.len() in (keys.len(), keys.len() + 1),
+        e.len() == n,
         message: "An entry of a diff given as an array must be of the form `("
-          + keys.join(", ")
-          + ")` or `(version, "
-          + keys.join(", ")
+          + (if version == none { ("version",) } else { () } + keys).join(", ")
           + ")`.",
       )
-      let version = if e.len() > keys.len() { e.remove(0) } else { "new" }
-      e = keys.zip(e).to-dict() + (version: version)
+      if version == none { version = e.remove(0) }
+      e = keys.zip(e).to-dict()
+    } else if version == none {
+      assert(
+        "version" in e,
+        message: "An entry of a diff must have a `version` (`\"old\"` or `\"new\"`).",
+      )
+      version = e.remove("version")
+    } else {
+      assert(
+        "version" not in e,
+        message: "An entry of a diff grouped by version must not have a `version`.",
+      )
     }
-    let version = e.at("version", default: "new")
     assert(
       version in versions,
-      message: "The version of an entry of a diff must be "
-        + versions.map(v => "\"" + v + "\"").join(", ", last: " or ")
-        + ".",
+      message: "The version of an entry of a diff must be `\"old\"` or `\"new\"`.",
     )
     e + (version: version)
-  })
+  }
+
+  if (
+    type(entries) == dictionary
+      and entries.len() > 0
+      and entries.keys().all(k => k in versions)
+  ) {
+    entries
+      .pairs()
+      .map(((v, es)) => as-array(es).map(e => entry(e, v)))
+      .flatten()
+  } else {
+    as-array(entries).map(e => entry(e, none))
+  }
 }
 
 #let of-version(entries, version) = (
@@ -1575,19 +1551,28 @@
     })
 )
 
-// The numbers of both versions: the jumps of both versions are given on the new numbers, and jump the same number of lines in the old code
+// A setting of diffs given for both versions, or by version as `(old: ..., new: ...)` (`default` for a missing one)
+#let by-version(value, default, name) = if type(value) == dictionary {
+  ut.check-keys(value, ("old", "new"), "`" + name + "`")
+  (
+    old: value.at("old", default: default),
+    new: value.at("new", default: default),
+  )
+} else { (old: value, new: value) }
+
+// The numbers of both versions, each with its jumps (and its `start` and `end`)
 #let diff-numbers(
   diff-number,
   diff-jumps,
   nbr-lines,
   first-lines,
-  new-to-old,
   with-dst,
-  skip-lines,
 ) = {
   let numbers-of(version, version-jumps) = {
     // The numbers start by default at the first line of the code (in its file)
     let diff-number = diff-number
+    diff-number.start = diff-number.start.at(version)
+    diff-number.end = diff-number.end.at(version)
     if diff-number.start == auto {
       diff-number.start = first-lines.at(version)
     }
@@ -1595,7 +1580,6 @@
       version-jumps,
       diff-number,
       nbr-lines.at(version),
-      skip-lines: skip-lines,
     )
     let version-number = number(
       diff-number,
@@ -1618,32 +1602,10 @@
     )
   }
 
-  let both = of-version(diff-jumps, "both")
-  let new = numbers-of("new", of-version(diff-jumps, "new") + both)
-
-  // (the lines are matched on all the lines of the codes)
-  let old-jumps = of-version(diff-jumps, "old")
-  for j in both.sorted(key: j => if j.from == start { -calc.inf } else {
-    j.from
-  }) {
-    let old = numbers-of("old", old-jumps)
-    let from = if j.from == start { start } else {
-      let i = new-to-old.at(new.kept.at((new.line-index)(j.from)))
-      let k = old.kept.position(l => l == i)
-      if i >= 0 and k != none { old.line-numbers.at(k) }
-    }
-    if from != none {
-      old-jumps.push((
-        from: from,
-        to: if j.to == end { end } else if from == start {
-          old.number.start + j.to - new.number.start
-        } else { from + j.to - j.from },
-        skip-lines: j.at("skip-lines", default: skip-lines),
-      ))
-    }
-  }
-
-  (old: numbers-of("old", old-jumps), new: new)
+  (
+    old: numbers-of("old", of-version(diff-jumps, "old")),
+    new: numbers-of("new", of-version(diff-jumps, "new")),
+  )
 }
 
 // The changed ranges of a version, as highlights (on all the lines of its code)

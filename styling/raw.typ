@@ -1,3 +1,5 @@
+/// The themes for raw text.
+
 /// The default theme of Typst, made lighter for a dark background.
 #let typst-dark = read("typst-dark.tmTheme", encoding: none)
 

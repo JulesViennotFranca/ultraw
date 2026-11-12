@@ -55,19 +55,22 @@
   (delimited + manual).filter(h => h.start < h.end)
 }
 
-/// Highlight a line of inline code: it is split at the bounds of the highlights, each part being styled and highlighted by the highlights covering it (the later highlights being on top).
+/// Highlight a line of inline code: it is split in parts at the bounds of the highlights and after the spaces and dashes (where the line can break), each part being styled and boxed by the highlights covering it (the later highlights being on top). The sides of a box are only closed at the ends of its highlight, so that the highlights are open at the line breaks.
 ///
 /// - body (content): The content of the line.
-/// - length (int): The length of the line.
+/// - text (str): The text of the line.
 /// - highlights (array): The simplified highlights.
-/// - cap-height (length): The height of the capital letters of the code, the highlights going from `.24em` above it to `.25em` below the baseline (as the highlights of raw blocks).
 /// - with-dst (function): Give a thickness to the strokes given without one.
 /// -> content
-#let highlight-inline(body, length, highlights, cap-height, with-dst) = {
+#let highlight-inline(body, text, highlights, with-dst) = {
   if highlights.len() == 0 { return body }
 
-  let bounds = (0, length)
+  let clusters = text.clusters()
+  let bounds = (0, clusters.len())
   for h in highlights { bounds += (h.start, h.end) }
+  for (i, c) in clusters.enumerate() {
+    if c in (" ", "-") { bounds.push(i + 1) }
+  }
   bounds = bounds.dedup().sorted()
 
   let rest = body
@@ -78,8 +81,11 @@
     rest = after
 
     let covering = highlights.filter(h => h.start <= a and b <= h.end)
-    // (the style functions can return strings, which are converted to content)
-    for h in covering { part = [#ct.content-map-text(part, h.code-style)] }
+    // The styles are applied together on each text, the later ones wrapping the earlier ones (a style applied on already styled content would rebuild its elements without their fields)
+    // (the styling functions can return strings, which are converted to content)
+    part = [#ct.content-map-text(part, t => covering.fold(t, (acc, h) => (
+      h.code-style
+    )(acc)))]
     // The later highlights wrap the earlier ones, so that they are drawn on top of them
     for h in covering.filter(h => h.fill != none or h.stroke != none) {
       // The corners are only rounded and the sides only stroked at the ends of the highlight
@@ -98,13 +104,12 @@
         radius.bottom-right = 0pt
         if stroke != none { stroke.right = none }
       }
-      // (unlike a box, a highlight can be broken across lines)
-      part = std.highlight(
+      // (the box goes from the baseline to the top of the capital letters, extended as the highlights of raw blocks)
+      part = box(
         fill: h.fill,
         radius: radius,
         stroke: stroke,
-        top-edge: cap-height + .24em,
-        bottom-edge: -.25em,
+        outset: (top: .24em, bottom: .25em),
         part,
       )
     }
@@ -113,20 +118,20 @@
   result
 }
 
-/// Display inline code by following the same settings as `uraw`.
+/// Display inline code with the same settings as `uraw`.
 ///
 /// #example(```
 /// #uraw-inline(lang: "py", `print("*|Hello|* world!")`)
 /// ```)
 ///
-/// - body (str, raw, content): The code to be displayed.
-///
 /// - lang (none, str): The language of the code.
 ///
 /// - highlights (array, dictionary): For each highlight, the range it covers is given either by `start (int)` and `end (int)` or `range ((int, int))`. Default values of `start` and `end` are the first and the last characters. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, `sticky`, `expand`, see `set-uraw` for more details).
 ///
+/// - body (str, raw, content): The code to be displayed.
+///
 /// -> content
-#let uraw-inline(body, lang: none, highlights: ()) = {
+#let uraw-inline(lang: none, highlights: (), body) = {
   // The code displayed by this function is not displayed again (when it is used in a show rule)
   if (
     type(body) == content
@@ -154,8 +159,6 @@
 
     // The code is shown as a raw element, to get its highlighted lines
     show <uraw-inline-code>: it => context {
-      // (the height of a text is the one of its capital letters, measured in the font of the code)
-      let cap-height = measure(it.lines.first(default: [])).height
       let thickness = cf
         .uncontext-category-getter("general", lang)
         .default-stroke-thickness
@@ -180,7 +183,12 @@
                 end: calc.min(n, h.end - start),
               )
           ))
-        parts.push(highlight-inline(l.body, n, line-hls, cap-height, with-dst))
+        parts.push(highlight-inline(
+          l.body,
+          l.text,
+          line-hls,
+          with-dst,
+        ))
         start += n + 1
       }
       parts.join(linebreak())

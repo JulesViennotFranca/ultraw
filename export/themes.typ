@@ -1,4 +1,4 @@
-/// This module contains the themes of this package and support functions for making new themes.
+/// The themes of the `ultraw` package and support functions for making new themes.
 
 #import "../src/config.typ": make, make-pseudo
 #import "pre-themes.typ"

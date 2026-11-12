@@ -52,6 +52,8 @@
       new: cf.diff-category-parser("new", args, lang),
     )
 
+    // (`auto` is the leading of the paragraphs around)
+    if code.line-spacing == auto { code.line-spacing = par.leading }
     set par(leading: code.line-spacing)
 
     layout(layout-size => {
@@ -72,31 +74,46 @@
         let diff-marker = diff-marker
         let columns = formatting.diff-columns(general.columns)
         let same-code = columns.len() == 1
-        assert(
-          number.end == none,
-          message: "The `end` of the number is not supported by diffs.",
+        // (the start and end of the numbers, and the continuations, can be given by version)
+        number.start = formatting.by-version(number.start, auto, "start")
+        number.end = formatting.by-version(number.end, none, "end")
+        let follows = formatting.by-version(
+          args.at("follows", default: false),
+          false,
+          "follows",
+        )
+        let precedes = formatting.by-version(
+          args.at("precedes", default: false),
+          false,
+          "precedes",
         )
 
         // Continuation: the diff follows or precedes another one, as at a page break
-        let follows = args.at("follows", default: false)
-        let precedes = args.at("precedes", default: false)
-        // The last line of the preceding block (the lines being numbered from the next one), the largest number of the following blocks (the number column being wide enough for it), and the widest markers of both (the marker column being wide enough for them)
-        let (last-line, follows-marker) = formatting.continuation(
-          follows,
-          "follows",
-        )
-        let (largest-line, precedes-marker) = formatting.continuation(
-          precedes,
-          "precedes",
-        )
-        if last-line != none { number.start = last-line + 1 }
-        let widest-number = if largest-line != none and number.format != none {
-          formatting.shown-number(number, largest-line)
+        // For each version, the last line of the preceding block (the lines being numbered from the next one), the largest number of the following blocks (the number column being wide enough for it), and the widest markers of both (the marker column being wide enough for them)
+        let (widest-number, widest-markers) = ((:), (:))
+        for v in ("old", "new") {
+          let (last-line, follows-marker) = formatting.continuation(
+            follows.at(v),
+            "follows",
+          )
+          let (largest-line, precedes-marker) = formatting.continuation(
+            precedes.at(v),
+            "precedes",
+          )
+          if last-line != none { number.start.at(v) = last-line + 1 }
+          widest-number.insert(
+            v,
+            if largest-line != none and number.format != none {
+              formatting.shown-number(number, largest-line)
+            },
+          )
+          widest-markers.insert(v, (follows-marker, precedes-marker).filter(
+            m => m != none,
+          ))
         }
-        let widest-markers = (follows-marker, precedes-marker).filter(m => (
-          m != none
+        let (follows, precedes) = (follows, precedes).map(c => (
+          c.values().any(x => x != false)
         ))
-        let (follows, precedes) = (follows != false, precedes != false)
 
         // Basic formatting
         lang-tag.visible = (
@@ -154,9 +171,7 @@
           entries.jumps,
           nbr-lines,
           first-lines,
-          diff.new-to-old,
           with-default-thickness,
-          jump.at("skip-lines", default: false),
         )
         // The lines skipped by the jumps are not shown, nor compared
         let kept = (old: numbers.old.kept, new: numbers.new.kept)
@@ -183,7 +198,7 @@
           } else { 0pt },
         )
 
-        // The comments of each version, the ones of the jumps of both versions spanning over both codes (on the new numbers)
+        // The comments of each version
         let comments = (:)
         for v in ("old", "new") {
           let n = numbers.at(v)
@@ -203,11 +218,7 @@
           let jumps-of(version) = formatting
             .of-version(entries.jumps, version)
             .filter(j => (
-              number.visible
-                or j.at("skip-lines", default: jump.at(
-                  "skip-lines",
-                  default: false,
-                ))
+              number.visible or j.at("skip-lines", default: false)
             ))
           comments.insert(
             v,
@@ -218,25 +229,12 @@
                 comment,
                 n.line-index,
                 single-comment,
-                extra: (span: false),
               )
-                + if v == "new" {
-                  formatting
-                    .jump-comments(
-                      jumps-of("both"),
-                      jump,
-                      comment,
-                      n.line-index,
-                      single-comment,
-                    )
-                    .map(c => c + (span: true))
-                }
                 + formatting.comments(
                   formatting.of-version(entries.comments, v),
                   comment,
                   n.line-numbers,
                   single-comment,
-                  extra: (span: false),
                 )
             ),
           )
@@ -264,10 +262,10 @@
           )
           // (the column of the markers is wide enough for the widest markers of the preceding and following blocks, the marker column being shown)
           if marker.over-numbers {
-            marker.number-markers += widest-markers
-          } else if widest-markers.len() > 0 {
+            marker.number-markers += widest-markers.at(v)
+          } else if widest-markers.at(v).len() > 0 {
             marker.visible = true
-            marker.markers += widest-markers
+            marker.markers += widest-markers.at(v)
           }
           let version-number = formatting.number-cells(
             n.number,
@@ -404,7 +402,7 @@
           let (numbers-width, markers-width) = me.numbers-markers-width(
             versions.at(v).number,
             versions.at(v).marker,
-            widest: widest-number,
+            widest: widest-number.at(v),
             monotonic: type(number.format) != function,
           )
           versions.at(v).numbers-width = numbers-width
@@ -650,44 +648,82 @@
   }
 }
 
-/// Display the difference between two raw blocks of code.
+/// Display a diff between an old and a new version of some code.
 ///
-/// - args (arguments): The old and the new code (raw blocks, or code read from files with `read-code` or given by their `path`), and the settings (see `uraw-diff-set`).
-/// - markers (array, dictionary): The markers of the lines, as `(line, content)`, `(version, line, content)` or dictionaries with a `version` (`"old"` or `"new"`, `"new"` by default). A single one can be given instead of an array.
-/// - highlights (array, dictionary): The highlights, on the line numbers of their `version`. A single one can be given instead of an array.
-/// - comments (array, dictionary): The comments, as `(line, content)`, `(version, line, content)` or dictionaries with a `version`, as for `uraw`, and `span` (bool): wether the comment spans over both separated codes (over the separator), its text staying at the same place in its code and its marker being in the gutter of the old code. A single one can be given instead of an array.
-/// - jumps (array, dictionary): The jumps of the number, as `(from, to)`, `(version, from, to)` or dictionaries with a `version`: `"old"`, `"new"`, or `"both"` for a jump given on the new numbers, which jumps the same number of lines in the old code (its comment spans over both separated codes, as a new comment). A jump skipping its lines (`skip-lines`, as for `uraw`, as well as `start` and `end`) does not show them, the codes being compared without them. A single one can be given instead of an array.
-/// - follows (bool, int, content, array): Wether the diff continues a previous one, as for `uraw` (an integer being the number of the last line of the preceding block, for both versions).
-/// - precedes (bool, int, content, array): Wether the diff is continued by a next one, as for `uraw`.
+/// #example(````
+/// #uraw-diff(
+///   markers: (old: (5, sym.arrow.r.hook), new: ((4, sym.arrow.r.hook), (6, sym.arrow.r.hook))),
+///   ```typ
+///   #let check-recipe(ingredients) = {
+///     if not "salt" in ingredients {
+///       panic("*!There is no salt !!!!*")
+///     } else {
+///       [Make sure it includes umami flavors.]
+///     }
+///   }
+///   ```,
+///   ```typ
+///   #let correct-recipe(ingredients) = {
+///     if not "salt" in ingredients {
+///       ingredients.push("*|A pinch of salt.|*")
+///       msg = [It lacked some salt.]
+///     } else {
+///       msg = [Make sure it includes umami flavors.]
+///     }
+///     return (msg, ingredients)
+///   }
+///   ```,
+/// )
+/// ````)
+///
+/// For `markers`, `highlights`, `comments` and `jumps`, a single entry, an array of entries or a dictionary grouping entries by version (`(old: ..., new: ...)`) are all valid. Under the dictionary form, entries are given without their `version`.
+///
+/// Lines of an `uraw-diff` in a labeled figure can be referenced with `@label.version.n`.
+///
+/// Look at the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs] for a complete overview of what is possible with `uraw-diff`.
+///
+/// - args (arguments): The settings (see `set-uraw` and `set-uraw-diff` for their description). The numbers `start` and `end` can be given by version, as `(old: ..., new: ...)` dictionaries.
+///
+/// - markers (array, dictionary): Each marker is given as `(version, line, content)` or `(version: ..., line: ..., content: ...)`. `line` takes a single line or a range `(from, to)`.
+///
+/// - highlights (array, dictionary): Each highlight targets a `version` and the range it covers is given either by `line` or `start` and `end`. `line` can take a single line number or a pair `(from, to)`. `start` and `end` both can take a single line number (meaning the start and end of that line) or a pair `(line, character)` to point at an exact code location. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, `sticky`, `expand`, see `set-uraw` for more details).
+///
+/// - comments (array, dictionary): Each comment is given as `(version, line, content)` (the comment is displayed after the line) or a dictionary with `version`, `after` / `before` indicating the targeted line, `content`, and styling parameters (`indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details). Additionally, comments can `span` over both code versions (see `set-uraw-diff` for more details).
+///
+/// - jumps (array, dictionary): Each jump is given as `(version, from, to)` or a dictionary with `version`, `from`, `to`, whether to `skip-lines (bool)` of the raw text of the version, and the associated comment parameters (`comment`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details, and the additional `span` parameter, see `set-uraw-diff` for more details). `from` and `to` take integer values or `start` and `end`.
+///
+/// - follows (bool, int, content, array, dictionary): Whether the block continues a previous one; it then renders as after a page break (no top radius, no top stroke, etc). For a correct numbering and to display the accurate width of the numbers column, an integer value represents the last line of the preceding block, content is the widest marker of the preceding blocks (the marker column being shown and made wide enough for it), and a pair `(number, marker)` gives both. This can be specific to each version by giving an `(old: ..., new: ...)` dictionary.
+///
+/// - precedes (bool, int, content, array, dictionary): Whether the block is continued by a next one; it then renders as before a page break (no bottom radius, no bottom stroke, etc). To display the accurate width of the numbers column, an integer value is the largest line number of the following blocks, content is their widest marker, and a pair `(number, marker)` gives both. This can be specific to each version by giving an `(old: ..., new: ...)` dictionary.
+///
+/// - old (content | raw | path | dictionary): The old code, given as a raw text block, a path indicating the file to read the code from, or the dictionary output of `read-code`.
+///
+/// - new (content | raw | path | dictionary): The new code, given as a raw text block, a path indicating the file to read the code from, or the dictionary output of `read-code`.
+///
 /// -> content
 #let uraw-diff(
-  ..args,
   markers: (),
   highlights: (),
   comments: (),
   jumps: (),
+  follows: false,
+  precedes: false,
+  old,
+  new,
+  ..args,
 ) = {
-  let (pos, first-lines) = args
-    .pos()
-    .map(cf.code-input)
-    .fold(
-      ((), ()),
-      ((pos, firsts), (it, first)) => (pos + (it,), firsts + (first,)),
-    )
-  assert(
-    pos.len() == 2 and pos.all(r => type(r) == content and r.func() == raw),
-    message: "`uraw-diff` takes the old and the new raw blocks of code (or the paths of their files).",
-  )
-  let (old, new) = pos
+  let (old, old-first-line) = cf.code-input(old)
+  let (new, new-first-line) = cf.code-input(new)
   let lang = (new, old)
     .map(it => it.at("lang", default: none))
     .find(l => l != none)
   // Settings given by category or flat (e.g. `header-fill`)
   let args = cf.normalize-settings(args.named(), cf.diff-spec)
+  args += (follows: follows, precedes: precedes)
   let entries = (
     markers: formatting.versioned(markers, ("line", "content")),
     comments: formatting.versioned(comments, ("after", "content")),
-    jumps: formatting.versioned(jumps, ("from", "to"), both: true),
+    jumps: formatting.versioned(jumps, ("from", "to")),
   )
   let highlights = formatting.versioned(highlights, ())
 
@@ -747,7 +783,7 @@
               new-it,
               entries,
               cf.base-style,
-              (old: first-lines.first(), new: first-lines.last()),
+              (old: old-first-line, new: new-first-line),
             )
           }
           set text(1.25em)

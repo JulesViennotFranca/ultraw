@@ -451,11 +451,11 @@
 /// - args (arguments): The optional language and the configuration settings. The language is given as a positional argument; the settings are given as named arguments. Here is the complete list of settings with their type and default value (set by `themes.pre-themes.pre-default`):
 ///
 ///   - *code*
-///     - `line-spacing (relative | auto) = auto` the space between lines, `auto` is the leading of the paragraphs (`par.leading`)
+///     - `line-spacing (length | auto) = auto` the space between lines, `auto` is the leading of the paragraphs (`par.leading`)
 ///     - `theme (bytes | str | auto | none) = auto` the syntax highlighting theme, as the `theme` of `raw`
 ///     - `color (function | color | gradient | tiling | auto | none) = auto` the color of the code, `auto` and `none` being the color of the text of the document, a function gives the color from the line number (e.g. `n => if calc.even(n) { blue } else { red }`)
 ///     - `fill (function | color | gradient | tiling | none) = none` the background of the code, `none` being the one of the frame, a function gives the background from the line number
-///     - `indentation (relative | color | gradient | stroke | tiling | none) = gray` the stroke of the indentation guidelines, `none` for no guidelines
+///     - `indentation (length | color | gradient | stroke | tiling | none) = gray` the stroke of the indentation guidelines, `none` for no guidelines
 ///     - `indented-line-return (bool) = true` whether the code after a line return starts at the indentation of its line, or at the left
 ///     - `indent-size (int | auto) = auto` the number of spaces of an indent, `auto` detecting it from the most common indent #(" ")
 ///   increase
@@ -466,8 +466,8 @@
 ///     - `format (function | str | auto | none) = auto` how the numbers are displayed: a function gives some content from the number (e.g. `n => strong(str(n))`), a string must contain a `1` replaced by the number (e.g. `"1:"`), `auto` displays the number and `none` hides the numbers
 ///     - `color (function | color | gradient | tiling | auto | none) = auto` the color of the numbers, `auto` being the one of the code, `none` the color of the text of the document, a function gives it from the line number
 ///     - `fill (function | color | gradient | tiling | auto | none) = auto` the background of the numbers, `auto` being the one of the code, `none` the one of the frame, a function gives it from the line number
-///     - `gutter (relative | array | auto) = auto` the space between the numbers and the code: a pair `(before, after)` gives the spaces before and after the separator, a relative length `l` is `(l / 2, l / 2)`, `auto` is `(frame.inset.left, frame.inset.right)`
-///     - `sep (relative | color | gradient | stroke | tiling | none) = none` the separator line between the numbers (and markers) and the code
+///     - `gutter (length | array | auto) = auto` the space between the numbers and the code: a pair `(before, after)` gives the spaces before and after the separator, a relative length `l` is `(l / 2, l / 2)`, `auto` is `(frame.inset.left, frame.inset.right)`
+///     - `sep (length | color | gradient | stroke | tiling | none) = none` the separator line between the numbers (and markers) and the code
 ///     - `align (alignment) = top + right` the alignment of the numbers in their cells (markers share the same vertical alignment but are centered #(" ")
 ///   horizontally)
 ///
@@ -475,7 +475,7 @@
 ///     - `coloring-follow-numbers (bool) = true` whether the coloring functions (`fill`, `color`) take the line numbers, or the absolute positions of the lines in the block
 ///     - `markers-over-numbers (bool) = false` whether the markers are displayed over the numbers (rather than in their own column), a line whose number is hidden by a marker can still be referenced with `@label.n`
 ///     - `line-reference (function) = n => ", line " + str(n) + ","` the text written after "Listing ..." when referencing a line
-///     - `default-stroke-thickness (relative) = .5pt` the thickness of the strokes given without #(" ")
+///     - `default-stroke-thickness (length) = .5pt` the thickness of the strokes given without #(" ")
 ///   one
 ///
 ///   - *header* and *footer* (they have the same parameters)
@@ -483,7 +483,7 @@
 ///     - `color (color | gradient | tiling | auto | none) = auto` the color of the text of the header or footer, `auto` being the one of the code, `none` being the color of the text of the document
 ///     - `fill (color | gradient | tiling | auto | none) = none` the background color, with `auto` it is the code background color at line `numbers.start - 1` (useful for striped code styles), with `none` it is the background color of the frame
 ///     - `repeat (bool) = false` whether the header or footer of a raw block should be repeated at page breaks or when chaining blocks with `follows` and `precedes`
-///     - `sep (relative | color | gradient | stroke | tiling | auto | none) = auto` the separator line between the header or footer and the code, `auto` is the same as the frame's stroke
+///     - `sep (length | color | gradient | stroke | tiling | auto | none) = auto` the separator line between the header or footer and the code, `auto` is the same as the frame's stroke
 ///     - `inset (relative | dictionary) = 5pt` the inset of the header or footer block
 ///     - `align (alignment) = left + horizon` the alignment of the content of the header or footer
 ///     - `code-aligned (bool) = false` whether to align the header or footer content with the code (when numbers or markers are #(" ")
@@ -494,9 +494,9 @@
 ///     - `sharp-page-break (bool) = true` at page breaks, when `false` the raw block is displayed within two frame blocks (normal Typst processing), when `true` the frame block appears cut in half (no border, no radius, no inset along the page break)
 ///     - `width (relative | auto) = auto` the total width of the raw block
 ///     - `fill (color | gradient | tiling | none) = none` the background color of the whole raw block
-///     - `stroke (relative | color | gradient | stroke | tiling | dictionary | none) = none` the border of the raw block
+///     - `stroke (length | color | gradient | stroke | tiling | dictionary | none) = none` the border of the raw block
 ///     - `radius (relative | dictionary) = 1mm` the radius of the raw block
-///     - `inset (relative | dictionary) = (x: 3pt)` the inset of the raw #(" ")
+///     - `inset (length | dictionary) = (x: 3pt)` the inset of the raw #(" ")
 ///   block
 ///
 ///   - *lang-tag* (updated by default for common languages)
@@ -504,16 +504,16 @@
 ///     - `name (content | auto | none) = auto` the language name displayed in the lang tag, `auto` defaults to the raw block `lang`
 ///     - `icon (content | none) = none` the icon displayed in the lang tag
 ///     - `placement ("inline" | "code" | "header" | "top-left" | "top" | "top-right" | "bottom-left" | "bottom" | "bottom-right" | "left-top" | "left" | "left-bottom" | "right-top" | "right" | "right-bottom") = "code"` where the lang tag is displayed: `"inline"` places it on the first line of code; `"code"` is like `"inline"` but the vertical space for the lang tag is reserved on all the lines of the code; `"header"` places it in the header and defaults to `"code"` when there is no header; the rest place it on the border of the frame, the first location indicates the frame side while the second indicates the placement on that side (no second location is like `center` or `horizon`)
-///     - `spacing (relative) = 5pt` the spacing between the lang tag and the content when the placement is `"inline"`, `"code"` or `"header"`
+///     - `spacing (length) = 5pt` the spacing between the lang tag and the content when the placement is `"inline"`, `"code"` or `"header"`
 ///     - `color (color | gradient | tiling | auto | none) = auto` the color of the language name in the lang tag, `auto` is the same as the code's color, `none` is the same as the document's text color
 ///     - `fill (color | gradient | tiling | auto | none) = luma(230)` the background color of the lang tag, `auto` defaults to the frame's background color
-///     - `stroke (relative | color | gradient | stroke | tiling | dictionary | auto | none) = auto` the border of the lang tag, `auto` defaults to the frame's border
+///     - `stroke (length | color | gradient | stroke | tiling | dictionary | auto | none) = auto` the border of the lang tag, `auto` defaults to the frame's border
 ///     - `radius (relative | dictionary) = 2pt` the radius of the lang #(" ")
 ///   tag
 ///
 ///   - *highlight* default parameters for highlights
 ///     - `fill (color | gradient | tiling | none) = none` the background color of the highlight block
-///     - `stroke (relative | color | gradient | stroke | tiling | none) = none` the border of the highlight block
+///     - `stroke (length | color | gradient | stroke | tiling | none) = none` the border of the highlight block
 ///     - `radius (relative | dictionary) = 3pt` the radius of the highlight block
 ///     - `code-style (function) = it => it` a styling function to apply to the highlighted content
 ///     - `sticky (bool | auto) = auto` whether the parts of the highlight merge from one line to the next (the stroke and radius are changed accordingly), `auto` sets this parameter automatically: a highlight defined with `line` is sticky while others are not
@@ -524,7 +524,7 @@
 ///     - `style (function) = text.with(style: "italic")` a basic style to apply to the content of all comments
 ///     - `indent ("frame" | "code" | "line" | "guideline") = "frame"` `"frame"` to align with the left of the frame; `"code"` to start at the same left inset as the code; `"line"` to have the same indentation as the targeted line; `"guideline"` to further draw indentation lines in the comment
 ///     - `fill (color | gradient | tiling | none) = luma(245)` the background color of the comment, `none` is the same as the frame's background color
-///     - `sep (relative | color | gradient | stroke | tiling | dictionary: (top: ..., bottom: ...) | none) = none` the separators at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side; if it is not a dictionary, the style applies to both separators
+///     - `sep (length | color | gradient | stroke | tiling | dictionary: (top: ..., bottom: ...) | none) = none` the separators at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side; if it is not a dictionary, the style applies to both separators
 ///     - `marker (content | none) = none` the marker of the comment
 ///     - `marker-fill (color | gradient | tiling | auto | none) = auto` the background color of the comment's marker, `auto` is the comment's background color, `none` is the numbers column background color
 ///     - `marker-placement ("numbers" | "markers") = "numbers"` the placement of the marker inside the numbers column: in the space reserved for `"numbers"` or for #(" ")
@@ -690,7 +690,7 @@
 ///   - *general* parameters specific to diffs
 ///     - `columns (relative | ratio | array | auto) = (auto, auto)` the columns of the diff, one column meaning that both versions are displayed in the same code part, working as the `columns` parameter of `grid`
 ///     - `column-gutter (relative) = 0pt` a separator space when there are two columns
-///     - `sep (relative | color | gradient | stroke | tiling | none) = gray` a separator line when there are two columns
+///     - `sep (length | color | gradient | stroke | tiling | none) = gray` a separator line when there are two columns
 ///     - `blank-fill (color | gradient | tiling | none) = style.hatch(luma(200))` the background color of spaces that don't contain anything
 ///     - `line-reference (function) = (n, version) => ", " + version + " line " + str(n) + ","` the text written after "Listing ..." when referencing a precise #(" ")
 ///   line

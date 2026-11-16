@@ -328,6 +328,9 @@
   for (name, value) in args {
     if name in spec.categories {
       let parameters = spec.categories.at(name)
+      if name == "highlight" {
+        parameters += ("del", "ldel", "rdel")
+      }
       let value = (
         if type(value) == dictionary {
           value

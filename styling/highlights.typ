@@ -13,6 +13,7 @@
   rdel: "|*",
   fill: color.transparentize(70%),
   stroke: color,
+  radius: 3pt,
 )
 
 /// The alert highlight: no border, a plain background and strong white highlighted code.
@@ -22,9 +23,9 @@
 #let alert(color: red) = (
   ldel: "*!",
   rdel: "!*",
-  radius: 0pt,
   fill: color,
   stroke: none,
+  radius: 0pt,
   code-style: it => strong(text(fill: white, it)),
 )
 
@@ -35,9 +36,10 @@
 #let hole(color: black) = (
   ldel: "*?",
   rdel: "?*",
-  code-style: hide,
-  stroke: (paint: color, dash: "dashed"),
   fill: none,
+  stroke: (paint: color, dash: "dashed"),
+  code-style: hide,
+  expand: none,
 )
 
 /// A highlight that strikes through the code.
@@ -47,9 +49,10 @@
 #let strike(color: red) = (
   ldel: "*-",
   rdel: "-*",
-  code-style: std.strike.with(stroke: 1.5pt + color),
-  stroke: none,
   fill: none,
+  stroke: none,
+  code-style: std.strike.with(stroke: 1.5pt + color),
+  expand: none,
 )
 
 /// A highlight that underlines the code.
@@ -59,17 +62,19 @@
 #let underline(color: black) = (
   ldel: "*_",
   rdel: "_*",
-  code-style: std.underline.with(offset: 1.5pt, stroke: 1pt + color),
-  stroke: none,
   fill: none,
+  stroke: none,
+  code-style: std.underline.with(offset: 1.5pt, stroke: 1pt + color),
+  expand: none,
 )
 
 /// A highlight that renders the code bold.
 #let strong = (
   del: "***", // Third * needed for Markdown code
-  code-style: std.strong,
-  stroke: none,
   fill: none,
+  stroke: none,
+  code-style: std.strong,
+  expand: none,
 )
 
 // -----------------------------------------------------------------------------

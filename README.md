@@ -24,6 +24,8 @@ The `set-uraw` function enables changing the settings of `uraw` globally, for ex
 
 By default only the base (`*|...|*`) and alert (`*!...!*`) highlights are available. Other highlights are provided and can be added using the `highlights` module. Highlights can also be defined locally when using the `uraw` function:
 
+![highlights2](assets/highlights2.png)
+
 ## Diffs
 
 ## Pseudo code

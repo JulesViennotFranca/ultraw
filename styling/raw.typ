@@ -1,4 +1,4 @@
-/// The themes for raw text.
+/// The themes for raw text: `typst-dark`, `github-light`, `github-dark`.
 
 /// The default theme of Typst, made lighter for a dark background.
 #let typst-dark = read("typst-dark.tmTheme", encoding: none)

@@ -1,4 +1,4 @@
-/// The themes of the `ultraw` package and support functions for making new themes.
+/// The themes of the `ultraw` package (`default`, `dark`, `note`, `window`, `pseudo-default`) and support functions for making new themes (`make`, `make-pseudo`).
 
 #import "../src/config.typ": make, make-pseudo
 #import "pre-themes.typ"

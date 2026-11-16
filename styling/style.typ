@@ -1,4 +1,9 @@
-/// A collection of styling functions.
+/// A collection of styling functions and objects:
+/// - coloring: `zebra`, `exact`, `focus`, `hatch`;
+/// - numbers: `padded`;
+/// - markers: `callout-marker`, `badge-marker`;
+/// - jumps: `vdots-jump`;
+/// - other: `window-header`, `icons`.
 
 // -----------------------------------------------------------------------------
 // Coloring

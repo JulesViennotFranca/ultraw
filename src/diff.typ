@@ -366,6 +366,10 @@
         }
 
         // The insets of the cells (the merged old numbers being followed by the new ones, the frame inset on each side)
+        assert(
+          type(diff-marker.gutter) == length,
+          message: "The `gutter` of the diff markers must be a length.",
+        )
         let side-visible = (
           versions.old.marker.visible or versions.new.marker.visible
         )
@@ -383,6 +387,9 @@
           )
           versions.at(v).number.inset = insets.number
           versions.at(v).marker.inset = insets.marker
+          if diff-marker.visible {
+            insets.code.left = diff-marker.gutter
+          }
           code-insets.insert(v, insets.code)
         }
         if same-code {

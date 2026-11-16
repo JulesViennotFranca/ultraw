@@ -704,6 +704,7 @@
 ///
 ///   - *diff-marker*
 ///     - `visible (bool) = true` whether the markers specific to diffs (lying in the code part) are shown
+///     - `gutter (length) = 3pt` the space between the diff markers and the code
 ///     - `unchanged (content) = []` the markers to use for lines with no #(" ")
 ///   changes
 ///

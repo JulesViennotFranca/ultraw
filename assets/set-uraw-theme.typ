@@ -15,7 +15,7 @@
 
     ```py
     def greeting():
-        print("Hello world!")
+        print("Hello to you!")
     ```
     ````,
   ),
@@ -26,7 +26,7 @@
 
     ```py
     def greeting():
-        print("Hello world!")
+        print("Hello to you!")
     ```
   ],
 )

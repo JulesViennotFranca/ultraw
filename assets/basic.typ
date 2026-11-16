@@ -15,7 +15,7 @@
 
     ```py
     def greeting():
-        print("Hello world!")
+        print("Hello to you!")
     ```
     ````,
   ),
@@ -27,7 +27,7 @@
     #uraw(
       ```py
       def greeting():
-          print("Hello world!")
+          print("Hello to you!")
       ```,
     )
     ````,
@@ -39,6 +39,6 @@
 #uraw(
   ```py
   def greeting():
-      print("Hello world!")
+      print("Hello to you!")
   ```,
 )

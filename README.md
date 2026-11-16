@@ -2,6 +2,12 @@
 
 **`ultraw`** is a Typst package that let's you customize raw text. It provides many features like highlighting some code, adding markers and comments, jumping over lines, a dark and other themes, presenting diffs and writing pseudo code.
 
+## Overview
+
+![overview](assets/overview.png)
+
+## Starting
+
 The main function of the **`ultraw`** package is `uraw`. It can be used as a show rule for the whole document to format all raw blocks or per raw block to have precise settings, markers, comments, highlights, etc. The two following examples produce the same results:
 
 ![basic](assets/basic.png)
@@ -12,7 +18,13 @@ The `set-uraw` function enables changing the settings of `uraw` globally, for ex
 
 ## Highlights
 
+**`ultraw`** provides a quick and robust way to highlight raw text by typing highlights delimiters right inside the raw block:
 
+
+
+## Diffs
+
+## Pseudo code
 
 ## TODO
 

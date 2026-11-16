@@ -122,6 +122,7 @@
     diff-marker: (
       visible: true,
       unchanged: [],
+      gutter: 3pt,
     ),
     comment: (span: false),
     jump: (span: auto),

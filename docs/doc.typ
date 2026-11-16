@@ -2183,6 +2183,7 @@ To enable fast access to common and unambiguous parameters, some arguments can b
         ),
         ***diff-marker***: (
           visible *htboolht*: true,
+          gutter *htlengthht*: 3pt,
           unchanged *htcontentht*: [],
         ),
         ***comment***: (
@@ -2274,18 +2275,24 @@ To enable fast access to common and unambiguous parameters, some arguments can b
 
         (
           22,
+          "diff-marker-gutter",
+          [The space between the diff markers and the code.],
+        ),
+
+        (
+          23,
           "diff-marker-unchanged",
           [The markers to use for lines with no changes.],
         ),
 
         (
-          25,
+          26,
           "comment-span",
           [Whether the comments span over both code versions, their marker being in the numbers column of the old code.],
         ),
 
         (
-          28,
+          29,
           "jump-span",
           [As for `comment-span`, `auto` being the same as `comment-span`.],
         ),

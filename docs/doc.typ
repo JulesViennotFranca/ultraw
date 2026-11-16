@@ -16,7 +16,7 @@
 #let uraw-version = "0.0.1"
 
 #highlights.add(
-  (ldel: "*$", rdel: "$*", ..highlights.base-style(olive), sticky: true),
+  (..highlights.base(color: olive), ldel: "*$", rdel: "$*", sticky: true),
   (ldel: "*b", rdel: "b*", code-style: text.with(rgb("#4C69C6"))),
   (ldel: "*k", rdel: "k*", code-style: text.with(black)),
   (
@@ -736,8 +736,13 @@ The #ultraw package provides simple and efficient highlighting. The main feature
   [
     #highlights.remove((ldel: "*|", rdel: "|*"), (ldel: "*!", rdel: "!*"))
     #highlights.add(
-      (ldel: "*||", rdel: "||*", ..highlights.base-style(yellow), sticky: true),
-      (ldel: "*!!", rdel: "!!*", ..highlights.alert-style(red), sticky: true),
+      (
+        ..highlights.base(color: yellow),
+        ldel: "*||",
+        rdel: "||*",
+        sticky: true,
+      ),
+      (..highlights.alert(color: red), ldel: "*!!", rdel: "!!*", sticky: true),
     )
 
     #source(
@@ -822,7 +827,7 @@ You can define your own highlights by providing a left and a right delimiter and
         it,
       )),
     ),
-    (del: "*p*", sticky: true, ..highlights.base-style(purple)),
+    (..highlights.base(color: purple), del: "*p*", sticky: true),
     (
       ldel: "*#",
       rdel: "#*",
@@ -900,7 +905,7 @@ A simpler version of #urawf for inline raw text exists. It inherits its appearan
 
 #highlights.remove((ldel: "*!", rdel: "!*"))
 #highlights.add(
-  (ldel: "*!!", rdel: "!!*", ..highlights.alert-style(red), sticky: true),
+  (..highlights.alert(color: red), ldel: "*!!", rdel: "!!*", sticky: true),
 )
 
 #grid(
@@ -2539,6 +2544,16 @@ Sample highlights and functions to manage them. There are two highlights by defa
   ),
 )
 
+== #f(`list`)
+
+#documentation(
+  ```typ
+  #highlights.list()
+  ```,
+
+  description: [List highlights. The context must be known to call this function.],
+)
+
 == #f(`get`)
 
 #documentation(
@@ -2568,31 +2583,6 @@ Sample highlights and functions to manage them. There are two highlights by defa
   ),
 )
 
-== #f(`list`)
-
-#documentation(
-  ```typ
-  #highlights.list()
-  ```,
-
-  description: [List highlights. The context must be known to call this function.],
-)
-
-== #f(`base-style`)
-
-#documentation(
-  ```typ
-  #highlights.base-style(color *htcolor gradient tilinght*)
-  ```,
-
-  description: [Return the styling parameters of the base highlight: a dimmed background with a plain border.],
-
-  (
-    1,
-    [The color of the highlight.],
-  ),
-)
-
 == #f(`base`)
 
 #documentation(
@@ -2604,36 +2594,6 @@ Sample highlights and functions to manage them. There are two highlights by defa
     The base highlight: a dimmed background and a plain border. \
     #show-highlight(`#let *|rec|*(n) = rec(n + 1) + 1`)
   ],
-
-  (
-    1,
-    [The color of the highlight.],
-  ),
-)
-
-== #f(`square-style`)
-
-#documentation(
-  ```typ
-  #highlights.square-style(color *htcolor gradient tilinght*)
-  ```,
-
-  description: [Return the styling parameters of a square highlight: no border and a plain background.],
-
-  (
-    1,
-    [The color of the highlight.],
-  ),
-)
-
-== #f(`alert-style`)
-
-#documentation(
-  ```typ
-  #highlights.alert-style(color *htcolor gradient tilinght*)
-  ```,
-
-  description: [Return the styling parameters of an alert highlight: no border, a plain background and strong white highlighted code.],
 
   (
     1,

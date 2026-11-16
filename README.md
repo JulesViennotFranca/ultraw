@@ -18,9 +18,11 @@ The `set-uraw` function enables changing the settings of `uraw` globally, for ex
 
 ## Highlights
 
-**`ultraw`** provides a quick and robust way to highlight raw text by typing highlights delimiters right inside the raw block:
+**`ultraw`** provides a lightweight, quick and robust way to highlight raw text by typing highlights delimiters right inside the raw block:
 
+![highlights1](assets/highlights1.png)
 
+By default only the base (`*|...|*`) and alert (`*!...!*`) highlights are available. Other highlights are provided and can be added using the `highlights` module. Highlights can also be defined locally when using the `uraw` function:
 
 ## Diffs
 

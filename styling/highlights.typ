@@ -4,15 +4,6 @@
 // Style
 // -----------------------------------------------------------------------------
 
-/// Return the styling parameters of the base highlight: a dimmed background with a plain border.
-///
-/// - color (color, gradient, tiling): The color of the highlight.
-/// -> dictionary
-#let base-style(color) = (
-  fill: color.transparentize(70%),
-  stroke: color,
-)
-
 /// The base highlight: a dimmed background and a plain border.
 ///
 /// - color (color, gradient, tiling): The color of the highlight.
@@ -20,26 +11,8 @@
 #let base(color: yellow) = (
   ldel: "*|",
   rdel: "|*",
-  ..base-style(color),
-)
-
-/// Return the styling parameters of a square highlight: no border and a plain background.
-///
-/// - color (color, gradient, tiling): The color of the highlight.
-/// -> dictionary
-#let square-style(color) = (
-  radius: 0pt,
-  fill: color,
-  stroke: none,
-)
-
-/// Return the styling parameters of an alert highlight: no border, a plain background and strong white highlighted code.
-///
-/// - color (color, gradient, tiling): The color of the highlight.
-/// -> dictionary
-#let alert-style(color) = (
-  ..square-style(color),
-  code-style: it => strong(text(fill: white, it)),
+  fill: color.transparentize(70%),
+  stroke: color,
 )
 
 /// The alert highlight: no border, a plain background and strong white highlighted code.
@@ -49,7 +22,10 @@
 #let alert(color: red) = (
   ldel: "*!",
   rdel: "!*",
-  ..alert-style(color),
+  radius: 0pt,
+  fill: color,
+  stroke: none,
+  code-style: it => strong(text(fill: white, it)),
 )
 
 /// The hole highlight: no background, hidden code and a dashed border.
@@ -106,9 +82,11 @@
 /// Add highlights to use them in raw text.
 ///
 /// #example(`
-/// #add(
+/// #import "@preview/ultraw:0.0.1": highlights
+/// #highlights.add(
 ///   (ldel: "*~", rdel: "~*", fill: teal, code-style: it => text(white, strong(it))),
 ///   (del: "*-*", stroke: olive, radius: 0pt, expand: left),
+///   (..highlights.base(color: red), ldel: "*r|", rdel: "|r*"),
 /// )
 /// `)
 ///
@@ -134,7 +112,8 @@
 /// Remove highlights.
 ///
 /// #example(`
-/// #remove((ldel: "*!", rdel: "!*"), (del: "***"))
+/// #import "@preview/ultraw:0.0.1": highlights
+/// #highlights.remove((ldel: "*!", rdel: "!*"), (del: "***"))
 /// `)
 ///
 /// - delimiters (arguments): The delimiters of each highlight are a dictionary with either two keys `ldel` and `rdel` representing the left and right delimiters or a single key `del` representing both delimiters.
@@ -154,7 +133,8 @@
 /// Return the parameters of a highlight. The context must be known to call this function.
 ///
 /// #example(`
-/// #context get(ldel: "*!", rdel: "!*")
+/// #import "@preview/ultraw:0.0.1": highlights
+/// #context highlights.get(ldel: "*!", rdel: "!*")
 /// `)
 ///
 /// - del (str | none): `del` represents both delimiters of the highlight. It overrides `ldel` and `rdel` if given.
@@ -176,7 +156,8 @@
 /// List highlights. The context must be known to call this function.
 ///
 /// #example(`
-/// #context list()
+/// #import "@preview/ultraw:0.0.1": highlights
+/// #context highlights.list()
 /// `)
 ///
 /// -> array

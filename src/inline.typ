@@ -24,9 +24,15 @@
 /// - manual (array): The manual highlights.
 /// - delimited (array): The highlights read from delimiters.
 /// - defaults (dictionary): The `highlight` settings, giving the missing style fields of the manual highlights.
-/// - length (int): The length of the code.
+/// - lines (array): The lines of the code.
 /// -> array
-#let inline-highlights(manual, delimited, defaults, length) = {
+#let inline-highlights(manual, delimited, defaults, lines) = {
+  let length = ct.text-len(lines.join("\n", default: ""))
+  // The position of the start of each line in the code
+  let line-starts = lines.fold(
+    (0,),
+    (acc, l) => acc + (acc.last() + ct.text-len(l) + 1,),
+  )
   let simplify(h, start, end) = (
     start: calc.max(0, start),
     end: calc.min(length, end),
@@ -36,10 +42,11 @@
     code-style: h.at("code-style", default: it => it),
   )
 
+  // (the delimited highlights are positioned by line and column)
   let delimited = delimited.map(h => simplify(
     h,
-    h.start.last(),
-    h.end.last(),
+    line-starts.at(h.start.first()) + h.start.last(),
+    line-starts.at(h.end.first()) + h.end.last(),
   ))
   let manual = ut
     .single-to-list(manual)
@@ -126,7 +133,7 @@
 ///
 /// - lang (none, str): The language of the code.
 ///
-/// - highlights (array, dictionary): For each highlight, the range it covers is given either by `start (int)` and `end (int)` or `range ((int, int))`. Default values of `start` and `end` are the first and the last characters. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, `sticky`, `expand`, see `set-uraw` for more details).
+/// - highlights (array, dictionary): For each highlight, the range it covers is given either by `start (int)` and `end (int)` or `range ((int, int))`. Default values of `start` and `end` are the first and the last characters. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, see `set-uraw` for more details).
 ///
 /// - body (str, raw, content): The code to be displayed.
 ///
@@ -167,7 +174,7 @@
         highlights,
         delimited,
         highlight,
-        ct.text-len(code),
+        lines,
       )
       // The lines of the code (with their position in the code)
       let start = 0

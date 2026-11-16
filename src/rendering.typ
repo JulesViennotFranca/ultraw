@@ -53,7 +53,7 @@
 /// Create the block of a code line whose highlights are computed.
 ///
 /// - l (dictionary): The line, with its styled sub-lines.
-/// - highlight-blocks (array): The highlight blocks, as `(sub-line, start, block)`.
+/// - highlight-blocks (array): The highlight blocks, as `(sub-line, start, block)` (`start` being a length from the start of the code).
 /// - width (length): The width of the code.
 /// - height (length): The height of the line.
 /// - inset (inset):
@@ -108,12 +108,14 @@
       for (k, s, hl-block) in highlight-blocks {
         place(
           left + top,
-          dx: s * char-width,
+          dx: s,
           dy: -.24em + k * (inset.top + char-height + inset.bottom),
           hl-block,
         )
       }
 
+      // (the lines have the height of the code font, even with taller characters of other fonts, as the emojis)
+      set text(top-edge: char-height)
       ut.colored(
         color,
         l
@@ -339,42 +341,6 @@
   }
 }
 
-/// The anchors of the first and last rows of a block, used to know on which pages they are.
-///
-/// - id (int): The identifier of the block.
-/// - kind (str): `"start"` or `"end"`.
-/// -> metadata
-#let row-anchor(id, kind) = metadata((uraw-anchor: (id: id, kind: kind)))
-
-/// Whether the current page is the one of an anchor of a block (`true` when there is no such anchor).
-///
-/// - id (int): The identifier of the block.
-/// - kind (str): `"start"` or `"end"`.
-/// -> bool
-#let on-anchor-page(id, kind) = {
-  let anchors = query(metadata.where(value: (
-    uraw-anchor: (id: id, kind: kind),
-  )))
-  anchors.len() == 0 or anchors.first().location().page() == here().page()
-}
-
-// The cells of the rows (an array of cells per row), with anchors in the first and last rows to know the pages they are on
-#let anchor-rows(row-cells, id) = {
-  if id != none and row-cells.len() > 0 {
-    let anchored(cell, kind) = {
-      let anchor = row-anchor(id, kind)
-      if type(cell) == content and cell.func() == grid.cell {
-        let fields = cell.fields()
-        let body = fields.remove("body")
-        grid.cell(..fields, [#body#anchor])
-      } else { [#cell#anchor] }
-    }
-    row-cells.first().first() = anchored(row-cells.first().first(), "start")
-    row-cells.last().last() = anchored(row-cells.last().last(), "end")
-  }
-  row-cells.flatten()
-}
-
 /// The separator of a header (`side: bottom`) or of a footer (`side: top`), drawn inside its block (offset by half its thickness), between the strokes of the sides of the frame.
 ///
 /// - stroke (dictionary): The stroke of the header or footer, with its separator.
@@ -407,25 +373,20 @@
   }
 }
 
-/// Create a header cell. Once repeated on another page, it has no top radius and no lang tag.
+/// Create a header cell.
 ///
 /// - header (dictionary): The header parameters.
 /// - frame (dictionary): The frame parameters.
 /// - nbr-columns (int): The number of columns of the grid.
-/// - id (int): The identifier of the block.
 /// -> grid.header, none
-#let header-cell(header, frame, nbr-columns, id) = if header.content != none {
+#let header-cell(header, frame, nbr-columns) = if header.content != none {
   grid.header(
     repeat: header.repeat,
     grid.cell(
       colspan: nbr-columns,
-      context block(
+      block(
         width: frame.width,
-        radius: if id == none
-          or not frame.sharp-page-break
-          or on-anchor-page(id, "start") {
-          header.radius
-        } else { (:) },
+        radius: header.radius,
         inset: header.inset,
         stroke: header.stroke + (bottom: none),
         outset: ut.seam-outset(header.stroke, header.fill),
@@ -449,21 +410,15 @@
 /// - footer (dictionary): The footer parameters.
 /// - frame (dictionary): The frame parameters.
 /// - nbr-columns (int): The number of columns of the grid.
-/// - id (int): The identifier of the block.
 /// -> grid.footer, none
-#let footer-cell(footer, frame, nbr-columns, id) = if footer.content != none {
+#let footer-cell(footer, frame, nbr-columns) = if footer.content != none {
   grid.footer(
     repeat: footer.repeat,
     grid.cell(
       colspan: nbr-columns,
-      // When sharp page break is set, repeated on another page than the last one, it has no bottom radius
-      context block(
+      block(
         width: frame.width,
-        radius: if id == none
-          or not frame.sharp-page-break
-          or on-anchor-page(id, "end") {
-          footer.radius
-        } else { (:) },
+        radius: footer.radius,
         inset: footer.inset,
         stroke: footer.stroke + (top: none),
         outset: ut.seam-outset(footer.stroke, footer.fill),
@@ -500,7 +455,6 @@
 /// - marker (dictionary): The marker column parameters (formatted, see `format-marker`), only its visibility is needed when it is not visible.
 /// - markers-width (length): The width of the marker column.
 /// - markers (array): For each line, its marker (`none` if it has none).
-/// - id (none, int): The identifier of the block, to find the pages of its first and last rows (for the repeated header and footer).
 /// -> grid
 #let render(
   nl,
@@ -523,7 +477,6 @@
   marker: (visible: false),
   markers-width: 0pt,
   markers: (),
-  id: none,
 ) = {
   // Compute the number of columns and the associated widths: the numbers, the markers, the code
 
@@ -687,7 +640,7 @@
         side-stroke(r, true),
         fill,
         none,
-        if marked { center + number.align.y } else { number.align },
+        number.align,
       ))
     }
     if marker.visible {
@@ -832,9 +785,9 @@
       }
     })
 
-  row-cells = anchor-rows(row-cells, id)
+  row-cells = row-cells.flatten()
 
-  let header-cell = header-cell(header, frame, nbr-columns, id)
+  let header-cell = header-cell(header, frame, nbr-columns)
 
   let cells = if header-cell != none {
     row-heights.insert(0, auto)
@@ -845,7 +798,7 @@
 
   cells += row-cells
 
-  let footer-cell = footer-cell(footer, frame, nbr-columns, id)
+  let footer-cell = footer-cell(footer, frame, nbr-columns)
 
   if footer-cell != none {
     row-heights.push(auto)
@@ -933,7 +886,6 @@
   lang-tag-block,
   char-width,
   char-height,
-  id,
 ) = {
   // The columns, by key: the number, marker and diff marker columns and the code of each version (only once for merged codes), and the gutter between separated codes
   let columns = ()
@@ -1473,15 +1425,15 @@
         blank-cell(c, r, n)
       } else { c }))
 
-  let cells = anchor-rows(row-cells, id)
+  let cells = row-cells.flatten()
   let heights = row-heights
-  let header-cell = header-cell(header, frame, keys.len(), id)
+  let header-cell = header-cell(header, frame, keys.len())
   if header-cell != none {
     heights.insert(0, auto)
     cells.insert(0, header-cell)
   }
 
-  let footer-cell = footer-cell(footer, frame, keys.len(), id)
+  let footer-cell = footer-cell(footer, frame, keys.len())
   if footer-cell != none {
     heights.push(auto)
     cells.push(footer-cell)

@@ -1,4 +1,4 @@
-#import "@mine/ultraw:0.0.1": *
+#import "@preview/ultraw:0.0.1": *
 #import "@preview/pinit:0.2.2": *
 #import "utils.typ": *
 
@@ -144,7 +144,8 @@
             olive,
           )[Safety condition to avoid out of bounds indices],
           indent: "guideline",
-          marker: [],
+          marker: octique-marker("feed-issue-closed", color: olive),
+          marker-placement: "markers",
           fill: none,
         ),
         (
@@ -450,28 +451,28 @@
     )
     ```,
   ),
-  caption: [The differents components of an #urawf block.],
+  caption: [The different components of an #urawf block.],
 ) <uraw-block-components>
 
-A block of raw text formatted by #urawf is made of several components. They are all colored differently in @uraw-block-components and their name will be underlined with the corresponding color. The raw text is shown inside of the #underline-col(code-col)[code] part. The #underline-col(num-col)[numbers] and #underline-col(num-col)[markers] are displayed in a gutter on the left. A #underline-col(hf-col)[header] and a #underline-col(hf-col)[footer] can be defined. The #underline-col(lang-col)[lang tag] indicates which coding language is used. Finally, the #underline-col(frame-col)[frame] is the box containg the whole block.
+A block of raw text formatted by #urawf is made of several components. They are all colored differently in @uraw-block-components and their names are underlined with the corresponding color. The raw text is shown inside of the #underline-col(code-col)[code] part. The #underline-col(num-col)[numbers] and #underline-col(num-col)[markers] are displayed in a gutter on the left. A #underline-col(hf-col)[header] and a #underline-col(hf-col)[footer] can be defined. The #underline-col(lang-col)[lang tag] indicates which coding language is used. Finally, the #underline-col(frame-col)[frame] is the box containing the whole block.
 
 #alert(icon: "info")[
   The precise arguments of the #urawf function can be inspected #link(<uraw-lib>)[here].
 ]
 
 #alert[
-  For conciseness, arguments names in this section are different than in the above examples. Refer to the #link(<args-forms>)[Arguments forms] section if you want to understand why both namings are supported.
+  For conciseness, argument names in this section are different from those in the above examples. Refer to the #link(<args-forms>)[Arguments forms] section if you want to understand why both namings are supported.
 ]
 
 == Code
 
-Quite some parameters of the code can be set with #urawf, such as appearence (e.g., `theme`, `fill`) or the layout (e.g., `line-spacing`, `indent-size`). Here are some examples illustrating the offered possibilities:
+Many parameters of the code can be set with #urawf, such as the appearance (e.g. `theme`, `fill`) or the layout (e.g. `line-spacing`, `indent-size`). Here are some examples illustrating the offered possibilities:
 
 #text(0.8em, grid(
   columns: (1fr, 1fr),
   column-gutter: 5mm,
 
-  example(
+  ex-output(
     output-args: (lang-tag: "false", numbers: "none"),
     jumps: (from: 5, to: 13, comment: [`...,`], skip-lines: true),
     ````typ
@@ -491,7 +492,7 @@ Quite some parameters of the code can be set with #urawf, such as appearence (e.
     ````,
   ),
 
-  example(
+  ex-output(
     output-args: (lang-tag: "false", numbers: "none"),
     jumps: (from: 4, to: 12, comment: [`...,`], skip-lines: true),
     ````typ
@@ -513,19 +514,18 @@ Quite some parameters of the code can be set with #urawf, such as appearence (e.
 
 == Numbers & Markers
 
-Numbers indicate the code lines numbers and markers can further decorate each line. They both appear in a gutter on the left of the code. The background of this gutter, the color of numbers and markers, or the starting or ending number can be chose as follow:
+Numbers indicate the line numbers of the code and markers can further decorate each line. They both appear in a gutter on the left of the code. The background of this gutter, the color of numbers and markers, or the starting or ending number can be chosen as follows:
 
 #text(0.8em, grid(
   columns: (1fr, 1fr),
   column-gutter: 5mm,
 
-  example(
+  ex-output(
     output-args: (
       lang-tag: "false",
       indentation: "silver",
       highlights: "(line: (8, 12), code-style: it => fade(20%, it))",
     ),
-    hidden-prefix1: fade-string,
     jumps: (from: 6, to: 14, comment: [`...,`], skip-lines: true),
     ````typ
     #uraw(
@@ -545,14 +545,13 @@ Numbers indicate the code lines numbers and markers can further decorate each li
     ````,
   ),
 
-  example(
+  ex-output(
     output-args: (
       lang-tag: "false",
       indentation: "silver",
       numbers-align: "left",
       highlights: "(line: (1, 5), code-style: it => fade(20%, it))",
     ),
-    hidden-prefix1: fade-string,
     jumps: (from: 6, to: 14, comment: [`...,`], skip-lines: true),
     ````typ
     #uraw(
@@ -575,7 +574,7 @@ Numbers indicate the code lines numbers and markers can further decorate each li
 
 == Header & Footer
 
-Each #urawf block can have a header and a footer. Like `grid`s headers and footers, they can be repeated at each page breaks. Their start can also be aligned with the code block.
+Each #urawf block can have a header and a footer. Like the headers and footers of `grid`, they can be repeated at each page break. Their start can also be aligned with the code block.
 
 #text(0.8em, grid(
   columns: (1fr, 1fr),
@@ -611,19 +610,22 @@ Each #urawf block can have a header and a footer. Like `grid`s headers and foote
       ),
       (
         after: 10,
-        content: text(style: "normal", uraw(
-          width: 100%,
-          start: 2,
-          lang-tag: false,
-          indentation: silver,
-          numbers-color: silver,
-          highlights: (line: (2, 3), code-style: it => fade(20%, it)),
-          header: [Some basic header],
-          header-code-aligned: true,
-          ```typ
-            body,
-          )
-          ```,
+        content: box(inset: (x: 2pt, top: 3pt - .325em, bottom: 1pt), text(
+          style: "normal",
+          uraw(
+            width: 100%,
+            start: 2,
+            lang-tag: false,
+            indentation: silver,
+            numbers-color: silver,
+            highlights: (line: (2, 3), code-style: it => fade(20%, it)),
+            header: [Some basic header],
+            header-code-aligned: true,
+            ```typ
+              body,
+            )
+            ```,
+          ),
         )),
         fill: white,
       ),
@@ -641,14 +643,13 @@ Each #urawf block can have a header and a footer. Like `grid`s headers and foote
     ````,
   ),
 
-  example(
+  ex-output(
     output-args: (
       lang-tag: "false",
       indentation: "silver",
       numbers-color: "silver",
       highlights: "(line: (1, 2), code-style: it => fade(20%, it))",
     ),
-    hidden-prefix1: fade-string,
     jumps: (from: 6, to: 11, comment: [`...,`], skip-lines: true),
     ````typ
     #uraw(
@@ -668,19 +669,18 @@ Each #urawf block can have a header and a footer. Like `grid`s headers and foote
 
 == Lang tag & Frame
 
-The lang tag indicates which language is used and can be placed inside of the code, in the header, or on the frame. The lang tag may contain a custom icon or name. For most know languages, their icon is already available by default. The frame controls various parameters such as wether the code block can break across pages or if such page break is sharp (no radius and stroke around the page break).
+The lang tag indicates which language is used and can be placed inside of the code, in the header, or on the frame. The lang tag may contain a custom icon or name. For most known languages, their icon is already available by default. The frame controls various parameters such as whether the code block can break across pages or whether such a page break is sharp (no radius and stroke around the page break).
 
 #text(0.8em, grid(
   columns: (1fr, 1fr),
   column-gutter: 5mm,
 
-  example(
+  ex-output(
     output-args: (
       numbers-color: "silver",
       indentation: "silver",
       highlights: "(line: (1, 4), code-style: it => fade(20%, it))",
     ),
-    hidden-prefix1: fade-string,
     jumps: (from: 6, to: 13, comment: [`...,`], skip-lines: true),
     ````typ
     #uraw(
@@ -699,13 +699,12 @@ The lang tag indicates which language is used and can be placed inside of the co
     ````,
   ),
 
-  example(
+  ex-output(
     output-args: (
       numbers-color: "silver",
       indentation: "silver",
       highlights: "(line: (1, 4), code-style: it => fade(20%, it))",
     ),
-    hidden-prefix1: fade-string,
     jumps: (from: 6, to: 13, comment: [`...,`], skip-lines: true),
     ````typ
     #uraw(
@@ -727,7 +726,7 @@ The lang tag indicates which language is used and can be placed inside of the co
 
 = Highlights
 
-The #ultraw package provides a simple and efficient highlighting. The main feature is to be able to define highlights directly inside the raw text as follow:
+The #ultraw package provides simple and efficient highlighting. The main feature is to be able to define highlights directly inside the raw text as follows:
 
 #grid(
   columns: (1fr, auto),
@@ -766,18 +765,16 @@ The #ultraw package provides a simple and efficient highlighting. The main featu
 
     Highlight as you *!want!*.
     ```
-
-    #v(16pt)
   ],
 )
 
-As shown above, raw text can be highlighted by framing it between highlights delimiters.
+As shown above, raw text can be highlighted by framing it between highlight delimiters.
 
 #alert(icon: "info")[
   For the precise list of default highlights, refer to the #link(<highlights-lib>)[`highlights`] module.
 ]
 
-You can define your own highlights by providing a left and a right delimiters and its style. In addition to basic style parameters (`stroke`, `fill`, `radius`), a highlight can style the code it highlights (`code-style`), expand left or right or both (`expand`), and merge with its other parts across lines (`sticky`). Default values of these parameters are set by the #link(<uraw-lib>)[`highlight`] setting of #urawf. Here are some examples illustrating highlights definition and use:
+You can define your own highlights by providing a left and a right delimiter and its style. In addition to basic style parameters (`stroke`, `fill`, `radius`), a highlight can style the code it highlights (`code-style`), expand left or right or both (`expand`), and merge with its other parts across lines (`sticky`). Default values of these parameters are set by the #link(<set-uraw-lib>)[`highlight`] setting of #urawf. Here are some examples illustrating the definition and use of highlights:
 
 #text(0.8em, block({
   source(
@@ -858,7 +855,7 @@ You can define your own highlights by providing a left and a right delimiters an
 
 == Local highlights <local-highlights>
 
-Highlights can also be defined per block through the `highlights` argument of #urawf, without touching the raw text. A local highlight targets either a range of lines (`line`) or a range of code coordinates (`start` and `end` containing `(line, character)` pairs). The style parameters remains the same as for regular highlights.
+Highlights can also be defined per block through the `highlights` argument of #urawf, without touching the raw text. A local highlight targets either a range of lines (`line`) or a range of code coordinates (`start` and `end` containing `(line, character)` pairs). The style parameters remain the same as for regular highlights.
 
 #text(0.8em, block(width: 100%, {
   source(
@@ -899,7 +896,7 @@ Highlights can also be defined per block through the `highlights` argument of #u
 
 = Inline
 
-A simpler version of #urawf for inline raw text exists. It inherits its appearence from #urawf and can contain highlights. Here is an example of such inline formatted raw text:
+A simpler version of #urawf for inline raw text exists. It inherits its appearance from #urawf and can contain highlights. Here is an example of such inline formatted raw text:
 
 #highlights.remove((ldel: "*!", rdel: "!*"))
 #highlights.add(
@@ -921,7 +918,7 @@ A simpler version of #urawf for inline raw text exists. It inherits its appearen
 
 = Comments <comments>
 
-Comments are content blocks inserted between lines of code. They are defined locally either in a short form `(line, content)` or in an elaborate one `(after: line, content: content, ...)` containing more parameters. Such parameters controls the style, placement, and markers of comments. By default, they abide by the #link(<uraw-lib>)[`comment`] setting of #urawf.
+Comments are content blocks inserted between lines of code. They are defined locally either in a short form `(line, content)` or in an elaborate one `(after: line, content: content, ...)` containing more parameters. Such parameters control the style, placement, and markers of comments. By default, they abide by the #link(<set-uraw-lib>)[`comment`] setting of #urawf.
 
 #text(0.8em, block({
   source(
@@ -934,9 +931,9 @@ Comments are content blocks inserted between lines of code. They are defined loc
         (before: 3, content: [Before line 3, at indentation.], indent: "guideline", sep: olive),
         (
           after: 4,
-          content: [With a marker and separators.],
+          content: [With a marker, no style and no background.],
           marker: style.callout-marker(color: blue, "?"),
-          marker-placement: "markers",
+          style: none,
           fill: none,
         ),
       ),
@@ -964,9 +961,9 @@ Comments are content blocks inserted between lines of code. They are defined loc
       ),
       (
         after: 4,
-        content: [With a marker and no background.],
+        content: [With a marker, no style and no background.],
         marker: style.callout-marker(color: blue, "?"),
-        marker-placement: "markers",
+        style: none,
         fill: none,
       ),
     ),
@@ -985,13 +982,13 @@ Comments are content blocks inserted between lines of code. They are defined loc
 
 = Jumps <jumps>
 
-Jumps enables one to skip some line numbers and possibly skip corresponding raw text lines too. As comments, jumps are defined either by a short form `(from, to)` or with a dictionary (`from: from, to: to, ...`). Defined with the dictionary form, a jump can skip the associated raw text lines (`skip-lines`). Jumps can also be paired with a comment whose content and style can be set. The #link(<uraw-lib>)[`jump`] setting of #urawf controls default parameters of jumps.
+Jumps enable one to skip some line numbers and possibly skip corresponding raw text lines too. Like comments, jumps are defined either by a short form `(from, to)` or with a dictionary (`from: from, to: to, ...`). Defined with the dictionary form, a jump can skip the associated raw text lines (`skip-lines`). Jumps can also be paired with a comment whose content and style can be set. The #link(<set-uraw-lib>)[`jump`] setting of #urawf controls default parameters of jumps.
 
 #text(0.8em, grid(
   columns: (1fr, 1fr),
   column-gutter: 5mm,
 
-  example(
+  ex-output(
     jumps: (from: 5, to: 12, comment: [`...,`], skip-lines: true),
     ````typ
     #uraw(
@@ -1009,7 +1006,7 @@ Jumps enables one to skip some line numbers and possibly skip corresponding raw 
     ````,
   ),
 
-  example(
+  ex-output(
     jumps: (from: 8, to: 14, comment: [`...,`], skip-lines: true),
     ````typ
     #uraw(
@@ -1032,7 +1029,7 @@ Jumps enables one to skip some line numbers and possibly skip corresponding raw 
 
 = Chaining raw blocks
 
-To display consecutive raw blocks across your document (e.g., the source code in the #link(<usage>)[Usage] section), you can use `follows` and `precedes` arguments.
+To display consecutive raw blocks across your document (e.g. the source code in the #link(<usage>)[Usage] section), you can use `follows` and `precedes` arguments.
 
 #text(0.8em, grid(
   columns: (1fr, 1fr),
@@ -1055,7 +1052,7 @@ To display consecutive raw blocks across your document (e.g., the source code in
     ```
   )
 
-  Your labtop can't compute this result:
+  Your laptop can't compute this result:
 
   #uraw(
     frame: (width: 100%, stroke: black),
@@ -1083,7 +1080,7 @@ To display consecutive raw blocks across your document (e.g., the source code in
       ```,
     )
 
-    Your labtop can't compute this result:
+    Your laptop can't compute this result:
 
     #uraw(
       width: 100%,
@@ -1098,14 +1095,14 @@ To display consecutive raw blocks across your document (e.g., the source code in
 ))
 
 #alert(icon: "info")[
-  The precise values taken by `follows` and `precedes` are quite intricate so read their #link(<uraw-lib>)[documentation] to use them optimally.
+  The precise values taken by `follows` and `precedes` are quite intricate, so read their #link(<uraw-lib>)[documentation] to use them optimally.
 ]
 
 = Diffs
 
-#uraw-difff automatically compares and displays the difference between an old and a new version of some code. The different colors and markers of removed and added lines is customizable. The codes take all the settings of #urawf, including highlight delimiters.
+#uraw-difff automatically compares and displays the difference between an old and a new version of some code. The different colors and markers of removed and added lines are customizable. The codes take all the settings of #urawf, including highlight delimiters.
 
-#text(0.8em, example(
+#text(0.8em, ex-output(
   indent-size: 2,
   ````typ
   #uraw-diff(
@@ -1122,7 +1119,7 @@ To display consecutive raw blocks across your document (e.g., the source code in
   ````,
 ))
 
-The diff is displayed on one or two columns, depending on a `columns` parameter mimicking the one of `grid`. Between the two columns, a `column-gutter` can be set and a separator `sep` can be drawn. Displayed in one column, the two numbers gutters are side by side. More styling parameters are specific to the function #link(<uraw-diff-lib>, uraw-difff), here is an example:
+The diff is displayed on one or two columns, depending on a `columns` parameter mimicking the one of `grid`. Between the two columns, a `column-gutter` can be set and a separator `sep` can be drawn. Displayed in one column, the two number gutters are side by side. More styling parameters are specific to the function #link(<uraw-diff-lib>, uraw-difff). Here is an example:
 
 #text(0.8em, block({
   source(width: 100%, ````typ
@@ -1166,7 +1163,7 @@ The diff is displayed on one or two columns, depending on a `columns` parameter 
   ))
 }))
 
-Markers, highlights, comments, and jumps are defined per version (`(old: ..., new: ...)`) or as an array where each entry is given an additional `version` they refer to (`"new"` or `"old"`). Comments can span on both versions.
+Markers, highlights, comments, and jumps are defined per version (`(old: ..., new: ...)`) or as an array where each entry is given an additional `version` they refer to (`"new"` or `"old"`). Comments can span both versions.
 
 The settings of all the diffs are set with #f(`set-uraw-diff`), which overrides the ones of #f(`set-uraw`).
 
@@ -1206,7 +1203,7 @@ The settings of all pseudo codes are set with #f(`set-uraw-pseudo`).
 
 = Figure & Referencing
 
-A #urawf block and a #uraw-difff in figures are listings. A #uraw-pseudof code is refered to as an Algorithm by default. The lines of a labelled figure can be referenced by `@label.n` (or `@label.version.n` for diffs).
+A #urawf block and a #uraw-difff in figures are listings. A #uraw-pseudof code is referred to as an Algorithm by default. If the show rule is used (`#show: uraw`), the lines of a labeled figure can be referenced by `@label.n` (or `@label.version.n` for diffs).
 
 #show: uraw
 
@@ -1242,13 +1239,13 @@ The factorial algorithm is defined in @fact-algo. Its implementation is shown in
 
 = Code from files
 
-#urawf and #uraw-difff both can take files as input raw texts. Files should be given as a `path` or using the finer #link(<read-code-lib>, f(`read-code`)) provided function. Using this, you can for example make a raw block display itself (useless but really cool):
+#urawf and #uraw-difff both can take files as input. Files should be given as a `path` or using the finer #link(<read-code-lib>, f(`read-code`)) function. Using this, you can for example make a raw block display itself (useless but really cool):
 
 #uraw(
   ..themes.note,
   width: 100%,
   lang-tag-name: "source",
-  read-code(path("doc.typ"), lang: "typ", from: 1247, to: 1252),
+  read-code(path("doc.typ"), lang: "typ", from: 1245, to: 1250),
 )
 // TODO make sure this is right at the end
 
@@ -1285,14 +1282,16 @@ By default, #ultraw keeps a very simple look so that it fits any document and ca
     ]),
 )
 
-A theme is a collection of settings that is spread into functions to change their output appearence (e.g., `uraw(..themes.note, ...)`). Diffs can be styled with the same themes. Pseudo codes have only one default theme (the one shown in #link(<fact-algo>)[examples]).
+A theme is a collection of settings that is spread into functions to change their output appearance (e.g. `uraw(..themes.note, ...)`). Diffs can be styled with the same themes. Pseudo codes have only one default theme (the one shown in #link(<fact-algo>)[examples]).
+
+A theme can be applied globally with `#set-uraw(..themes.dark)`.
 
 == Creation
 
 First create a `pre-theme` holding your settings as you would write them inside of #urawf. Then, format it to a proper theme with #link(<themes-make-lib>, f(`themes.make`)). The formatted theme can apply both to `uraw` and `uraw-diff`. Pseudo code themes are formatted with #link(<themes-make-pseudo-lib>, f(`themes.make-pseudo`)).
 
-#text(0.8em, source(```typ
-#let pre-theme = (frame: (stroke: purple, radius: 0pt), code-fill: style.zebra(odd: red), *k...k*)
+#text(0.8em, source(width: 100%, ```typ
+#let pre-theme = (frame: (stroke: purple, radius: 0pt), code: (fill: red, color: green), *k...k*)
 #let theme = themes.make(pre-theme)
 ```))
 
@@ -1331,7 +1330,7 @@ Several themes for raw text are available in the #link(<raw-themes-lib>, `raw-th
 
 == More styling
 
-Additionally, helper styling functions are provided through the #link(<style-lib>, `style`) module. These functions range over coloring (e.g., `style.zebra`), numbers styling (e.g., `style.padded`), providing styled elements (e.g., `style.callout-marker`, `style.vdots-jump`) and more (e.g., `style.window`).
+Additionally, helper styling functions are provided through the #link(<style-lib>, `style`) module. These functions range over coloring (e.g. `style.zebra`), numbers styling (e.g. `style.padded`), providing styled elements (e.g. `style.callout-marker`, `style.vdots-jump`) and more (e.g. `style.window-header` or `style.icons`).
 
 // --- Library -----------------------------------------------------------------
 
@@ -1341,7 +1340,7 @@ Additionally, helper styling functions are provided through the #link(<style-lib
 
 = Arguments forms <args-forms>
 
-Functions of this package can receive arguments under two forms: a *grouped form* and a *direct form*. The grouped form groups arguments of the same category together while the direct form points to the arguments directly as follow:
+Functions of this package can receive arguments under two forms: a *grouped form* and a *direct form*. The grouped form groups arguments of the same category together while the direct form points to the arguments directly as follows:
 
 #align(center, grid(
   columns: 2,
@@ -1353,9 +1352,9 @@ Functions of this package can receive arguments under two forms: a *grouped form
   uraw-inline(`#uraw(*|frame-fill|*: purple)`),
 ))
 
-For all arguments, the grouped form is #uraw-inline(`*r_category_r*: (..., *r_parameter_r*: value, ...)`) and the direct form is #uraw-inline(`*r_category_r*-*r_parameter_r*: value`). For organization purpose, throughout the rest of the documentation arguments will be given under their grouped form.
+For all arguments, the grouped form is #uraw-inline(`*r_category_r*: (..., *r_parameter_r*: value, ...)`) and the direct form is #uraw-inline(`*r_category_r*-*r_parameter_r*: value`). For organization purposes, throughout the rest of the documentation arguments will be given under their grouped form.
 
-To enable a fast access to common and unambiguous parameters, some arguments can be given under a *short form*. The short form is straightforward, it is #uraw-inline(`*r_parameter_r*: value`) in most cases. Here is the list of eligible arguments along with their short form:
+To enable fast access to common and unambiguous parameters, some arguments can be given under a *short form*. The short form is straightforward: it is #uraw-inline(`*r_parameter_r*: value`) in most cases. Here is the list of eligible arguments along with their short form:
 
 #align(center, uraw(
   numbers: none,
@@ -1459,7 +1458,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
   (
     5,
     [
-      Each comment is given as `(line, content)` (the comment is displayed after the line) or a dictionary with `after` / `before` indicating the targeted line, `content`, and styling parameters (`indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see #link(<set-uraw-lib>)[`set-uraw`] for more details).
+      Each comment is given as `(line, content)` (the comment is displayed after the line) or a dictionary with `after` / `before` indicating the targeted line, `content`, and styling parameters (`style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see #link(<set-uraw-lib>)[`set-uraw`] for more details).
     ],
   ),
 
@@ -1473,14 +1472,14 @@ To enable a fast access to common and unambiguous parameters, some arguments can
   (
     7,
     [
-      Whether the block continues a previous one; it then renders as after a page break (no top radius, no top stroke, etc). For a correct numbering and to display the accurate width of the numbers column, an integer value represents the last line of the preceding block, content is the widest marker of the preceding blocks (the marker column being shown and made wide enough for it), and a pair `(number, marker)` gives both.
+      Whether the block continues a previous one; it then renders as after a page break (no top radius, no top stroke, etc.). For a correct numbering and to display the accurate width of the numbers column, an integer value represents the last line of the preceding block, content is the widest marker of the preceding blocks (the marker column being shown and made wide enough for it), and a pair `(number, marker)` gives both.
     ],
   ),
 
   (
     8,
     [
-      Whether the block is continued by a next one; it then renders as before a page break (no bottom radius, no bottom stroke, etc). To display the accurate width of the numbers column, an integer value is the largest line number of the following blocks, content is their widest marker, and a pair `(number, marker)` gives both.
+      Whether the block is continued by a next one; it then renders as before a page break (no bottom radius, no bottom stroke, etc.). To display the accurate width of the numbers column, an integer value is the largest line number of the following blocks, content is their widest marker, and a pair `(number, marker)` gives both.
     ],
   ),
 
@@ -1504,9 +1503,10 @@ To enable a fast access to common and unambiguous parameters, some arguments can
   (
     1,
     [
-      The optional language and the configuration settings. The language is given as a positional argument, the settings are given as named arguments. Here is the complete list of settings by category with their type and default value (set by `themes.pre-themes.pre-default`):
+      The optional language and the configuration settings. The language is given as a positional argument; the settings are given as named arguments. Here is the complete list of settings by category with their type and default value (set by `themes.pre-themes.pre-default`) (you can click on #octique-inline("search", color: blue) to jump to the documentation of a parameter):
 
       #documentation(
+        label: "set-uraw-args-doc",
         ```typ
         ***code***: (
           line-spacing *htrelative autoht*: auto,
@@ -1723,7 +1723,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           29,
           "header-fill",
-          [The background color, with `auto` it is the code background color at line `numbers.start - 1` (useful for striped code style), with `none` it is the background color of the frame.],
+          [The background color, with `auto` it is the code background color at line `numbers.start - 1` (useful for striped code styles), with `none` it is the background color of the frame.],
         ),
 
         (
@@ -1747,7 +1747,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           33,
           "header-align",
-          [Controls the alignment of the content of the header or the footer.],
+          [The alignment of the content of the header or footer.],
         ),
 
         (
@@ -1771,7 +1771,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           39,
           "footer-fill",
-          [The background color, with `auto` it is the code background color at line `numbers.start - 1` (useful for striped code style), with `none` it is the background color of the frame.],
+          [The background color, with `auto` it is the code background color at line `numbers.start - 1` (useful for striped code styles), with `none` it is the background color of the frame.],
         ),
 
         (
@@ -1795,7 +1795,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           43,
           "footer-align",
-          [Controls the alignment of the content of the header or the footer.],
+          [The alignment of the content of the header or footer.],
         ),
 
         (
@@ -1864,7 +1864,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           59,
           "lang-tag-placement",
-          [Controls where the lang tag is displayed: `"inline"` places it on the first line of code; `"code"` is like `"inline"` but the vertical space for the lang tag is reserved on all code's lines; `"header"` places it in the header and defaults to `"code"` when there is no header; the rest (`"top-left"`, `"top"`, `"top-right"`, `"left-top"`, `"left"`, `"left-bottom"`, `"right-top"`, `"right"`, `"right-bottom"`, `"bottom-left"`, `"bottom"`, `"bottom-right"`) place it on the border of the frame, the first location indicates the frame side while the second indicates the placement on that side (no second location is like `center` or `horizon`).],
+          [Where the lang tag is displayed: `"inline"` places it on the first line of code; `"code"` is like `"inline"` but the vertical space for the lang tag is reserved on all the lines of the code; `"header"` places it in the header and defaults to `"code"` when there is no header; the rest (`"top-left"`, `"top"`, `"top-right"`, `"left-top"`, `"left"`, `"left-bottom"`, `"right-top"`, `"right"`, `"right-bottom"`, `"bottom-left"`, `"bottom"`, `"bottom-right"`) place it on the border of the frame, the first location indicates the frame side while the second indicates the placement on that side (no second location is like `center` or `horizon`).],
         ),
 
         (
@@ -1924,19 +1924,19 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           71,
           "highlight-sticky",
-          [Whether the highlight parts should merge from a line to the next (the stroke and radius are changed accordingly), `auto` sets this parameter automatically: a highlight defined with `line` is sticky while others are not.],
+          [Whether the parts of the highlight merge from one line to the next (the stroke and radius are changed accordingly), `auto` sets this parameter automatically: a highlight defined with `line` is sticky while others are not.],
         ),
 
         (
           72,
           "highlight-expand",
-          [Indicates the side on which the highlight should expand when going from a line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides), `auto` sets this parameter automatically: a highlight defined with `line` expands on both sides while others don't expand.],
+          [The side on which the highlight expands when going from one line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides), `auto` sets this parameter automatically: a highlight defined with `line` expands on both sides while others don't expand.],
         ),
 
         (
           75,
           "comment-style",
-          [A basic style to apply to all comments contents.],
+          [A basic style to apply to the content of all comments.],
         ),
 
         (
@@ -1954,7 +1954,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           78,
           "comment-sep",
-          [The separators at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side, if it is not a dictionary the style applies to both separators.],
+          [The separators at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side; if it is not a dictionary, the style applies to both separators.],
         ),
 
         (
@@ -1972,13 +1972,13 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           81,
           "comment-marker-placement",
-          [The placement of the marker inside the numbers column, the space reserved for `"numbers"` or for `"markers"`.],
+          [The placement of the marker inside the numbers column: in the space reserved for `"numbers"` or for `"markers"`.],
         ),
 
         (
           84,
           "jump-comment",
-          [The default comment content associated with jumps, a function takes the bounds of the jump `from` and `to` as arguments.],
+          [The default comment content associated with jumps, a function taking the bounds of the jump `from` and `to` as arguments.],
         ),
 
         (
@@ -2068,7 +2068,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
 
   (
     3,
-    [For each highlight, the range it covers is given either by `start (int)` and `end (int)` or `range ((int, int))`. Default values of `start` and `end` are the first and the last characters. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, `sticky`, `expand`, see #link(<set-uraw-lib>)[`set-uraw`] for more details).],
+    [For each highlight, the range it covers is given either by `start (int)` and `end (int)` or `range ((int, int))`. Default values of `start` and `end` are the first and the last characters. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, see #link(<set-uraw-lib>)[`set-uraw`] for more details).],
   ),
 
   (
@@ -2121,17 +2121,17 @@ To enable a fast access to common and unambiguous parameters, some arguments can
 
   (
     6,
-    [Same as #link(<uraw-lib>, `uraw`) jumps with a `version` field (first element when giving a comment as an array) and a possible `span` field for the comment (see #link(<set-uraw-diff-lib>)[`set-uraw-diff`] for more details).],
+    [Same as #link(<uraw-lib>, `uraw`) jumps with a `version` field (first element when giving a jump as an array) and a possible `span` field for the comment (see #link(<set-uraw-diff-lib>)[`set-uraw-diff`] for more details).],
   ),
 
   (
     7,
-    [Same as #link(<uraw-lib>, `uraw`) and it can be given by version as a `(old: ..., new: ...)` dictionary.],
+    [Same as #link(<uraw-lib>, `uraw`), and it can be given by version as an `(old: ..., new: ...)` dictionary.],
   ),
 
   (
     8,
-    [Same as #link(<uraw-lib>, `uraw`) and it can be given by version as a `(old: ..., new: ...)` dictionary.],
+    [Same as #link(<uraw-lib>, `uraw`), and it can be given by version as an `(old: ..., new: ...)` dictionary.],
   ),
 
   (
@@ -2157,9 +2157,10 @@ To enable a fast access to common and unambiguous parameters, some arguments can
   (
     1,
     [
-      The optional language and the configuration settings. The language is given as a positional argument, the settings are given as named arguments. By default, diffs inherit the same settings as `uraw` (set by #link(<set-uraw-lib>)[`set-uraw`]) but `set-uraw-diff` updates the configuration for diffs only. In addition to the settings of `uraw` (see #link(<set-uraw-lib>)[`set-uraw`] for their description), here is the complete list of diff-only settings with their type and default value (set by `themes.pre-themes.pre-default`):
+      The optional language and the configuration settings. The language is given as a positional argument; the settings are given as named arguments. By default, diffs inherit the same settings as `uraw` (set by #link(<set-uraw-lib>)[`set-uraw`]) but `set-uraw-diff` updates the configuration for diffs only. In addition to the settings of `uraw` (see #link(<set-uraw-lib>)[`set-uraw`] for their description), here is the complete list of diff-only settings with their type and default value (set by `themes.pre-themes.pre-default`) (you can click on #octique-inline("search", color: blue) to jump to the documentation of a parameter):
 
       #documentation(
+        label: "set-uraw-diff-args-doc",
         ```typ
         ***general***: (
           columns *htrelative ratio array autoht*: (auto, auto),
@@ -2194,7 +2195,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
 
         (
           2,
-          [The columns of the diff, one column means both versions are displayed in the same code part, it works the same as the `columns` parameter of `grid`.],
+          [The columns of the diff, one column meaning that both versions are displayed in the same code part, working as the `columns` parameter of `grid`.],
         ),
 
         (
@@ -2232,7 +2233,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           11,
           "old-numbers-color",
-          [The color of the numbers on old / new lines that change, `auto` is the same color as numbers, `none` is the same as the document's text color.],
+          [The color of the numbers on old / new lines that change, `auto` is the same color as the other numbers, `none` is the same as the document's text color.],
         ),
 
         (
@@ -2256,7 +2257,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           17,
           "new-numbers-color",
-          [The color of the numbers on old / new lines that change, `auto` is the same color as numbers, `none` is the same as the document's text color.],
+          [The color of the numbers on old / new lines that change, `auto` is the same color as the other numbers, `none` is the same as the document's text color.],
         ),
 
         (
@@ -2286,7 +2287,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
         (
           28,
           "jump-span",
-          [As for `comment`, `auto` means the same value as regular comments.],
+          [As for `comment-span`, `auto` being the same as `comment-span`.],
         ),
       )
     ],
@@ -2377,7 +2378,12 @@ To enable a fast access to common and unambiguous parameters, some arguments can
 
   (
     1,
-    [Pseudo codes have the same `code`, `numbers`, `general`, `header`, `footer`, `frame` and `comment` settings as `uraw` (see #link(<set-uraw-lib>)[`set-uraw`] for their description), except for an additional `style` parameter for `code` that lets you define a styling function to apply to pseudo code lines (set to `none` by default), and comments without `style` and `marker-placement`. To see the precise default values for other parameters, look at `themes.pre-themes.pseudo-pre-default`.],
+    [Pseudo codes have the same `code`, `numbers`, `general`, `header`, `footer`, `frame` and `comment` settings as `uraw` (see #link(<set-uraw-lib>)[`set-uraw`] for their description, see `themes.pre-themes.pseudo-pre-default` for the default values). The only exceptions are:
+      - `indent-size` is now a length;
+      - `code` has an additional `style` parameter that applies a styling function to pseudo code lines;
+      - `general` has an additional `algorithm-figure` parameter that controls whether pseudo codes inside figures are counted as Algorithms or Figures (`#show: uraw` is required for the counting of Algorithms to work);
+      - `theme`, `indented-line-return`, `lang-tag`, `markers-over-numbers`, `comment-marker-placement` are removed.
+    ],
   ),
 )
 
@@ -2405,7 +2411,7 @@ To enable a fast access to common and unambiguous parameters, some arguments can
 
   (
     2,
-    [The settings of the comment (`indent`, `fill`, `sep`, `marker`, `marker-fill`, see #link(<set-uraw-pseudo-lib>)[`set-uraw-pseudo`]).],
+    [The settings of the comment (`style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, see #link(<set-uraw-pseudo-lib>)[`set-uraw-pseudo`]).],
   ),
 
   (
@@ -2445,7 +2451,7 @@ Sample highlights and functions to manage them. There are two highlights by defa
   (
     1,
     [
-      Each highlight to register is given as a dictionary. If some keys are omitted their default value is given by the `highlight` setting of `uraw` or `uraw-diff`. The keys of the dictionary are:
+      Each highlight to register is given as a dictionary. If some keys are omitted, their default values are given by the `highlight` setting of `uraw` or `uraw-diff`. The keys of the dictionary are:
 
       #documentation(
         ```typ
@@ -2499,12 +2505,12 @@ Sample highlights and functions to manage them. There are two highlights by defa
 
         (
           9,
-          [Whether the highlight parts should merge from a line to the next (the stroke and radius are changed accordingly).],
+          [Whether the parts of the highlight merge from one line to the next (the stroke and radius are changed accordingly).],
         ),
 
         (
           10,
-          [Indicates the side on which the highlight should expand when going from a line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides).],
+          [The side on which the highlight expands when going from one line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides).],
         ),
       )
     ],
@@ -2620,7 +2626,7 @@ Sample highlights and functions to manage them. There are two highlights by defa
   #highlights.alert-style(color *htcolor gradient tilinght*)
   ```,
 
-  description: [Return the styling parameters of an alert highlight: no border, a plain background and a strong white highlighted code.],
+  description: [Return the styling parameters of an alert highlight: no border, a plain background and strong white highlighted code.],
 
   (
     1,
@@ -2636,7 +2642,7 @@ Sample highlights and functions to manage them. There are two highlights by defa
   ```,
 
   description: [
-    The alert highlight: no border, a plain background and a strong white highlighted code. \
+    The alert highlight: no border, a plain background and strong white highlighted code. \
     #show-highlight(`#let rec(n) = *!rec!*(n + 1) + 1`)
   ],
 
@@ -2654,7 +2660,7 @@ Sample highlights and functions to manage them. There are two highlights by defa
   ```,
 
   description: [
-    The hole highlight: no background, a hidden code and a dashed border. \
+    The hole highlight: no background, hidden code and a dashed border. \
     #show-highlight(`#let rec(n) = *?rec(n + 1) +?* 1`)
   ],
 
@@ -2719,7 +2725,7 @@ The themes of the `ultraw` package and support functions for making new themes.
 
 Available themes are #raw(lang: "typ", "#themes.default"), #raw(lang: "typ", "#themes.dark"), #raw(lang: "typ", "#themes.note"), #raw(lang: "typ", "#themes.window") and #raw(lang: "typ", "#themes.pseudo-default") for pseudo code.
 
-The #raw(lang: "typ", "#themes.pre-themes") module gives to access pre-themes.
+The #raw(lang: "typ", "#themes.pre-themes") module gives access to the pre-themes.
 
 == #f(`make`) <themes-make-lib>
 
@@ -2826,7 +2832,7 @@ A collection of styling functions.
 
   (
     3,
-    [The color used for specified lines.],
+    [The color used for the specified lines.],
   ),
 
   (
@@ -2857,26 +2863,11 @@ A collection of styling functions.
   #style.padded(n-digits *htintht*)
   ```,
 
-  description: [Format numbers by padding them with 0s.],
+  description: [Return a function padding numbers with 0s.],
 
   (
     1,
     [The number of digits to pad to.],
-  ),
-)
-
-== #f(`octique-marker`)
-
-#documentation(
-  ```typ
-  #style.octique-marker(octique *htmoduleht*)
-  ```,
-
-  description: [Given the `octique` module (`#import "@preview/octique:...": *`), return a function creating markers with octique icons.],
-
-  (
-    1,
-    [The octique module.],
   ),
 )
 
@@ -2945,7 +2936,7 @@ A collection of styling functions.
 
   (
     4,
-    [Whether to show vertical dots in numbers.],
+    [Whether to show vertical dots in the numbers column.],
   ),
 
   (
@@ -2974,11 +2965,11 @@ A collection of styling functions.
   ),
 )
 
-== #f(`lang-icons`) <lang-icons-lib>
+== #f(`icons`) <icons-lib>
 
 #documentation(
   ```typ
-  #lang-icons *htdictionaryht*
+  #style.icons *htdictionaryht*
   ```,
 
   description: [A map from common languages to their icon.],

@@ -1,7 +1,11 @@
-#import "@mine/ultraw:0.0.1": (
+#import "@preview/octique:0.1.1": *
+#import "../export/main.typ": (
   get-uraw, raw-themes, style, themes, uraw, uraw-inline,
 )
-#import "@preview/octique:0.1.1": *
+
+// -----------------------------------------------------------------------------
+// Cosmetic
+// -----------------------------------------------------------------------------
 
 #let merge-diagram = {
   let b(body: none, color: orange) = box(
@@ -105,7 +109,10 @@
   )
 }
 
-#let octique-marker = style.octique-marker(octique)
+#let octique-marker(name, color: black) = move(dy: -.07em, octique(
+  name,
+  color: color,
+))
 
 #let alert(icon: "alert", color: black, body) = grid(
   columns: 2,
@@ -121,50 +128,16 @@
 #let lang-col = rgb("#AF92C9")
 #let underline-col(col, body) = underline(offset: 2pt, stroke: 2pt + col, body)
 
+// -----------------------------------------------------------------------------
+// Display code
+// -----------------------------------------------------------------------------
+
 #let source(code, ..args) = uraw(
   ..themes.note,
   lang-tag-name: "source",
   ..args,
   code,
 )
-
-#let source-output(output-code, source-args: (:), hidden-args: (:), ..args) = {
-  let nargs = args.named()
-  let source-code = (
-    "#uraw(\n"
-      + nargs
-        .pairs()
-        .map(((k, v)) => "  " + k + ": " + v + ",\n")
-        .sum(default: "")
-      + ")"
-  )
-
-  let output-code-line = (
-    nargs.values().map(v => 1 + v.matches("\n").len()).sum(default: 0) + 1
-  )
-  let output-block = uraw(
-    width: 100%,
-    ..nargs.map(v => if v.trim().starts-with("style.") {
-      eval("import \"@mine/ultraw:0.0.1\": style\n" + v)
-    } else if v.trim().starts-with("raw-themes.") {
-      eval("import \"@mine/ultraw:0.0.1\": raw-themes\n" + v)
-    } else { eval(v) }),
-    ..hidden-args,
-    output-code,
-  )
-
-  source(
-    width: 100%,
-    ..source-args,
-    comments: (
-      after: output-code-line,
-      content: text(style: "normal", output-block),
-      fill: white,
-      indent: "frame",
-    ),
-    raw(block: true, lang: "typ", source-code),
-  )
-}
 
 #let fade(alpha, body) = box(inset: 0pt, {
   body
@@ -184,25 +157,7 @@
   ))\n
 })"
 
-/// An example: some code, followed by its output in a comment.
-///
-/// - code (raw): The code of the example.
-/// - output-args (dictionary): Arguments given to `uraw` and `uraw-diff` in the example only, as strings (e.g. `(numbers: "none")`).
-/// - hidden-prefix1, hidden-prefix2 (str): Code evaluated before the example, without being shown (before and after the output arguments).
-/// - hidden-suffix (str): Code evaluated after the example, without being shown (e.g. `#reset-uraw()` after a `set-uraw`).
-/// - hidden-raw (bool): Whether the raw blocks of the code (with their delimiters) are skipped. They must not be on the first or last line.
-/// - args (arguments): Arguments of the code block (`source`), with its `comments`.
-#let example(
-  code,
-  output-args: (:),
-  hidden-prefix1: "",
-  hidden-prefix2: "",
-  hidden-suffix: "",
-  ..args,
-) = {
-  let args = args.named()
-  let comments = args.remove("comments", default: ())
-  if type(comments) == dictionary { comments = (comments,) }
+#let ex-output(code, output-args: (:), ..args) = {
   let output-args = if output-args.len() > 0 {
     let a = output-args.pairs().map(((k, v)) => k + ": " + v + ",").sum()
     (
@@ -215,40 +170,33 @@
   } else { "" }
   let output = eval(
     mode: "markup",
-    "#import \"@mine/ultraw:0.0.1\": *\n\n"
-      + hidden-prefix1
+    "#import \"@preview/ultraw:0.0.1\": *\n\n"
+      + fade-string
       + "\n\n"
       + output-args
       + "\n\n"
-      + hidden-prefix2
-      + "\n\n"
-      + code.text
-      + "\n\n"
-      + hidden-suffix,
+      + code.text,
   )
-  let jumps = args.remove("jumps", default: ())
-  if (
-    type(jumps) == dictionary or jumps.len() > 0 and type(jumps.first()) == int
-  ) { jumps = (jumps,) }
-  source(
+
+  uraw(
+    ..themes.note,
+    lang-tag-name: "source",
     width: 100%,
     frame-inset: (bottom: 0pt, top: 2.5pt, x: 3pt),
     jump-fill: none,
     jump-marker: [],
     jump-indent: "guideline",
+    footer-fill: white,
+    footer-inset: (x: 5pt, y: 3pt),
     ..args,
-    jumps: jumps,
-    comments: comments
-      + (
-        (
-          after: code.text.split("\n").len(),
-          content: std.text(style: "normal", block(width: 100%, output)),
-          fill: white,
-        ),
-      ),
-    raw(block: true, lang: "typ", code.text),
+    footer: output,
+    code,
   )
 }
+
+// -----------------------------------------------------------------------------
+// Documentation
+// -----------------------------------------------------------------------------
 
 #let color-type(type) = if type in ("alignment",) {
   rgb("#A7EAFF")
@@ -294,8 +242,7 @@
     },
   ))
 } else {
-  none
-  // panic("Unsupported type.")
+  panic("Unsupported type.")
 }
 
 #let highlight-type(type, to-raw: false) = highlight(
@@ -343,15 +290,14 @@
 
 #let documentation(
   code,
+  label: none,
   description: none,
   ..args,
 ) = {
-  source(width: 100%, ..args.named(), code)
-  if description != none { description }
-
   let lines = code.text.split("\n")
   let arg-lines = args.pos()
-  let args = ()
+  let args-descr = ()
+  let markers = ()
 
   for ag in arg-lines {
     let (i, name, d) = if type(ag) == array {
@@ -376,8 +322,18 @@
     let default = line.find(regex(": [\s\S]*,$"))
     if default != none { default = default.slice(2, -1) }
 
-    block(below: 1.2em)[
-      #strong(raw(arg))
+    if label != none {
+      markers.push((
+        i,
+        link(std.label(label + "-" + arg), octique-marker(
+          "search",
+          color: blue,
+        )),
+      ))
+    }
+
+    args-descr.push(block(below: 1.2em)[
+      #strong(raw(arg)) #(if label != none { std.label(label + "-" + arg) })
       #if types != none [
         #h(2mm)
         #text(.8em, format-types(types))
@@ -390,8 +346,12 @@
         ]
       ] \
       #d
-    ]
+    ])
   }
+
+  source(width: 100%, markers: markers, ..args.named(), code)
+  if description != none { description }
+  args-descr.join()
 }
 
 #let show-highlight(code) = [#code #h(1fr) #uraw-inline(lang: "typ", code)]

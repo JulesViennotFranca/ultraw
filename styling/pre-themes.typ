@@ -68,7 +68,7 @@
     placement: "code",
     spacing: 5pt,
     color: auto,
-    fill: luma(230),
+    fill: black.transparentize(90%),
     radius: 2pt,
     stroke: auto,
   ),
@@ -142,7 +142,7 @@
   ),
   numbers: (fill: none, sep: none),
   frame: (fill: luma(25)),
-  lang-tag: (fill: luma(100), stroke: none),
+  lang-tag: (fill: white.transparentize(75%), stroke: none),
   comment: (fill: luma(80)),
   diff: (
     general: (sep: none),
@@ -180,10 +180,15 @@
 /// The pre-theme for the window theme.
 #let pre-window = (
   code: (indentation: silver),
-  frame: (stroke: 1pt + luma(240), radius: 5pt),
+  frame: (
+    fill: white,
+    stroke: 1pt + luma(240),
+    radius: 5pt,
+    inset: (x: 3pt, y: 2pt),
+  ),
   header: (fill: luma(240), sep: none),
   footer: (fill: luma(240), sep: none),
-  lang-tag: (placement: "header", fill: luma(240)),
+  lang-tag: (placement: "header"),
   comment: (fill: luma(245)),
   diff: (general: (sep: 1pt + luma(240))),
 )

@@ -45,6 +45,7 @@
   let spaces = texts
     .filter(t => not is-whitespace-line(t))
     .map(t => t.len() - t.trim(" ", at: start).len())
+  if spaces.len() == 0 { return default }
   let counts = (:)
   for (a, b) in spaces.zip(spaces.slice(1, spaces.len())) {
     let d = str(b - a)
@@ -71,7 +72,9 @@
   let i = 0
   while (
     i < text.len()
-      and (text.slice(i).starts-with(tab-spaces) or text.slice(i).first() == "\t")
+      and (
+        text.slice(i).starts-with(tab-spaces) or text.slice(i).first() == "\t"
+      )
   ) {
     num-indent += 1
     if text.slice(i).starts-with(tab-spaces) { i += tab-size } else { i += 1 }
@@ -400,29 +403,45 @@
 /// - line-end (int): The last position of the line.
 /// - end-offset (none, length): The length of some object at the end of the line, none if there is none.]
 /// - indent (int): The position (in characters) where the sub-lines after the first one start.
+/// - xs (array, none): The positions of the columns of the line, when its characters are not all `char-width` wide.
 /// -> array
-#let sub-lines(line, max-width, char-width, line-end, end-offset, indent: 0) = {
+#let sub-lines(
+  line,
+  max-width,
+  char-width,
+  line-end,
+  end-offset,
+  indent: 0,
+  xs: none,
+) = {
   let sub-lines = ()
   let prev-start = 0
 
-  // The first sub-line leaves room for the object at its end, the next ones start at the indentation
-  let max-pos(first) = get-max-pos(
-    max-width
-      - if not first { indent * char-width } else if end-offset != none {
-        end-offset
-      } else { 0pt },
-    char-width,
-  )
+  // The number of characters fitting in a sub-line starting at `start`: the first sub-line leaves room for the object at its end, the next ones start at the indentation
+  let max-pos(start, first) = {
+    let width = (
+      max-width
+        - if not first { indent * char-width } else if end-offset != none {
+          end-offset
+        } else { 0pt }
+    )
+    if xs == none { return get-max-pos(width, char-width) }
+    // (all the rest of the line fitting, no position is reached)
+    if xs.last() - xs.at(start) <= width + .01pt { return int(1e9) }
+    let n = 0
+    while xs.at(start + n + 1) - xs.at(start) <= width + .01pt { n += 1 }
+    n
+  }
   // Each sub-line must contain at least one character
   assert(
-    max-pos(false) >= 1,
+    max-pos(0, false) >= 1,
     message: "The code is too narrow: no character fits in its width.",
   )
 
-  while line-end - prev-start >= max-pos(sub-lines.len() == 0) {
+  while line-end - prev-start >= max-pos(prev-start, sub-lines.len() == 0) {
     let (l1, l1-end, l2-start, l2) = clean-content-split-word-pos(
       line,
-      max-pos(sub-lines.len() == 0),
+      max-pos(prev-start, sub-lines.len() == 0),
     )
     sub-lines.push((start: prev-start, body: l1, end: prev-start + l1-end))
     prev-start += l2-start
@@ -442,8 +461,17 @@
 /// - line-end (int): The last position of the line.
 /// - end-offset (none, length): The length of some object at the end of the line, none if there is none.]
 /// - indent (int): The position (in characters) where the sub-lines after the first one start.
+/// - xs (array, none): The positions of the columns of the line, when its characters are not all `char-width` wide.
 /// -> array: the sub-lines, with their `start` and `end` in the line, their `body`, and the position where they are shown (`offset`)
-#let format-line(line, max-width, char-width, line-end, end-offset, indent: 0) = {
+#let format-line(
+  line,
+  max-width,
+  char-width,
+  line-end,
+  end-offset,
+  indent: 0,
+  xs: none,
+) = {
   let slines = sub-lines(
     line,
     max-width,
@@ -451,6 +479,7 @@
     line-end,
     end-offset,
     indent: indent,
+    xs: xs,
   )
   slines = slines
     .enumerate()

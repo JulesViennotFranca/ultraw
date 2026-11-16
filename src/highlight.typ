@@ -407,14 +407,24 @@
   }
 }
 
-/// The horizontal range of a highlight block on a sub-line (in characters, from the start of the code): the sub-line is shown at its `offset`, and a highlight expanding on the left from the start of a sub-line reaches the start of the code.
-#let block-span(hl, sl, start, end, spaning-start) = (
+/// The position of a column of a sub-line, from its start: the columns are `char-width` wide, unless their positions were measured (`xs`).
+#let column-x(sl, c, char-width) = {
+  let xs = sl.at("xs", default: none)
+  if xs == none { c * char-width } else if c < xs.len() { xs.at(c) } else {
+    xs.last() + (c - xs.len() + 1) * char-width
+  }
+}
+
+/// The horizontal range of a highlight block on a sub-line (as lengths, from the start of the code): the sub-line is shown at its `offset`, and a highlight expanding on the left from the start of a sub-line reaches the start of the code.
+#let block-span(hl, sl, start, end, spaning-start, char-width) = (
   if hl.expand.left and (spaning-start or hl.is-line) and start == 0 {
-    0
+    0pt
   } else {
-    start + sl.offset
+    sl.offset * char-width + column-x(sl, start, char-width)
   },
-  if type(end) == int { end + sl.offset } else { end },
+  if type(end) == int {
+    sl.offset * char-width + column-x(sl, end, char-width)
+  } else { end * char-width },
 )
 
 /// Check if a highlight is spanning at the start of the sub-line.
@@ -476,6 +486,7 @@
         b.start,
         b.end,
         is-spaning-start(i, m, hl),
+        char-width,
       )
       b.start = start
       b.end = end
@@ -483,9 +494,9 @@
         i: i,
         k: b.k,
         last: b.k == l.slines.len() - 1,
-        start: b.start * char-width
+        start: b.start
           - block-outset-left(hl, is-spaning-start(i, m, hl), inset),
-        end: b.end * char-width,
+        end: b.end,
       ))
     }
   }
@@ -550,7 +561,7 @@
 
   // The horizontal range of the block (from the start of the code)
   let outset-left = block-outset-left(hl, spaning-start, inset)
-  let (x0, x1) = (start * char-width - outset-left, end * char-width)
+  let (x0, x1) = (start - outset-left, end)
 
   // Remove the radius of the corners touching other blocks of the highlight
   if touch-top != none {
@@ -634,7 +645,7 @@
     radius: radius,
     fill: hl.fill,
     outset: (left: outset-left),
-    width: (end - start) * char-width,
+    width: end - start,
     height: height,
     stroke-blocks.join(),
   )
@@ -689,7 +700,14 @@
         .at("touches", default: (:))
         .at(block-key(i, k), default: no-touches)
 
-      let (start, end) = block-span(hl, sl, start, end, spaning-start)
+      let (start, end) = block-span(
+        hl,
+        sl,
+        start,
+        end,
+        spaning-start,
+        char-width,
+      )
 
       let hl-block = move(
         dy: .24em - block-top-pad(hl, inset),

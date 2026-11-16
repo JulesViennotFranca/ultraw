@@ -11,7 +11,7 @@
 /// Write a comment in pseudo code, between the lines where it is written.
 ///
 /// - body (content): The content of the comment.
-/// - args (arguments): The settings of the comment (`indent`, `fill`, `sep`, `marker`, `marker-fill`, see `set-uraw-pseudo`).
+/// - args (arguments): The settings of the comment (`style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, see `set-uraw-pseudo`).
 /// -> content
 #let pseudo-comment(body, ..args) = {
   assert(
@@ -65,13 +65,8 @@
     radius: 0pt,
   )
 
-  // The identifier of the block, to find its first and last rows
-  let id-counter = counter("uraw-block-id")
-  id-counter.step()
-
-  // The states (settings, identifier) are read outside of `layout`, whose content can be laid out without them (as when measuring an auto column of a grid)
+  // The states (settings) are read outside of `layout`, whose content can be laid out without them (as when measuring an auto column of a grid)
   context {
-    let id = id-counter.get().first()
     let general = cf.pseudo-category-parser("general", args)
     let with-default-thickness(stroke) = ut.with-default-thickness(
       stroke,
@@ -232,10 +227,16 @@
         )
 
         let header-width = if header.content != none {
-          measure(block(inset: header.inset, header.content)).width
+          measure(width: layout-size.width, block(
+            inset: header.inset,
+            header.content,
+          )).width
         } else { 0mm }
         let footer-width = if footer.content != none {
-          measure(block(inset: footer.inset, footer.content)).width
+          measure(width: layout-size.width, block(
+            inset: footer.inset,
+            footer.content,
+          )).width
         } else { 0mm }
 
         code-width = me.pseudo-code-width(frame, code-width, bodies)
@@ -320,7 +321,6 @@
           marker: marker,
           markers-width: markers-width,
           markers: markers,
-          id: id,
         )
 
         block(
@@ -350,7 +350,7 @@
 /// ]
 /// `)
 ///
-/// Lines of an `uraw-pseudo` in a labeled figure can be referenced with `@label.n`.
+/// If the show rule is used (`#show: uraw`), lines of an `uraw-pseudo` in a labeled figure can be referenced with `@label.n`.
 ///
 /// - args (arguments): The settings (see `set-uraw-pseudo` for their description).
 ///

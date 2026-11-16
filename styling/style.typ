@@ -6,12 +6,36 @@
 
 /// Return a coloring function alternating between two colors.
 ///
+/// #example(````
+/// #import "@preview/ultraw:0.0.1": uraw, style
+/// #uraw(
+///   code-fill: style.zebra(even: aqua, odd: yellow),
+///   ```py
+///   def greeting():
+///       print("Hello world")
+///   ```,
+/// )
+/// ````)
+///
 /// - odd (color, gradient, tiling, none): The color of odd lines.
 /// - even (color, gradient, tiling, none): The color of even lines.
 /// -> function
 #let zebra(odd: none, even: none) = n => if calc.odd(n) { odd } else { even }
 
 /// Return a coloring function that assigns precise colors to ranges of lines.
+///
+/// #example(````
+/// #import "@preview/ultraw:0.0.1": uraw, style
+/// #uraw(
+///   code-fill: style.exact(((2, 4), teal), (3, aqua), rest: eastern),
+///   ```py
+///   def mysterious-greeting():
+///       print("Hello ...")
+///       print("...")
+///       prin("... world")
+///   ```,
+/// )
+/// ````)
 ///
 /// - lines (arguments): Each positional argument must be a pair `(line, color)` where `line` is either an integer or a pair of integers `(from, to)` representing a range of lines and where `color` is the color used for the associated lines.
 /// - rest (color, gradient, tiling, none): The color for the rest of the lines.
@@ -38,6 +62,10 @@
     .map(read-lines-col)
     .map((((s, e), c)) => range(s, e + 1).map(i => (line: i, color: c)))
     .flatten()
+  lines = lines
+    .enumerate()
+    .filter(((i, p)) => p.line not in lines.slice(i + 1).map(p => p.line))
+    .map(((_, p)) => p)
     .sorted(key: lc => lc.line)
   let (lines, colors) = (lines.map(lc => lc.line), lines.map(lc => lc.color))
   return n => {
@@ -48,14 +76,27 @@
 
 /// Return a coloring function that applies focus to the given lines with some color.
 ///
+/// #example(````
+/// #import "@preview/ultraw:0.0.1": uraw, style
+/// #uraw(
+///   numbers-color: style.focus((1, 2)),
+///   ```py
+///   def mysterious-greeting():
+///       print("Hello ...")
+///       print("...")
+///       prin("... world")
+///   ```,
+/// )
+/// ````)
+///
 /// - lines (arguments): Each positional argument is either an integer or a pair of integers `(from, to)` representing a range of lines.
-/// - color (color): The color used for specified lines.
+/// - color (color): The color used for the specified lines.
 /// - rest (ratio, color, gradient, tiling): Either a transparency ratio mitigating `color` or a color for the unfocused lines.
 /// -> function
-#let focus(..lines, color: black, rest: 60%) = {
+#let focus(..lines, color: black, rest: 70%) = {
   return exact(
     ..lines.pos().map(l => (l, color)),
-    rest: if type(rest) == ratio { color.transparentize(dim) } else { rest },
+    rest: if type(rest) == ratio { color.transparentize(rest) } else { rest },
   )
 }
 
@@ -73,7 +114,11 @@
 // Numbers
 // -----------------------------------------------------------------------------
 
-/// Format numbers by padding them with 0s.
+/// Return a function padding numbers with 0s.
+///
+/// #example(`
+/// #padded(3)(1)
+/// `)
 ///
 /// - n-digits (int): The number of digits to pad to.
 /// -> function
@@ -86,16 +131,11 @@
 // Markers
 // -----------------------------------------------------------------------------
 
-/// Given the `octique` module (`#import "@preview/octique:...": *`), return a function creating markers with octique icons.
-///
-/// - octique (module): The octique module.
-/// -> function
-#let octique-marker(octique) = (name, color: black) => move(dy: -.07em, octique(
-  name,
-  color: color,
-))
-
 /// Create a marker made of encircled content.
+///
+/// #example(`
+/// #callout-marker("!", color: red)
+/// `)
 ///
 /// - body (int, content): The encircled integer or content.
 /// - color (color, gradient, tiling): The color of the marker.
@@ -109,6 +149,10 @@
 )
 
 /// Create a dot marker.
+///
+/// #example(`
+/// #badge-marker(color: purple)
+/// `)
 ///
 /// - color (color, gradient, tiling): The color of the badge marker.
 /// -> content
@@ -124,9 +168,20 @@
 
 /// Create a jump that displays a comment containing vertical dots.
 ///
+/// #example(````
+/// #import "@preview/ultraw:0.0.1": uraw, style
+/// #uraw(
+///   jumps: style.vdots-jump(1, 5),
+///   ```py
+///   def greeting():
+///       print("Hello world")
+///   ```,
+/// )
+/// ````)
+///
 /// - from (int): The starting line of the jump.
 /// - to (int): The ending line of the jump.
-/// - numbers (bool): Whether to show vertical dots in numbers.
+/// - numbers (bool): Whether to show vertical dots in the numbers column.
 /// - code (bool): Whether to show vertical dots in the code.
 /// - comment (arguments): The styling parameters of the comment.
 /// -> dictionary
@@ -150,6 +205,18 @@
 // -----------------------------------------------------------------------------
 
 /// Create a header styled like a macOS window.
+///
+/// #example(````
+/// #import "@preview/ultraw:0.0.1": uraw, themes, style
+/// #uraw(
+///   ..themes.window,
+///   header: style.window-header[Python tutorial],
+///   ```py
+///   def greeting():
+///       print("Hello world")
+///   ```,
+/// )
+/// ````)
 ///
 /// - body (content): The content of the header.
 /// -> content

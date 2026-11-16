@@ -30,6 +30,3 @@
 )
 
 #let lang-tag-config = ut.keys-value-to-dict(pre-lang-tag-config)
-
-/// A map from common languages to their icon.
-#let icons = lang-tag-config.map(i => i.icon)

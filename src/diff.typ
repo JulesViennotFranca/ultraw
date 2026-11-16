@@ -21,13 +21,8 @@
     radius: 0pt,
   )
 
-  // The identifier of the block, to find its first and last rows
-  let id-counter = counter("uraw-block-id")
-  id-counter.step()
-
-  // The states (settings, identifier) are read outside of `layout`, whose content can be laid out without them (as when measuring an auto column of a grid)
+  // The states (settings) are read outside of `layout`, whose content can be laid out without them (as when measuring an auto column of a grid)
   context {
-    let id = id-counter.get().first()
     let lang = (new-it, old-it)
       .map(it => it.at("lang", default: none))
       .find(l => l != none)
@@ -546,10 +541,16 @@
           code,
         )
         let header-width = if header.content != none {
-          measure(block(inset: header.inset, header.content)).width
+          measure(width: layout-size.width, block(
+            inset: header.inset,
+            header.content,
+          )).width
         } else { 0pt }
         let footer-width = if footer.content != none {
-          measure(block(inset: footer.inset, footer.content)).width
+          measure(width: layout-size.width, block(
+            inset: footer.inset,
+            footer.content,
+          )).width
         } else { 0pt }
         let hf-width = calc.max(header-width, footer-width)
         if hf-width > total-width {
@@ -609,7 +610,6 @@
           if lang-tag.visible and lang-tag.in-code { lang-tag.block },
           char-width,
           measure("#").height,
-          id,
         )
 
         let frame-block = block(
@@ -678,7 +678,7 @@
 ///
 /// For `markers`, `highlights`, `comments` and `jumps`, a single entry, an array of entries or a dictionary grouping entries by version (`(old: ..., new: ...)`) are all valid. Under the dictionary form, entries are given without their `version`.
 ///
-/// Lines of an `uraw-diff` in a labeled figure can be referenced with `@label.version.n`.
+/// If the show rule is used (`#show: uraw`), lines of an `uraw-diff` in a labeled figure can be referenced with `@label.version.n`.
 ///
 /// Look at the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs] for a complete overview of what is possible with `uraw-diff`.
 ///
@@ -688,13 +688,13 @@
 ///
 /// - highlights (array, dictionary): Each highlight targets a `version` and the range it covers is given either by `line` or `start` and `end`. `line` can take a single line number or a pair `(from, to)`. `start` and `end` both can take a single line number (meaning the start and end of that line) or a pair `(line, character)` to point at an exact code location. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, `sticky`, `expand`, see `set-uraw` for more details).
 ///
-/// - comments (array, dictionary): Each comment is given as `(version, line, content)` (the comment is displayed after the line) or a dictionary with `version`, `after` / `before` indicating the targeted line, `content`, and styling parameters (`indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details). Additionally, comments can `span` over both code versions (see `set-uraw-diff` for more details).
+/// - comments (array, dictionary): Each comment is given as `(version, line, content)` (the comment is displayed after the line) or a dictionary with `version`, `after` / `before` indicating the targeted line, `content`, and styling parameters (`style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details). Additionally, comments can `span` over both code versions (see `set-uraw-diff` for more details).
 ///
 /// - jumps (array, dictionary): Each jump is given as `(version, from, to)` or a dictionary with `version`, `from`, `to`, whether to `skip-lines (bool)` of the raw text of the version, and the associated comment parameters (`comment`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details, and the additional `span` parameter, see `set-uraw-diff` for more details). `from` and `to` take integer values or `start` and `end`.
 ///
-/// - follows (bool, int, content, array, dictionary): Whether the block continues a previous one; it then renders as after a page break (no top radius, no top stroke, etc). For a correct numbering and to display the accurate width of the numbers column, an integer value represents the last line of the preceding block, content is the widest marker of the preceding blocks (the marker column being shown and made wide enough for it), and a pair `(number, marker)` gives both. This can be specific to each version by giving an `(old: ..., new: ...)` dictionary.
+/// - follows (bool, int, content, array, dictionary): Whether the block continues a previous one; it then renders as after a page break (no top radius, no top stroke, etc.). For a correct numbering and to display the accurate width of the numbers column, an integer value represents the last line of the preceding block, content is the widest marker of the preceding blocks (the marker column being shown and made wide enough for it), and a pair `(number, marker)` gives both. This can be specific to each version by giving an `(old: ..., new: ...)` dictionary.
 ///
-/// - precedes (bool, int, content, array, dictionary): Whether the block is continued by a next one; it then renders as before a page break (no bottom radius, no bottom stroke, etc). To display the accurate width of the numbers column, an integer value is the largest line number of the following blocks, content is their widest marker, and a pair `(number, marker)` gives both. This can be specific to each version by giving an `(old: ..., new: ...)` dictionary.
+/// - precedes (bool, int, content, array, dictionary): Whether the block is continued by a next one; it then renders as before a page break (no bottom radius, no bottom stroke, etc.). To display the accurate width of the numbers column, an integer value is the largest line number of the following blocks, content is their widest marker, and a pair `(number, marker)` gives both. This can be specific to each version by giving an `(old: ..., new: ...)` dictionary.
 ///
 /// - old (content | raw | path | dictionary): The old code, given as a raw text block, a path indicating the file to read the code from, or the dictionary output of `read-code`.
 ///

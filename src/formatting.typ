@@ -743,21 +743,38 @@
         -lang-tag.width
       }
   )
+  // The positions of the columns of a line, measured when its characters are not all `char-width` wide (as the characters of some scripts and the emojis)
+  // (a word joiner ends the measured parts, so that their trailing spaces are kept)
+  let columns-x(l) = {
+    let x(c) = measure([#c#sym.wj]).width
+    if calc.abs(x(l.line) - l.line-end * char-width) < .01pt { return none }
+    range(l.line-end + 1).map(c => x(ct.content-split-pos(l.line, c).first()))
+  }
   lines
     .enumerate()
     .map(((i, l)) => {
       let indent = if indented { l.pos-indent.last() } else { 0 }
       if indent * char-width > width / 2 { indent = 0 }
+      let xs = columns-x(l)
+      let slines = ct.format-line(
+        l.line,
+        width,
+        char-width,
+        l.line-end,
+        if lang-tag.placement == "inline" and i == 0 { lang-tag.width },
+        indent: indent,
+        xs: xs,
+      )
+      // The positions of the columns of each sub-line, from its start
+      if xs != none {
+        slines = slines.map(sl => {
+          let cols = xs.slice(sl.start, calc.min(sl.end, l.line-end) + 1)
+          sl + (xs: cols.map(x => x - cols.first()))
+        })
+      }
       (
         line: l.line,
-        slines: ct.format-line(
-          l.line,
-          width,
-          char-width,
-          l.line-end,
-          if lang-tag.placement == "inline" and i == 0 { lang-tag.width },
-          indent: indent,
-        ),
+        slines: slines,
         pos-indent: l.pos-indent,
         line-end: l.line-end,
       )
@@ -944,7 +961,7 @@
     )
     ut.check-keys(
       c,
-      comment.keys().filter(k => k != "style") + ("after", "before", "content"),
+      comment.keys() + ("after", "before", "content"),
       "a comment",
     )
 

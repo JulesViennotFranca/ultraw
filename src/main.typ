@@ -54,13 +54,8 @@
     radius: 0pt,
   )
 
-  // The identifier of the block, to find its first and last rows
-  let id-counter = counter("uraw-block-id")
-  id-counter.step()
-
-  // The states (settings, outside style, identifier) are read outside of `layout`, whose content can be laid out without them (as when measuring an auto column of a grid)
+  // The states (settings, outside style) are read outside of `layout`, whose content can be laid out without them (as when measuring an auto column of a grid)
   context {
-    let id = id-counter.get().first()
     let style = base-style()
     let base-style() = style
     let general = cf.category-parser("general", args, it.lang)
@@ -355,10 +350,16 @@
         )
 
         let header-width = if header.content != none {
-          measure(block(inset: header.inset, header.content)).width
+          measure(width: layout-size.width, block(
+            inset: header.inset,
+            header.content,
+          )).width
         } else { 0mm }
         let footer-width = if footer.content != none {
-          measure(block(inset: footer.inset, footer.content)).width
+          measure(width: layout-size.width, block(
+            inset: footer.inset,
+            footer.content,
+          )).width
         } else { 0mm }
 
         code-width = me.tight-code-width(
@@ -441,7 +442,6 @@
           marker: marker,
           markers-width: markers-width,
           markers: markers,
-          id: id,
         )
 
         let frame-block = block(
@@ -504,7 +504,7 @@
 ///
 /// For `markers`, `highlights`, `comments` and `jumps`, a single entry or an array of entries are both valid.
 ///
-/// Lines of an `uraw` block in a labeled figure can be referenced with `@label.n`.
+/// If the show rule is used (`#show: uraw`), lines of an `uraw` block in a labeled figure can be referenced with `@label.n`.
 ///
 /// Look at the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs] for a complete overview of what is possible with `uraw`.
 ///
@@ -514,13 +514,13 @@
 ///
 /// - highlights (array, dictionary): For each highlight, the range it covers is given either by `line` or `start` and `end`. `line` can take a single line number or a pair `(from, to)`. `start` and `end` both can take a single line number (meaning the start and end of that line) or a pair `(line, character)` to point at an exact code location. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, `sticky`, `expand`, see `set-uraw` for more details).
 ///
-/// - comments (array, dictionary): Each comment is given as `(line, content)` (the comment is displayed after the line) or a dictionary with `after` / `before` indicating the targeted line, `content`, and styling parameters (`indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details).
+/// - comments (array, dictionary): Each comment is given as `(line, content)` (the comment is displayed after the line) or a dictionary with `after` / `before` indicating the targeted line, `content`, and styling parameters (`style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details).
 ///
 /// - jumps (array, dictionary): Each jump is given as `(from, to)` or a dictionary with `from`, `to`, whether to `skip-lines (bool)` of the raw text, and the associated comment parameters (`comment`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details). `from` and `to` take integer values or `start` and `end`.
 ///
-/// - follows (bool, int, content, array): Whether the block continues a previous one; it then renders as after a page break (no top radius, no top stroke, etc). For a correct numbering and to display the accurate width of the numbers column, an integer value represents the last line of the preceding block, content is the widest marker of the preceding blocks (the marker column being shown and made wide enough for it), and a pair `(number, marker)` gives both.
+/// - follows (bool, int, content, array): Whether the block continues a previous one; it then renders as after a page break (no top radius, no top stroke, etc.). For a correct numbering and to display the accurate width of the numbers column, an integer value represents the last line of the preceding block, content is the widest marker of the preceding blocks (the marker column being shown and made wide enough for it), and a pair `(number, marker)` gives both.
 ///
-/// - precedes (bool, int, content, array): Whether the block is continued by a next one; it then renders as before a page break (no bottom radius, no bottom stroke, etc). To display the accurate width of the numbers column, an integer value is the largest line number of the following blocks, content is their widest marker, and a pair `(number, marker)` gives both.
+/// - precedes (bool, int, content, array): Whether the block is continued by a next one; it then renders as before a page break (no bottom radius, no bottom stroke, etc.). To display the accurate width of the numbers column, an integer value is the largest line number of the following blocks, content is their widest marker, and a pair `(number, marker)` gives both.
 ///
 /// - body (content | raw | path | dictionary): Either the whole document to apply the show rule (`#show: uraw`), some raw text block to format, a path indicating the file to read the code from, or the dictionary output of `read-code`.
 ///
@@ -556,7 +556,7 @@
     show figure.where(kind: "algorithm"): set figure(supplement: [Algorithm])
     show figure.where(kind: image): it => if is-algorithm-figure(it) {
       let fields = it.fields()
-      // The lines are labelled after the replaced figure, which is the one referenced
+      // The lines are labeled after the replaced figure, which is the one referenced
       if it.has("label") { uraw-figure.update(it.label) }
       figure(
         it.body,

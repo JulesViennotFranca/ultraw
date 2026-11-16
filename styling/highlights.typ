@@ -33,7 +33,7 @@
   stroke: none,
 )
 
-/// Return the styling parameters of an alert highlight: no border, a plain background and a strong white highlighted code.
+/// Return the styling parameters of an alert highlight: no border, a plain background and strong white highlighted code.
 ///
 /// - color (color, gradient, tiling): The color of the highlight.
 /// -> dictionary
@@ -42,7 +42,7 @@
   code-style: it => strong(text(fill: white, it)),
 )
 
-/// The alert highlight: no border, a plain background and a strong white highlighted code.
+/// The alert highlight: no border, a plain background and strong white highlighted code.
 ///
 /// - color (color, gradient, tiling): The color of the highlight.
 /// -> dictionary
@@ -52,7 +52,7 @@
   ..alert-style(color),
 )
 
-/// The hole highlight: no background, a hidden code and a dashed border.
+/// The hole highlight: no background, hidden code and a dashed border.
 ///
 /// - color (color, gradient, tiling): The color of the dashed border.
 /// -> dictionary
@@ -112,14 +112,14 @@
 /// )
 /// `)
 ///
-/// - highlights (arguments): Each highlight to register is given as a dictionary. If some keys are omitted their default value is given by the `highlight` setting of `uraw` or `uraw-diff`. The keys of the dictionary are
+/// - highlights (arguments): Each highlight to register is given as a dictionary. If some keys are omitted, their default values are given by the `highlight` setting of `uraw` or `uraw-diff`. The keys of the dictionary are
 ///   - `ldel (str) + rdel (str)` or `del (str)` (shortcut when `ldel = rdel`) the delimiters of the highlight inside the raw text: writing `... ldelsome coderdel ...` will remove `ldel` and `rdel` from the code and highlight `some code`
 ///   - `fill (color | gradient | tiling | none)` the background color of the highlight block
 ///   - `stroke (length | color | gradient | stroke | tiling | none)` the border of the highlight block
 ///   - `radius (relative | dictionary)` the radius of the highlight block
 ///   - `code-style (function)` a styling function to apply to the highlighted content
-///   - `sticky (bool)` whether the highlight parts should merge from a line to the next (the stroke and radius are changed accordingly)
-///   - `expand (alignment | none)` indicates the side on which the highlight should expand when going from a line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides)
+///   - `sticky (bool)` whether the parts of the highlight merge from one line to the next (the stroke and radius are changed accordingly)
+///   - `expand (alignment | none)` the side on which the highlight expands when going from one line to the next (`none` = no expansion, `left` = left side, `right` = right side, `center` = both sides)
 ///
 /// -> content
 #let add(..highlights) = {

@@ -73,8 +73,8 @@
     stroke: auto,
   ),
   highlight: (
-    fill: none,
-    stroke: none,
+    fill: yellow.transparentize(70%),
+    stroke: yellow,
     radius: 3pt,
     code-style: it => it,
     sticky: auto,
@@ -144,6 +144,7 @@
   numbers: (fill: none, sep: none),
   frame: (fill: luma(25)),
   lang-tag: (fill: white.transparentize(75%), stroke: none),
+  highlight: (fill: purple.transparentize(70%), stroke: purple),
   comment: (fill: luma(80)),
   diff: (
     general: (sep: none),
@@ -169,6 +170,7 @@
   numbers: (align: top + left, sep: black),
   frame: (fill: luma(250), stroke: black, inset: (x: 3pt, y: 2.5pt)),
   lang-tag: (fill: auto, placement: "top-right"),
+  highlight: (stroke: none, radius: 0pt),
   comment: (style: it => it, sep: auto),
   jump: (sep: none),
   diff: (general: (blank-fill: hatch(black), sep: black)),
@@ -190,6 +192,7 @@
   header: (fill: luma(240), sep: none),
   footer: (fill: luma(240), sep: none),
   lang-tag: (placement: "header"),
+  highlight: (fill: blue.transparentize(80%), stroke: none, expand: left),
   comment: (fill: luma(245)),
   diff: (general: (sep: 1pt + luma(240))),
 )

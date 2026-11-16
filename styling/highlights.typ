@@ -4,16 +4,20 @@
 // Style
 // -----------------------------------------------------------------------------
 
-/// The base highlight: a dimmed background and a plain border.
+/// The base highlight: its style is given by the `highlight` setting of `uraw` and `uraw-diff`.
+#let base = (ldel: "*:", rdel: ":*")
+
+/// The box highlight: a dimmed background and a plain border.
 ///
 /// - color (color, gradient, tiling): The color of the highlight.
+/// - radius (relative, dictionary): The radius of the highlight.
 /// -> dictionary
-#let base(color: yellow) = (
+#let box(color: yellow, radius: 3pt) = (
   ldel: "*|",
   rdel: "|*",
   fill: color.transparentize(70%),
   stroke: color,
-  radius: 3pt,
+  radius: radius,
 )
 
 /// The alert highlight: no border, a plain background and strong white highlighted code.
@@ -82,16 +86,16 @@
 // -----------------------------------------------------------------------------
 
 /// The state storing highlights.
-#let highlights-state = state("uraw-highlights", (base(), alert()))
+#let highlights-state = state("uraw-highlights", (base, alert()))
 
-/// Add highlights to use them in raw text.
+/// Add highlights to use them in raw text. A highlight with the same delimiters as a registered one replaces it.
 ///
 /// #example(`
 /// #import "@preview/ultraw:0.0.1": highlights
 /// #highlights.add(
 ///   (ldel: "*~", rdel: "~*", fill: teal, code-style: it => text(white, strong(it))),
 ///   (del: "*-*", stroke: olive, radius: 0pt, expand: left),
-///   (..highlights.base(color: red), ldel: "*r|", rdel: "|r*"),
+///   (..highlights.box(color: red), ldel: "*r|", rdel: "|r*"),
 /// )
 /// `)
 ///
@@ -108,8 +112,11 @@
 #let add(..highlights) = {
   let added = highlights.pos().map(hl.pre-highlight)
   highlights-state.update(hls => {
-    let hls = hls + added
-    let _ = hl.check-pre-highlights(hls)
+    for h in added {
+      // (a highlight with the same delimiters is replaced in place)
+      let i = hls.position(g => (g.ldel, g.rdel) == (h.ldel, h.rdel))
+      if i == none { hls.push(h) } else { hls.at(i) = h }
+    }
     hls
   })
 }

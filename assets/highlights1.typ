@@ -9,13 +9,13 @@
   align: bottom,
 
   [
-    #highlights.remove((ldel: "*|", rdel: "|*"), (ldel: "*!", rdel: "!*"))
+    #highlights.remove((ldel: "*:", rdel: ":*"), (ldel: "*!", rdel: "!*"))
     #source(
       indent-size: 2,
       ````typ
       ```py
       def greeting(name: str):
-          if *|len(name) > 0|* and *|name[0].isupper()|*:
+          if *:len(name) > 0:* and *:name[0].isupper():*:
               print("Hello to you, " + name)
           else:
               raise *!RuntimeError!*("Not a name.")
@@ -25,7 +25,7 @@
       and the raised error is highlighted in red.
       ````,
     )
-    #highlights.add(highlights.base(), highlights.alert())
+    #highlights.add(highlights.base, highlights.alert())
   ],
 
   [
@@ -33,7 +33,7 @@
 
     ```py
     def greeting(name: str):
-        if *|len(name) > 0|* and *|name[0].isupper()|*:
+        if *:len(name) > 0:* and *:name[0].isupper():*:
             print("Hello to you, " + name)
         else:
             raise *!RuntimeError!*("Not a name.")

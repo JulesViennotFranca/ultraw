@@ -148,14 +148,11 @@
   ))
 })
 
-#let fade-string = "#let fade(alpha, body) = box(inset: 0pt, {\n
-  body\n
-  place(top + left, box(\n
-    outset: (bottom: 3pt, rest: 1pt),\n
-    fill: white.transparentize(alpha),\n
-    hide(body),\n
-  ))\n
-})"
+#let fade-highlight(alpha) = (
+  fill: none,
+  stroke: none,
+  code-style: it => fade(alpha, it),
+)
 
 #let ex-output(code, output-args: (:), ..args) = {
   let output-args = if output-args.len() > 0 {
@@ -170,9 +167,8 @@
   } else { "" }
   let output = eval(
     mode: "markup",
-    "#import \"@preview/ultraw:0.0.1\": *\n\n"
-      + fade-string
-      + "\n\n"
+    "#import \"@preview/ultraw:0.0.1\": *\n"
+      + "#import \"utils.typ\": fade, fade-highlight\n\n"
       + output-args
       + "\n\n"
       + code.text,

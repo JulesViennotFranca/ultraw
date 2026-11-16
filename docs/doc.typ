@@ -16,13 +16,28 @@
 #let uraw-version = "0.0.1"
 
 #highlights.add(
-  (..highlights.base(color: olive), ldel: "*$", rdel: "$*", sticky: true),
-  (ldel: "*b", rdel: "b*", code-style: text.with(rgb("#4C69C6"))),
-  (ldel: "*k", rdel: "k*", code-style: text.with(black)),
+  highlights.box(),
+  (..highlights.box(color: olive), ldel: "*$", rdel: "$*", sticky: true),
+  (
+    ldel: "*b",
+    rdel: "b*",
+    code-style: text.with(rgb("#4C69C6")),
+    fill: none,
+    stroke: none,
+  ),
+  (
+    ldel: "*k",
+    rdel: "k*",
+    code-style: text.with(black),
+    fill: none,
+    stroke: none,
+  ),
   (
     ldel: "*g|",
     rdel: "|g*",
     code-style: it => box(text(fill: gradient.linear(..color.map.rainbow), it)),
+    fill: none,
+    stroke: none,
   ),
   highlights.hole(),
   highlights.strike(),
@@ -86,7 +101,7 @@
           (line: 14, expand: center, fill: gradient.linear(..color.map.flare)),
         ),
         ````typ
-        = Using the *|ultraw|* package
+        = Using the *:ultraw:* package
 
         // It is as simple as that:
         #show: uraw
@@ -101,9 +116,9 @@
 
         == Styling
 
-        *|Markers, highlights, or comments|*
+        *:Markers, highlights, or comments:*
         are easily defined. You can even
-        write *|pseudo code|* and *|diffs|*.
+        write *:pseudo code:* and *:diffs:*.
         ````,
       )
 
@@ -130,7 +145,7 @@
       highlights: (
         (
           line: (7, 10),
-          ..highlights.base(color: orange),
+          ..highlights.box(color: orange),
           expand: none,
           fill: orange.transparentize(80%),
         ),
@@ -524,7 +539,7 @@ Numbers indicate the line numbers of the code and markers can further decorate e
     output-args: (
       lang-tag: "false",
       indentation: "silver",
-      highlights: "(line: (8, 12), code-style: it => fade(20%, it))",
+      highlights: "(line: (8, 12), ..fade-highlight(20%))",
     ),
     jumps: (from: 6, to: 14, comment: [`...,`], skip-lines: true),
     ````typ
@@ -550,7 +565,7 @@ Numbers indicate the line numbers of the code and markers can further decorate e
       lang-tag: "false",
       indentation: "silver",
       numbers-align: "left",
-      highlights: "(line: (1, 5), code-style: it => fade(20%, it))",
+      highlights: "(line: (1, 5), ..fade-highlight(20%))",
     ),
     jumps: (from: 6, to: 14, comment: [`...,`], skip-lines: true),
     ````typ
@@ -599,7 +614,7 @@ Each #urawf block can have a header and a footer. Like the headers and footers o
           lang-tag: false,
           indentation: silver,
           numbers-color: silver,
-          highlights: (line: 1, code-style: it => fade(20%, it)),
+          highlights: (line: 1, ..fade-highlight(20%)),
           header: [Some basic header],
           header-code-aligned: true,
           ```typ
@@ -618,7 +633,7 @@ Each #urawf block can have a header and a footer. Like the headers and footers o
             lang-tag: false,
             indentation: silver,
             numbers-color: silver,
-            highlights: (line: (2, 3), code-style: it => fade(20%, it)),
+            highlights: (line: (2, 3), ..fade-highlight(20%)),
             header: [Some basic header],
             header-code-aligned: true,
             ```typ
@@ -648,7 +663,7 @@ Each #urawf block can have a header and a footer. Like the headers and footers o
       lang-tag: "false",
       indentation: "silver",
       numbers-color: "silver",
-      highlights: "(line: (1, 2), code-style: it => fade(20%, it))",
+      highlights: "(line: (1, 2), ..fade-highlight(20%))",
     ),
     jumps: (from: 6, to: 11, comment: [`...,`], skip-lines: true),
     ````typ
@@ -679,7 +694,7 @@ The lang tag indicates which language is used and can be placed inside of the co
     output-args: (
       numbers-color: "silver",
       indentation: "silver",
-      highlights: "(line: (1, 4), code-style: it => fade(20%, it))",
+      highlights: "(line: (1, 4), ..fade-highlight(20%))",
     ),
     jumps: (from: 6, to: 13, comment: [`...,`], skip-lines: true),
     ````typ
@@ -703,7 +718,7 @@ The lang tag indicates which language is used and can be placed inside of the co
     output-args: (
       numbers-color: "silver",
       indentation: "silver",
-      highlights: "(line: (1, 4), code-style: it => fade(20%, it))",
+      highlights: "(line: (1, 4), ..fade-highlight(20%))",
     ),
     jumps: (from: 6, to: 13, comment: [`...,`], skip-lines: true),
     ````typ
@@ -734,12 +749,12 @@ The #ultraw package provides simple and efficient highlighting. The main feature
   column-gutter: 3mm,
 
   [
-    #highlights.remove((ldel: "*|", rdel: "|*"), (ldel: "*!", rdel: "!*"))
+    #highlights.remove((ldel: "*:", rdel: ":*"), (ldel: "*!", rdel: "!*"))
     #highlights.add(
       (
-        ..highlights.base(color: yellow),
-        ldel: "*||",
-        rdel: "||*",
+        ..highlights.box(color: yellow),
+        ldel: "*::",
+        rdel: "::*",
         sticky: true,
       ),
       (..highlights.alert(color: red), ldel: "*!!", rdel: "!!*", sticky: true),
@@ -751,22 +766,22 @@ The #ultraw package provides simple and efficient highlighting. The main feature
       #show: uraw
 
       ```typ
-      = One example of *||*|||*highlight*|||*||*
+      = One example of *::*:::*highlight*:::*::*
 
       Highlight as you *!!*!!!*want*!!!*!!*.
       ```
       ````,
     )
 
-    #highlights.add(highlights.base(), highlights.alert())
-    #highlights.remove((ldel: "*||", rdel: "||*"), (ldel: "*!!", rdel: "!!*"))
+    #highlights.add(highlights.base, highlights.alert())
+    #highlights.remove((ldel: "*::", rdel: "::*"), (ldel: "*!!", rdel: "!!*"))
   ],
 
   [
     #show: uraw
 
     ```typ
-    = One example of *|highlight|*
+    = One example of *:highlight:*
 
     Highlight as you *!want!*.
     ```
@@ -785,7 +800,7 @@ You can define your own highlights by providing a left and a right delimiter and
   source(
     width: 100%,
     comments: (
-      before: 7,
+      before: 8,
       content: [Set both `ldel` and `rdel` with `del`.],
       sep: none,
       fill: white,
@@ -799,21 +814,21 @@ You can define your own highlights by providing a left and a right delimiter and
         rdel: "r*",
         code-style: it => box(text(fill: gradient.linear(..color.map.rainbow), it)),
       ),
-      (del: "*p*", sticky: true, ..highlights.base-style(purple)),
-      (ldel: "*#", rdel: "#*", expand: right, fill: gradient.linear(..color.map.flare)),
+      (..highlights.box(color: purple), ldel: "*p", rdel: "p*", sticky: true),
+      (del: "*#*", expand: right, fill: gradient.linear(..color.map.flare), stroke: none),
     )
 
     ```rs
     fn *rmainr*() {
       let n_even = 0;
-      *p*for x in 1..=5 {
+      *pfor x in 1..=5 {
         if x % 2 == 1 {
           *rprintlnr*!("odd:", x);
           n_even += 1;
         }
-      }*p*
-      *#return n_even
-    }#*
+      }p*
+      *#*return n_even
+    }*#*
     ```
     ````,
   )
@@ -827,10 +842,9 @@ You can define your own highlights by providing a left and a right delimiter and
         it,
       )),
     ),
-    (..highlights.base(color: purple), del: "*p*", sticky: true),
+    (..highlights.box(color: purple), ldel: "*p", rdel: "p*", sticky: true),
     (
-      ldel: "*#",
-      rdel: "#*",
+      del: "*#*",
       expand: right,
       fill: gradient.linear(..color.map.flare),
     ),
@@ -842,14 +856,14 @@ You can define your own highlights by providing a left and a right delimiter and
     ```rs
     fn *rmainr*() {
       let n_even = 0;
-      *p*for x in 1..=5 {
+      *pfor x in 1..=5 {
         if x % 2 == 1 {
           *rprintlnr*!("odd:", x);
           n_even += 1;
         }
-      }*p*
-      *#return n_even
-    }#*
+      }p*
+      *#*return n_even
+    }*#*
     ```,
   ))
 }))
@@ -868,9 +882,9 @@ Highlights can also be defined per block through the `highlights` argument of #u
     ````typ
     #uraw(
       highlights: (
-        (line: (1, 2), fill: aqua.lighten(60%)),
+        (line: (1, 2), fill: aqua.lighten(60%), stroke: none),
         (start: (3, 11), end: (3, 17), ..highlights.alert()),
-        (start: 4, end: 4, stroke: purple),
+        (start: 4, end: 4, stroke: purple, fill: none),
       ),
       ```py
       def area(r):
@@ -886,9 +900,9 @@ Highlights can also be defined per block through the `highlights` argument of #u
     frame-stroke: black,
     frame-fill: white,
     highlights: (
-      (line: (1, 2), fill: aqua.lighten(60%)),
+      (line: (1, 2), fill: aqua.lighten(60%), stroke: none),
       (start: (3, 11), end: (3, 17), ..highlights.alert()),
-      (start: 4, end: 4, stroke: purple),
+      (start: 4, end: 4, stroke: purple, fill: none),
     ),
     ```py
     def area(r):
@@ -898,6 +912,8 @@ Highlights can also be defined per block through the `highlights` argument of #u
     ```,
   ))
 }))
+
+#v(-1pt)
 
 = Inline
 
@@ -912,10 +928,10 @@ A simpler version of #urawf for inline raw text exists. It inherits its appearan
   columns: (auto, 1fr),
   column-gutter: 1cm,
   align: horizon,
-  text(0.8em, source(numbers: none, lang-tag: false, ```typ
-  uraw-inline(highlights: (end: 5, ..highlights.base()), `ult*!!*!!!*raw*!!!*!!*`)
-  ```)),
-  uraw-inline(highlights: (end: 5, ..highlights.base()), `ult*!!raw!!*`),
+  source(numbers: none, lang-tag: false, ```typ
+  uraw-inline(highlights: (end: 5), `ult*!!*!!!*raw*!!!*!!*`)
+  ```),
+  uraw-inline(highlights: (end: 5), `ult*!!raw!!*`),
 )
 
 #highlights.add(highlights.alert())
@@ -1250,7 +1266,7 @@ The factorial algorithm is defined in @fact-algo. Its implementation is shown in
   ..themes.note,
   width: 100%,
   lang-tag-name: "source",
-  read-code(path("doc.typ"), lang: "typ", from: 1245, to: 1250),
+  read-code(path("doc.typ"), lang: "typ", from: 1265, to: 1270),
 )
 // TODO make sure this is right at the end
 
@@ -2449,16 +2465,16 @@ To enable fast access to common and unambiguous parameters, some arguments can b
 
 = #f(`highlights`) <highlights-lib>
 
-Sample highlights and functions to manage them. There are two highlights by default: `base` (`*|` and `|*`) and `alert` (`*!` and `!*`).
+Sample highlights and functions to manage them. There are two highlights by default: `base` (`*:` and `:*`), styled by the `highlight` setting of `uraw` and `uraw-diff`, and `alert` (`*!` and `!*`).
 
-== #f(`add`)
+== #f(`add`) <highlights-add-lib>
 
 #documentation(
   ```typ
   #highlights.add(..highlights *htargumentsht*)
   ```,
 
-  description: [Add highlights to use them in raw text.],
+  description: [Add highlights to use them in raw text. A highlight with the same delimiters as a registered one replaces it.],
 
   (
     1,
@@ -2587,17 +2603,38 @@ Sample highlights and functions to manage them. There are two highlights by defa
 
 #documentation(
   ```typ
-  #highlights.base(color *htcolor gradient tilinght*: yellow)
+  #highlights.base *htdictionaryht*
   ```,
 
   description: [
-    The base highlight: a dimmed background and a plain border. \
+    The base highlight: its style is given by the `highlight` setting of `uraw` and `uraw-diff`. \
+    #show-highlight(`#let *:rec:*(n) = rec(n + 1) + 1`)
+  ],
+)
+
+== #f(`box`)
+
+#documentation(
+  ```typ
+  #highlights.box(
+    color *htcolor gradient tilinght*: yellow,
+    radius *htrelative dictionaryht*: 3pt,
+  )
+  ```,
+
+  description: [
+    The box highlight: a dimmed background and a plain border. \
     #show-highlight(`#let *|rec|*(n) = rec(n + 1) + 1`)
   ],
 
   (
-    1,
+    2,
     [The color of the highlight.],
+  ),
+
+  (
+    3,
+    [The radius of the highlight.],
   ),
 )
 

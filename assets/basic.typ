@@ -3,10 +3,11 @@
 #show: format-doc
 
 #grid(
-  columns: 2,
-  column-gutter: 1cm,
+  columns: (7cm, 7cm, 7cm),
+  align: bottom + center,
 
   source(
+    width: 100%,
     indent-size: 2,
     ````typ
     #import "@preview/utraw:0.0.1": *
@@ -20,7 +21,15 @@
     ````,
   ),
 
+  uraw(
+    ```py
+    def greeting():
+        print("Hello to you!")
+    ```,
+  ),
+
   source(
+    width: 100%,
     ````typ
     #import "@preview/utraw:0.0.1": *
 
@@ -32,13 +41,4 @@
     )
     ````,
   ),
-)
-
-#set align(center)
-
-#uraw(
-  ```py
-  def greeting():
-      print("Hello to you!")
-  ```,
 )

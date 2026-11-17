@@ -4,15 +4,19 @@
 #show: format-doc
 
 #grid(
-  columns: 2,
-  column-gutter: 1cm,
+  columns: (1fr, auto),
+  column-gutter: 5mm,
   align: bottom,
 
   [
     #highlights.remove((ldel: "*:", rdel: ":*"), (ldel: "*!", rdel: "!*"))
     #source(
+      width: 100%,
       indent-size: 2,
       ````typ
+      The guard conditions are highlighted in yellow \
+      and the raised error is highlighted in red.
+
       ```py
       def greeting(name: str):
           if *:len(name) > 0:* and *:name[0].isupper():*:
@@ -20,9 +24,6 @@
           else:
               raise *!RuntimeError!*("Not a name.")
       ```
-
-      The guard conditions are highlighted in yellow \
-      and the raised error is highlighted in red.
       ````,
     )
     #highlights.add(highlights.base, highlights.alert())
@@ -31,6 +32,9 @@
   [
     #show: uraw
 
+    The guard conditions are highlighted in yellow \
+    and the raised error is highlighted in red.
+
     ```py
     def greeting(name: str):
         if *:len(name) > 0:* and *:name[0].isupper():*:
@@ -38,8 +42,5 @@
         else:
             raise *!RuntimeError!*("Not a name.")
     ```
-
-    The guard conditions are highlighted in yellow \
-    and the raised error is highlighted in red.
   ],
 )

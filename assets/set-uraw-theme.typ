@@ -4,11 +4,12 @@
 #show: format-doc
 
 #grid(
-  columns: 2,
-  column-gutter: 1cm,
+  columns: (1fr, auto),
+  column-gutter: 5mm,
   align: bottom,
 
   source(
+    width: 100%,
     indent-size: 2,
     ````typ
     #set-uraw(..themes.dark)

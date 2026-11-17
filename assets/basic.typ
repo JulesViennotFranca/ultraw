@@ -3,7 +3,7 @@
 #show: format-doc
 
 #grid(
-  columns: (7cm, 7cm, 7cm),
+  columns: (1fr, 1fr, 1fr),
   align: bottom + center,
 
   source(

@@ -109,11 +109,6 @@
   )
 }
 
-#let octique-marker(name, color: black) = move(dy: -.07em, octique(
-  name,
-  color: color,
-))
-
 #let alert(icon: "alert", color: black, body) = grid(
   columns: 2,
   column-gutter: 2mm,
@@ -181,7 +176,7 @@
     frame-inset: (bottom: 0pt, top: 2.5pt, x: 3pt),
     jump-fill: none,
     jump-marker: [],
-    jump-indent: "guideline",
+    jump-indent: true,
     footer-fill: white,
     footer-inset: (x: 5pt, y: 3pt),
     ..args,
@@ -321,7 +316,7 @@
     if label != none {
       markers.push((
         i,
-        link(std.label(label + "-" + arg), octique-marker(
+        link(std.label(label + "-" + arg), octique(
           "search",
           color: blue,
         )),

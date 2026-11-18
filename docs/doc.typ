@@ -17,7 +17,13 @@
 
 #highlights.add(
   highlights.box(),
-  (..highlights.box(color: olive), ldel: "*$", rdel: "$*", sticky: true),
+  (
+    ..highlights.box(color: olive),
+    ldel: "*$",
+    rdel: "$*",
+    sticky: true,
+    expand: none,
+  ),
   (
     ldel: "*b",
     rdel: "b*",
@@ -96,6 +102,7 @@
             line: (8, 12),
             fill: teal.transparentize(70%),
             stroke: teal.darken(30%),
+            radius: 3pt,
             expand: left,
           ),
           (line: 14, expand: center, fill: gradient.linear(..color.map.flare)),
@@ -150,7 +157,7 @@
           fill: orange.transparentize(80%),
         ),
       ),
-      markers: (15, octique-marker("alert", color: red)),
+      markers: (15, octique("alert", color: red)),
       comments: (
         (
           after: 4,
@@ -158,15 +165,15 @@
             style: "italic",
             olive,
           )[Safety condition to avoid out of bounds indices],
-          indent: "guideline",
-          marker: octique-marker("feed-issue-closed", color: olive),
+          indent: true,
+          marker: octique("feed-issue-closed", color: olive),
           marker-placement: "markers",
           fill: none,
         ),
         (
           after: 5,
           content: [Construction of `l`: #merge-diagram],
-          indent: "code",
+          marker: [],
         ),
         (
           after: 11,
@@ -177,13 +184,13 @@
           after: 19,
           content: [$O(h dot log(h))$],
           marker: octique-inline("stopwatch"),
-          indent: "guideline",
+          indent: true,
         ),
         (
           after: 20,
           content: [$O(h dot log(h))$],
           marker: octique-inline("stopwatch"),
-          indent: "guideline",
+          indent: true,
         ),
         (
           after: 21,
@@ -232,7 +239,7 @@
         before: 2,
         content: [`l` is returned directly when `merge` returns a copy:],
         version: "old",
-        indent: "line",
+        indent: true,
       ),
     ),
     ```py
@@ -458,7 +465,7 @@
     lang-tag-color: white,
     lang-tag-fill: lang-col,
     lang-tag-stroke: 2pt + lang-col,
-    markers: (2, octique-marker("star-fill", color: white)),
+    markers: (2, octique("star-fill", color: white)),
     ```typ
     #let my-box(body) = box(
       stroke: purple,
@@ -602,9 +609,8 @@ Each #urawf block can have a header and a footer. Like the headers and footers o
       from: 3,
       to: 9,
       comment: [`...,`],
-      marker: [],
       fill: none,
-      indent: "guideline",
+      indent: true,
       skip-lines: true,
     ),
     comments: (
@@ -801,11 +807,11 @@ You can define your own highlights by providing a left and a right delimiter and
     width: 100%,
     comments: (
       before: 8,
-      content: [Set both `ldel` and `rdel` with `del`.],
-      sep: none,
+      content: [Set both `ldel` and `rdel` with `del`:],
       fill: white,
       marker: octique("info"),
-      indent: "guideline",
+      indent: true,
+      separate: false,
     ),
     ````typ
     #highlights.add(
@@ -949,7 +955,7 @@ Comments are content blocks inserted between lines of code. They are defined loc
       numbers-sep: black,
       comments: (
         (1, [After line 1, from the frame.]),
-        (before: 3, content: [Before line 3, at indentation.], indent: "guideline", sep: olive),
+        (before: 3, content: [Before line 3, at indentation.], indent: true, separate: olive),
         (
           after: 4,
           content: [With a marker, no style and no background.],
@@ -977,8 +983,8 @@ Comments are content blocks inserted between lines of code. They are defined loc
       (
         before: 3,
         content: [Before line 3, at indentation.],
-        indent: "guideline",
-        sep: olive,
+        indent: true,
+        separate: olive,
       ),
       (
         after: 4,
@@ -998,7 +1004,7 @@ Comments are content blocks inserted between lines of code. They are defined loc
 }))
 
 #alert(icon: "info")[
-  The numbers column's separator is automatically drawn in the comment when a `marker` is given. So if you want this behavior without a marker, simply set `marker: []`.
+  A comment starts at the code when it has a `marker` (e.g. the third comment of the example above). So if you want this behavior without a marker, simply set `marker: []`.
 ]
 
 = Jumps <jumps>
@@ -1015,7 +1021,7 @@ Jumps enable one to skip some line numbers and possibly skip corresponding raw t
     #uraw(
       jumps: (
         (1, 6),
-        (from: 7, to: 11, comment: $dots.v$, indent: "line"),
+        (from: 7, to: 11, comment: $dots.v$, indent: true),
       ),
       ```py
       def main():
@@ -1266,7 +1272,7 @@ The factorial algorithm is defined in @fact-algo. Its implementation is shown in
   ..themes.note,
   width: 100%,
   lang-tag-name: "source",
-  read-code(path("doc.typ"), lang: "typ", from: 1265, to: 1270),
+  read-code(path("doc.typ"), lang: "typ", from: 1271, to: 1276),
 )
 // TODO make sure this is right at the end
 
@@ -1479,14 +1485,14 @@ To enable fast access to common and unambiguous parameters, some arguments can b
   (
     5,
     [
-      Each comment is given as `(line, content)` (the comment is displayed after the line) or a dictionary with `after` / `before` indicating the targeted line, `content`, and styling parameters (`style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see #link(<set-uraw-lib>)[`set-uraw`] for more details).
+      Each comment is given as `(line, content)` (the comment is displayed after the line) or a dictionary with `after` / `before` indicating the targeted line, `content`, and styling parameters (`style`, `indent`, `fill`, `separate`, `marker`, `marker-fill`, `marker-placement`, see #link(<set-uraw-lib>)[`set-uraw`] for more details).
     ],
   ),
 
   (
     6,
     [
-      Each jump is given as `(from, to)` or a dictionary with `from`, `to`, whether to `skip-lines (bool)` of the raw text, and the associated comment parameters (`comment`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see #link(<set-uraw-lib>)[`set-uraw`] for more details). `from` and `to` take integer values or `start` and `end`.
+      Each jump is given as `(from, to)` or a dictionary with `from`, `to`, whether to `skip-lines (bool)` of the raw text, and the associated comment parameters (`comment`, `indent`, `fill`, `separate`, `marker`, `marker-fill`, `marker-placement`, see #link(<set-uraw-lib>)[`set-uraw`] for more details). `from` and `to` take integer values or `start` and `end`.
     ],
   ),
 
@@ -1604,9 +1610,9 @@ To enable fast access to common and unambiguous parameters, some arguments can b
         ),
         ***comment***: (
           style *htfunctionht*: text.with(style: "italic"),
-          indent *htstrht*: "frame",
+          indent *htboolht*: false,
           fill *htcolor gradient tiling noneht*: luma(245),
-          sep *htlength color gradient stroke tiling dictionary noneht*: none,
+          separate *htbool length color gradient stroke tiling dictionary auto noneht*: false,
           marker *htcontent noneht*: none,
           marker-fill *htcolor gradient tiling auto noneht*: auto,
           marker-placement *htstrht*: "numbers",
@@ -1614,9 +1620,9 @@ To enable fast access to common and unambiguous parameters, some arguments can b
         ***jump***: (
           comment *htcontent function noneht*: none,
           style *htfunction autoht*: auto,
-          indent *htstr autoht*: auto,
+          indent *htbool autoht*: auto,
           fill *htcolor gradient tiling auto noneht*: auto,
-          sep *htlength color gradient stroke tiling dictionary auto noneht*: auto,
+          separate *htbool length color gradient stroke tiling dictionary auto noneht*: auto,
           marker *htcontent auto noneht*: auto,
           marker-fill *htcolor gradient tiling auto noneht*: auto,
           marker-placement *htstr autoht*: auto,
@@ -1963,19 +1969,19 @@ To enable fast access to common and unambiguous parameters, some arguments can b
         (
           76,
           "comment-indent",
-          [`"frame"` to align with the left of the frame; `"code"` to start at the same left inset as the code; `"line"` to have the same indentation as the targeted line; `"guideline"` to further draw indentation lines in the comment.],
+          [Whether the comment inherits the indentation of the targeted line.],
         ),
 
         (
           77,
           "comment-fill",
-          [The background color of the comment, `none` is the same as the frame's background color.],
+          [The background color of the comment, `none` is the same as the background color of the targeted line.],
         ),
 
         (
           78,
-          "comment-sep",
-          [The separators at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side; if it is not a dictionary, the style applies to both separators.],
+          "comment-separate",
+          [Whether the comment is separated from the code: `false` lets the numbers column's separator and guidelines pass over the comment; other values draw a separator at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side (`none` for no separator, `true` or `auto` for the separator of the numbers column), the style applies to both separators if it is not a dictionary.],
         ),
 
         (
@@ -2022,8 +2028,8 @@ To enable fast access to common and unambiguous parameters, some arguments can b
 
         (
           88,
-          "jump-sep",
-          [As for `comment-sep`, `auto` being the same as `comment-sep`.],
+          "jump-separate",
+          [As for `comment-separate`, `auto` being the same as `comment-separate`.],
         ),
 
         (
@@ -2439,7 +2445,7 @@ To enable fast access to common and unambiguous parameters, some arguments can b
 
   (
     2,
-    [The settings of the comment (`style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, see #link(<set-uraw-pseudo-lib>)[`set-uraw-pseudo`]).],
+    [The settings of the comment (`style`, `indent`, `fill`, `separate`, `marker`, `marker-fill`, see #link(<set-uraw-pseudo-lib>)[`set-uraw-pseudo`]).],
   ),
 
   (

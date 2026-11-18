@@ -242,6 +242,7 @@
         )
 
         // Each version: its markers, numbers and highlights
+        let char-height = measure("#").height
         let versions = (:)
         for v in ("old", "new") {
           let n = numbers.at(v)
@@ -254,6 +255,7 @@
             ),
             marker-comments.at(v),
             marker,
+            char-height,
           )
           // (the column of the markers is wide enough for the widest markers of the preceding and following blocks, the marker column being shown)
           if marker.over-numbers {
@@ -616,7 +618,7 @@
           footer,
           if lang-tag.visible and lang-tag.in-code { lang-tag.block },
           char-width,
-          measure("#").height,
+          char-height,
         )
 
         let frame-block = block(
@@ -695,9 +697,9 @@
 ///
 /// - highlights (array, dictionary): Each highlight targets a `version` and the range it covers is given either by `line` or `start` and `end`. `line` can take a single line number or a pair `(from, to)`. `start` and `end` both can take a single line number (meaning the start and end of that line) or a pair `(line, character)` to point at an exact code location. Each highlight can have specific styling parameters (`fill`, `stroke`, `radius`, `code-style`, `sticky`, `expand`, see `set-uraw` for more details).
 ///
-/// - comments (array, dictionary): Each comment is given as `(version, line, content)` (the comment is displayed after the line) or a dictionary with `version`, `after` / `before` indicating the targeted line, `content`, and styling parameters (`style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details). Additionally, comments can `span` over both code versions (see `set-uraw-diff` for more details).
+/// - comments (array, dictionary): Each comment is given as `(version, line, content)` (the comment is displayed after the line) or a dictionary with `version`, `after` / `before` indicating the targeted line, `content`, and styling parameters (`style`, `indent`, `fill`, `separate`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details). Additionally, comments can `span` over both code versions (see `set-uraw-diff` for more details).
 ///
-/// - jumps (array, dictionary): Each jump is given as `(version, from, to)` or a dictionary with `version`, `from`, `to`, whether to `skip-lines (bool)` of the raw text of the version, and the associated comment parameters (`comment`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details, and the additional `span` parameter, see `set-uraw-diff` for more details). `from` and `to` take integer values or `start` and `end`.
+/// - jumps (array, dictionary): Each jump is given as `(version, from, to)` or a dictionary with `version`, `from`, `to`, whether to `skip-lines (bool)` of the raw text of the version, and the associated comment parameters (`comment`, `indent`, `fill`, `separate`, `marker`, `marker-fill`, `marker-placement`, see `set-uraw` for more details, and the additional `span` parameter, see `set-uraw-diff` for more details). `from` and `to` take integer values or `start` and `end`.
 ///
 /// - follows (bool, int, content, array, dictionary): Whether the block continues a previous one; it then renders as after a page break (no top radius, no top stroke, etc.). For a correct numbering and to display the accurate width of the numbers column, an integer value represents the last line of the preceding block, content is the widest marker of the preceding blocks (the marker column being shown and made wide enough for it), and a pair `(number, marker)` gives both. This can be specific to each version by giving an `(old: ..., new: ...)` dictionary.
 ///

@@ -372,16 +372,18 @@
   return marker
 }
 
-/// Split the markers between the number column and the marker column, the marker column being visible when it has a marker.
-///
-/// - line-markers (array): The marker of each line (`none` if it has none).
-/// - comments (array): The formatted comments, whose marker is placed in the column given by their `placement`.
-/// - marker (dictionary): The marker column parameters.
-/// -> array
-#let markers(line-markers, comments, marker) = {
+#let single-marker(marker, char-height) = if marker != none {
+  box(
+    height: char-height,
+    align(horizon, marker),
+  )
+}
+
+#let markers(line-markers, comments, marker, char-height) = {
+  let line-markers = line-markers.map(m => single-marker(m, char-height))
   let comment-markers(placement) = comments
     .filter(c => c.marker != none and c.marker-placement == placement)
-    .map(c => c.marker)
+    .map(c => single-marker(c.marker, char-height))
 
   // The markers in the number column (by line), and all of them
   let number-markers = line-markers.map(m => if marker.over-numbers { m })
@@ -851,15 +853,24 @@
 #let single-comment(comment, gap, key, numbers, code, base-style, with-dst) = {
   let comment = comment + (gap: gap, key: key)
 
-  // The separators above and below the comment (drawn only against code lines)
-  let sep = comment.at("sep", default: none)
-  sep = if sep == auto { numbers.sep } else { sep }
+  // A comment separated from the code (`separate` is not `false`) is drawn over it, with its separators above and below (drawn only against code lines and comments without separator on the shared side); otherwise it is drawn under the code, whose numbers separator and guidelines go through it
+  let sep = comment.at("separate", default: false)
+  comment.separated = sep != false
+  if sep == false { sep = none } else if sep == true or sep == auto {
+    sep = numbers.sep
+  }
   let per-side = (
     type(sep) == dictionary
       and sep.len() > 0
       and sep.keys().all(k => k in ("top", "bottom"))
   )
-  if not per-side { sep = (top: sep, bottom: sep) }
+  if per-side {
+    sep = sep.map(s => (
+      if s == true { numbers.sep } else if s == false { none } else { s }
+    ))
+  } else {
+    sep = (top: sep, bottom: sep)
+  }
   comment.sep = (
     top: with-dst(sep.at("top", default: none)),
     bottom: with-dst(sep.at("bottom", default: none)),
@@ -867,13 +878,13 @@
   for s in comment.sep.values() {
     assert(
       s == none or type(s) == stroke,
-      message: "The `sep` of a comment must be `none`, a stroke or a dictionary with a `top` and a `bottom` stroke.",
+      message: "The `separate` setting of a comment must be a boolean, `auto`, `none`, a stroke or a dictionary with a `top` and a `bottom` stroke.",
     )
   }
 
   assert(
-    comment.indent in ("frame", "code", "line", "guideline"),
-    message: "The `indent` of a comment must be \"frame\", \"code\", \"line\" or \"guideline\".",
+    type(comment.indent) == bool,
+    message: "The `indent` of a comment must be a boolean.",
   )
   assert(
     comment.marker-placement in ("numbers", "markers"),
@@ -881,17 +892,22 @@
   )
   // Without numbers, the marker is in the marker column
   if not numbers.visible { comment.marker-placement = "markers" }
+  // Under the code, an indented comment shows the numbers separator: it gets an empty marker, its part in the gutter being then a marker cell
+  if not comment.separated and comment.indent and comment.marker == none {
+    comment.marker = []
+  }
+  // The numbers separator is drawn beside the marker of a comment under the code
+  comment.gutter-sep = not comment.separated and comment.marker != none
   // A comment with a marker starts after the gutter, so at the start of the code
-  comment.in-code = comment.indent != "frame" or comment.marker != none
-  comment.to-indent = comment.indent == "guideline"
-  comment.indented = comment.indent in ("line", "guideline")
+  comment.in-code = comment.indent or comment.marker != none
+  comment.indented = comment.indent
+  comment.to-indent = comment.indent and not comment.separated
 
-  // Without fill, the comment looks like the code, so its marker like the numbers
-  if comment.fill == none and comment.marker-fill == auto {
+  // Without fill, the comment looks like the commented line: it takes its background (given when rendering), and its marker the one of its number
+  comment.filled = comment.fill != none
+  if not comment.filled and comment.marker-fill == auto {
     comment.marker-fill = none
   }
-  // (`none` for the fill of the frame, when it is not filled itself)
-  if comment.fill == none { comment.fill = code.frame-fill }
 
   let body = comment.content
   if comment.style != none { body = (comment.style)(body) }

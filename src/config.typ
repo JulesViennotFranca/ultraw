@@ -525,9 +525,9 @@
 ///
 ///   - *comment* default styling parameters for comments
 ///     - `style (function) = text.with(style: "italic")` a basic style to apply to the content of all comments
-///     - `indent ("frame" | "code" | "line" | "guideline") = "frame"` `"frame"` to align with the left of the frame; `"code"` to start at the same left inset as the code; `"line"` to have the same indentation as the targeted line; `"guideline"` to further draw indentation lines in the comment
-///     - `fill (color | gradient | tiling | none) = luma(245)` the background color of the comment, `none` is the same as the frame's background color
-///     - `sep (length | color | gradient | stroke | tiling | dictionary: (top: ..., bottom: ...) | none) = none` the separators at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side; if it is not a dictionary, the style applies to both separators
+///     - `indent (bool) = false` whether the comment inherits the indentation of the targeted line
+///     - `fill (color | gradient | tiling | none) = luma(245)` the background color of the comment, `none` is the same as the background color of the targeted line
+///     - `separate (bool | length | color | gradient | stroke | tiling | dictionary: (top: ..., bottom: ...) | auto | none) = false` whether the comment is separated from the code: `false` lets the numbers column's separator and guidelines pass over the comment; other values draw a separator at the `top` or `bottom` between the code and other comments that don't have a separator on the shared side (`none` for no separator, `true` or `auto` for the separator of the numbers column), the style applies to both separators if it is not a dictionary
 ///     - `marker (content | none) = none` the marker of the comment
 ///     - `marker-fill (color | gradient | tiling | auto | none) = auto` the background color of the comment's marker, `auto` is the comment's background color, `none` is the numbers column background color
 ///     - `marker-placement ("numbers" | "markers") = "numbers"` the placement of the marker inside the numbers column: in the space reserved for `"numbers"` or for #(" ")
@@ -535,7 +535,7 @@
 ///
 ///   - *jump* default styling parameters for jumps
 ///     - `comment (content | function | none) = none` the default comment content associated with jumps, a function taking the bounds of the jump `from` and `to` as arguments
-///     - `style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, `marker-placement` as for `comment`, `auto` is the default value for all of these and it means taking the corresponding `comment` #(" ")
+///     - `style`, `indent`, `fill`, `separate`, `marker`, `marker-fill`, `marker-placement` as for `comment`, `auto` is the default value for all of these and it means taking the corresponding `comment` #(" ")
 ///   parameter
 ///
 ///   - *diff* the settings of diffs, as for `set-uraw-diff`

@@ -11,7 +11,7 @@
 /// Write a comment in pseudo code, between the lines where it is written.
 ///
 /// - body (content): The content of the comment.
-/// - args (arguments): The settings of the comment (`style`, `indent`, `fill`, `sep`, `marker`, `marker-fill`, see `set-uraw-pseudo`).
+/// - args (arguments): The settings of the comment (`style`, `indent`, `fill`, `separate`, `marker`, `marker-fill`, see `set-uraw-pseudo`).
 /// -> content
 #let pseudo-comment(body, ..args) = {
   assert(
@@ -38,9 +38,9 @@
 /// - body (content): The information.
 /// -> content
 #let pseudo-info(body) = pseudo-comment(
-  indent: "frame",
+  indent: false,
   fill: none,
-  sep: none,
+  separate: false,
   marker: none,
   style: none,
   body,
@@ -155,6 +155,7 @@
           lines.map(_ => none),
           comments,
           marker,
+          auto,
         )
         let insets = formatting.cell-insets(
           frame,

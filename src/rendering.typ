@@ -276,6 +276,15 @@
   )
 }
 
+/// Half the thickness of a stroke (`0pt` for `none`).
+///
+/// - s (stroke, none):
+/// -> length
+#let half-thickness(s) = {
+  let t = if s != none { std.stroke(s).thickness }
+  if t == none or t == auto { 0pt } else { t / 2 }
+}
+
 /// Create a comment cell.
 ///
 /// - c (dictionary): The comment.
@@ -283,6 +292,7 @@
 /// - radius (radius):
 /// - stroke (stroke):
 /// - sep (dictionary): The separators drawn on the top and bottom sides (inside the cell).
+/// - sep-start (length, auto): The horizontal start of the separators, relative to the cell (before it to cross the marker cells), inside the left stroke of the cell by default.
 /// - overlap (length): The height of the bottom of the cell covered by the next row.
 /// -> block
 #let comment-cell(
@@ -293,6 +303,7 @@
   indentation,
   char-width,
   sep: (top: none, bottom: none),
+  sep-start: auto,
   overlap: 0pt,
 ) = {
   block(
@@ -310,16 +321,15 @@
   )
 
   // The separators, inside the visible part of the cell (and inside the frame strokes on its sides)
-  let half(side) = {
-    let s = if type(stroke) == dictionary { stroke.at(side, default: none) }
-    let t = if s != none { std.stroke(s).thickness }
-    if t == none or t == auto { 0pt } else { t / 2 }
-  }
+  let half(side) = half-thickness(if type(stroke) == dictionary {
+    stroke.at(side, default: none)
+  })
+  let start = if sep-start == auto { half("left") } else { sep-start }
   for (side, s) in sep.pairs().filter(((_, s)) => s != none) {
     let t = if s.thickness == auto { 1pt } else { s.thickness }
     let y = if side == "top" { t / 2 } else { height - overlap - t / 2 }
     place(left + top, line(
-      start: (half("left"), y),
+      start: (start, y),
       end: (c.width - half("right"), y),
       stroke: s,
     ))
@@ -487,13 +497,25 @@
   column-widths.push(code.inset.left + code-width + code.inset.right)
   // Wether there are columns before the code (the first one takes the left side of the frame)
   let has-side = number.visible or marker.visible
+  let gutter-width = column-widths.slice(0, -1).sum(default: 0pt)
 
   // Order the code lines and the comments
 
-  let rows = comments.at(0).map(c => (kind: "comment", comment: c))
+  // The commented line: the line before for a comment after it, the line after otherwise
+  let commented(c) = calc.clamp(
+    if c.copy-before { c.gap - 1 } else { c.gap },
+    0,
+    nl - 1,
+  )
+  // (a comment without fill takes the background of the commented line)
+  let comment-row(c) = (
+    kind: "comment",
+    comment: if c.filled { c } else { c + (fill: (code.fill)(commented(c))) },
+  )
+  let rows = comments.at(0).map(comment-row)
   for i in range(nl) {
     rows.push((kind: "code", i: i))
-    rows += comments.at(i + 1).map(c => (kind: "comment", comment: c))
+    rows += comments.at(i + 1).map(comment-row)
   }
   let nr = rows.len()
 
@@ -740,15 +762,10 @@
             ),
           )
         } else {
-          // The commented line: the line before for a comment after it, the line after otherwise
-          let k = calc.clamp(
-            if c.copy-before { c.gap - 1 } else { c.gap },
-            0,
-            nl - 1,
-          )
-          let fill = if c.marker-fill == auto {
-            c.fill
-          } else if c.marker-fill == none {
+          let k = commented(c)
+          let fill = if c.marker-fill == auto { c.fill } else if (
+            c.marker-fill == none
+          ) {
             // (the number fill of the commented line)
             (number.fill)(k)
           } else { c.marker-fill }
@@ -765,21 +782,21 @@
               fill,
               in-number,
             )
-              + (
-                with-sep(
-                  comment-cell(
-                    c,
-                    height,
-                    code-radius(r),
-                    code-stroke(r),
-                    code.indentation,
-                    char-width,
-                    sep: comment-sep(r, c),
-                    overlap: overlap(r),
-                  ),
+              + {
+                let cell = comment-cell(
+                  c,
                   height,
-                ),
-              )
+                  code-radius(r),
+                  code-stroke(r),
+                  code.indentation,
+                  char-width,
+                  sep: comment-sep(r, c),
+                  // (crossing the marker cells, before the comment cell)
+                  sep-start: -gutter-width + half-thickness(frame.stroke.left),
+                  overlap: overlap(r),
+                )
+                (if c.gutter-sep { with-sep(cell, height) } else { cell },)
+              }
           )
         }
       }
@@ -1180,7 +1197,6 @@
 
   // A comment in the columns of a version from `from` (with the gutter of the separated new code) to `to` (the code by default), its marker being in the gutter of the version, its text being shifted by `shift` (the gutter of the separated new code by default)
   let comment-cells(v, c, k, from, r, height, extra, to: auto, shift: auto) = {
-    // The separators, only against the code lines (of the version of the comment, when the codes are separated)
     // The separators: against the code lines and the comments without separator on this side (of the version of the comment, when the codes are separated)
     let separated(q, side) = {
       if q < 0 or q >= nr { return false }
@@ -1197,12 +1213,25 @@
       bottom: if separated(r + 1, "top") { c.sep.bottom },
     )
     let to = if to == auto { key(v, "code") } else { to }
+    let first-code-key = if diff-marker.visible { key(v, "diff-marker") } else {
+      key(v, "code")
+    }
     // (a comment with a marker starts at the code, after the gutter of the separated new code)
     let shift = if shift != auto { shift } else if (
       from == "new-gutter" and c.marker == none
     ) { gutter } else { 0pt }
     let c = c + (inset: ut.grow-inset(c.inset, extra))
     c.inset.left += shift
+    // The commented line: the line before for a comment after it, the line after otherwise
+    let cv = c.version
+    let i = calc.clamp(
+      if c.copy-before { c.gap - 1 } else { c.gap },
+      0,
+      versions.at(cv).status.len() - 1,
+    )
+    let ck = line-keys.at(cv).at(str(i), default: k)
+    // (a comment without fill takes the background of the commented line)
+    if not c.filled { c.fill = code-fill(cv, i, ck) }
     if c.marker == none {
       let f = framing(r, from, to)
       c.width = width-between(from, to)
@@ -1219,14 +1248,6 @@
       )
     }
 
-    // The commented line: the line before for a comment after it, the line after otherwise
-    let cv = c.version
-    let i = calc.clamp(
-      if c.copy-before { c.gap - 1 } else { c.gap },
-      0,
-      versions.at(cv).status.len() - 1,
-    )
-    let ck = line-keys.at(cv).at(str(i), default: k)
     let fill = if c.marker-fill == auto { c.fill } else if (
       c.marker-fill == none
     ) { number-fill(cv, i, ck) } else { c.marker-fill }
@@ -1267,24 +1288,29 @@
         framing(r, key(v, "markers"), key(v, "markers")),
       ))
     }
-    let first-code-key = if diff-marker.visible { key(v, "diff-marker") } else {
-      key(v, "code")
+    // The width of the marker cells, and the stroke on their left
+    let gutter-width = (
+      width-between(from, to) - width-between(first-code-key, to)
+    )
+    let left-stroke = if from == "new-gutter" { general.sep } else {
+      framing(r, from, to).stroke.at("left", default: none)
     }
     let f = framing(r, first-code-key, to)
     c.width = width-between(first-code-key, to)
-    cells.push(cell(first-code-key, to, with-sep(
-      v,
-      comment-cell(
-        c,
-        height,
-        f.radius,
-        f.stroke,
-        code.indentation,
-        char-width,
-        sep: sep,
-      ),
+    let body = comment-cell(
+      c,
       height,
-    )))
+      f.radius,
+      f.stroke,
+      code.indentation,
+      char-width,
+      sep: sep,
+      // (crossing the marker cells, before the comment cell)
+      sep-start: -gutter-width + half-thickness(left-stroke),
+    )
+    cells.push(cell(first-code-key, to, if c.gutter-sep {
+      with-sep(v, body, height)
+    } else { body }))
     cells
   }
 

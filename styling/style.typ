@@ -200,7 +200,7 @@
     )
   }
   if code {
-    jump += (comment: $dots.v$, indent: jump.at("indent", default: "line"))
+    jump += (comment: $dots.v$, indent: jump.at("indent", default: true))
   }
   return jump
 }

@@ -82,9 +82,9 @@
   ),
   comment: (
     style: text.with(style: "italic"),
-    indent: "frame",
+    indent: false,
     fill: luma(245),
-    sep: none,
+    separate: false,
     marker: none,
     marker-fill: auto,
     marker-placement: "numbers",
@@ -94,7 +94,7 @@
     style: auto,
     indent: auto,
     fill: auto,
-    sep: auto,
+    separate: auto,
     marker: auto,
     marker-fill: auto,
     marker-placement: auto,
@@ -171,8 +171,8 @@
   frame: (fill: luma(250), stroke: black, inset: (x: 3pt, y: 2.5pt)),
   lang-tag: (fill: auto, placement: "top-right"),
   highlight: (stroke: none, radius: 0pt),
-  comment: (style: it => it, sep: auto),
-  jump: (sep: none),
+  comment: (style: it => it, separate: true),
+  jump: (separate: false),
   diff: (general: (blank-fill: hatch(black), sep: black)),
 )
 
@@ -258,9 +258,9 @@
   ),
   comment: (
     style: text.with(style: "italic"),
-    indent: "line",
+    indent: true,
     fill: luma(245),
-    sep: none,
+    separate: false,
     marker: none,
     marker-fill: auto,
   ),

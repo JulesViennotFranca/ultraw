@@ -28,7 +28,9 @@ By default only the base (`*:...:*`) and alert (`*!...!*`) highlights are availa
 
 ## Markers, comments, jumps
 
-Markers (lying in the numbers column), comments (between lines of code) and jumps (skiping numbers and possibly raw text lines) are available. Here are some examples:
+Markers (lying in the numbers column), comments (between lines of code) and jumps (skiping numbers and possibly raw text lines) are available. Here is a complete example showing them:
+
+![markers-comments-jumps](assets/markers-comments-jumps.png)
 
 ## More styling
 

@@ -7,9 +7,6 @@
 // Document states
 // -----------------------------------------------------------------------------
 
-/// The label of the figure being laid out, used to label the lines of the code it contains.
-#let uraw-figure = state("uraw-figure", none)
-
 /// The styles outside of the raw environments (one per nested uraw call), used by the headers, footers, and comments.
 #let uraw-style = state("uraw-style", ())
 

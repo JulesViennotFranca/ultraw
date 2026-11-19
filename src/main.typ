@@ -8,8 +8,6 @@
 #import "utils.typ" as ut
 
 
-#let uraw-figure = cf.uraw-figure
-
 /// Whether a figure is turned into an algorithm: it is a figure of image kind (the kind of figures whose kind cannot be detected) containing pseudo code with the `algorithm-figure` setting.
 #let is-algorithm-figure(fig, at: none) = {
   if fig.func() != figure or fig.kind != image { return false }
@@ -543,12 +541,21 @@
 
   /// The show rules displaying the raw blocks, with the function giving the text style of the headers, footers, and comments.
   let with-base-style(base-style) = {
-    // Remember the label of the figure containing the code
-    show figure: it => if it.has("label") {
-      uraw-figure.update(it.label)
-      it
-      uraw-figure.update(none)
-    } else {
+    // The lines of the code in a labeled figure are labeled after it: their anchors become references `<figure-label.n>`
+    // (by a show rule rather than a state, so that the labels never depend on the layout)
+    let label-lines(fig-label, body) = {
+      show <uraw-line-anchor>: a => {
+        let line = a.value.uraw-line-anchor
+        [#metadata((uraw-line-ref: line + (figure: fig-label)))#label(
+            str(fig-label)
+              + if line.version != none { "." + line.version }
+              + "."
+              + str(line.number),
+          )]
+      }
+      body
+    }
+    show figure: it => if it.has("label") { label-lines(it.label, it) } else {
       it
     }
 
@@ -557,9 +564,7 @@
     show figure.where(kind: "algorithm"): set figure(supplement: [Algorithm])
     show figure.where(kind: image): it => if is-algorithm-figure(it) {
       let fields = it.fields()
-      // The lines are labeled after the replaced figure, which is the one referenced
-      if it.has("label") { uraw-figure.update(it.label) }
-      figure(
+      let alg = figure(
         it.body,
         kind: "algorithm",
         caption: if it.caption != none { it.caption.body },
@@ -568,9 +573,10 @@
           .map(key => (key, fields.at(key)))
           .to-dict(),
       )
+      // The lines are labeled after the replaced figure, which is the one referenced
+      if it.has("label") { label-lines(it.label, alg) } else { alg }
       // The replaced figure is not an image
       counter(figure.where(kind: image)).update(n => n - 1)
-      if it.has("label") { uraw-figure.update(none) }
     } else {
       it
     }

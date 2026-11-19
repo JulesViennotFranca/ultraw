@@ -16,8 +16,6 @@ The `set-uraw` function enables changing the settings of `uraw` globally, for ex
 
 ![set-uraw-theme](assets/set-uraw-theme.png)
 
-## Highlights
-
 **`ultraw`** provides a lightweight, quick and robust way to highlight raw text by typing highlights delimiters right inside the raw block:
 
 ![highlights1](assets/highlights1.png)
@@ -26,26 +24,24 @@ By default only the base (`*:...:*`) and alert (`*!...!*`) highlights are availa
 
 ![highlights2](assets/highlights2.png)
 
-## Markers, comments, jumps
-
 Markers (lying in the numbers column), comments (between lines of code) and jumps (skiping numbers and possibly raw text lines) are available. Here is a complete example showing them:
 
 ![markers-comments-jumps](assets/markers-comments-jumps.png)
-
-## More styling
 
 More styling is available for a complete look customization:
 
 ![more-styling](assets/more-styling.png)
 
-## Diffs
-
 Diffs are defined with the `uraw-diff` function that automatically produces the diff between two codes. By default it has the same theme as `uraw` and support more styling options (settable via `set-uraw-diff`). Here is an example:
 
 ![diffs](assets/diffs.png)
 
-## Pseudo code
+Writing pseudo code is also possible with **`ultraw`** with the `uraw-pseudo` function. It enables defining pseudo code as ordered lists (with `+`):
 
-## More features, themes, styling
+![pseudo](assets/pseudo.png)
+
+Lines of `uraw`, `uraw-diff` and `uraw-pseudo` outputs inside labeled figures can be referenced **if** `#show: uraw` formats the document.
+
+## Documentation
 
 Look at the complete [Documentation](https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf) for more cool features.

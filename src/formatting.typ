@@ -204,20 +204,17 @@
   return number
 }
 
-#let add-line-label(n, line-reference, version: none) = {
-  let figure-label = cf.uraw-figure.get()
-  if figure-label != none and line-reference != none {
-    [#metadata((
-        uraw-line-ref: (
-          figure: figure-label,
-          number: n,
-          reference: line-reference,
-          version: version,
-        ),
-      ))#label(
-        str(figure-label) + if version != none { "." + version } + "." + str(n),
-      )]
-  }
+// The anchor of a line, labeled after the figure containing the code (if any) by its show rule
+#let add-line-label(n, line-reference, version: none) = if (
+  line-reference != none
+) {
+  [#metadata((
+      uraw-line-anchor: (
+        number: n,
+        reference: line-reference,
+        version: version,
+      ),
+    ))<uraw-line-anchor>]
 }
 
 /// The shown line number, with the number format applied.

@@ -40,4 +40,12 @@ More styling is available for a complete look customization:
 
 ## Diffs
 
+Diffs are defined with the `uraw-diff` function that automatically produces the diff between two codes. By default it has the same theme as `uraw` and support more styling options (settable via `set-uraw-diff`). Here is an example:
+
+![diffs](assets/diffs.png)
+
 ## Pseudo code
+
+## More features, themes, styling
+
+Look at the complete [Documentation](https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf) for more cool features.

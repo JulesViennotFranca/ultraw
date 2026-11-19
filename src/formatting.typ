@@ -1392,10 +1392,12 @@
   ops + range(q).map(k => ("=", n - q + k, m - q + k))
 }
 
-// The words, spaces and symbols of a line, with their positions in characters
+// The tokens of a line, with their positions in characters: the separating characters (one token each), the words, the spaces and the chains of other symbols
 #let tokenize(s) = (
   s
-    .matches(regex("\\w[\\w']*|\\s+|[^\\w\\s]+"))
+    .matches(regex(
+      "[\",;_\\-(){}\\[\\]']|[^\\W_]+|\\s+|[^\\w\\s\",;\\-(){}\\[\\]']+",
+    ))
     .map(m => {
       let start = ct.text-len(s.slice(0, m.start))
       (text: m.text, start: start, end: start + ct.text-len(m.text))

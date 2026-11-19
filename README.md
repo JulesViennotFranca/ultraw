@@ -34,15 +34,10 @@ Markers (lying in the numbers column), comments (between lines of code) and jump
 
 ## More styling
 
-Code, numbers, header & footer, frame, lang-tag
+More styling is available for a complete look customization:
+
+![more-styling](assets/more-styling.png)
 
 ## Diffs
 
 ## Pseudo code
-
-## Themes
-
-## TODO
-
-- show diff, pseudo code
-- show markers, highlights, comments, etc

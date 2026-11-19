@@ -445,8 +445,8 @@
 /// The following two calls are equivalent:
 ///
 /// #example(`
-/// #set-uraw(code: (fill: purple.transparentize(80%)))
-/// #set-uraw(code-fill: purple.transparentize(80%))
+/// #set-uraw(code: (fill: aqua, indentation: blue))
+/// #set-uraw(code-fill: aqua, code-indentation: blue)
 /// `)
 ///
 /// To have a better view of all the possible parameters, it is recommended to read the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs].
@@ -597,8 +597,8 @@
 /// The following two calls are equivalent:
 ///
 /// #example(`
-/// #set-uraw-pseudo(code: (fill: purple.transparentize(80%)))
-/// #set-uraw-pseudo(code-fill: purple.transparentize(80%))
+/// #set-uraw-pseudo(code: (fill: aqua, indentation: blue))
+/// #set-uraw-pseudo(code-fill: aqua, code-indentation: blue)
 /// `)
 ///
 /// To have a better view of all the possible parameters, it is recommended to read the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs].
@@ -682,8 +682,8 @@
 /// The following two calls are equivalent:
 ///
 /// #example(`
-/// #set-uraw-diff(code: (fill: purple.transparentize(80%)))
-/// #set-uraw-diff(code-fill: purple.transparentize(80%))
+/// #set-uraw-diff(code: (fill: aqua, indentation: blue))
+/// #set-uraw-diff(code-fill: aqua, code-indentation: blue)
 /// `)
 ///
 /// To have a better view of all the possible parameters, it is recommended to read the #link("https://github.com/JulesViennotFranca/ultraw/blob/main/docs/doc.pdf")[Docs].

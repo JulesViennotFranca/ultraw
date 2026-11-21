@@ -58,7 +58,7 @@
 
   #v(5mm)
 
-  A Typst package for beautiful `raw` text.
+  A Typst package customizing code blocks with highlights, comments, diffs and pseudo code.
 
   #text(14pt, strong("Version " + uraw-version))
 ]
@@ -146,7 +146,7 @@
 
     uraw(
       ..themes.window,
-      header: style.window-header[The Merge Sort algorithm in python.],
+      header: style.window-header[The Merge Sort algorithm in Python.],
       line-spacing: 0.8em,
       lang-tag-fill: blue.lighten(75%),
       highlights: (
@@ -164,7 +164,7 @@
           content: text(
             style: "italic",
             olive,
-          )[Safety condition to avoid out of bounds indices],
+          )[Safety condition to avoid out-of-bounds indices],
           indent: true,
           marker: octique("feed-issue-closed", color: olive),
           marker-placement: "markers",

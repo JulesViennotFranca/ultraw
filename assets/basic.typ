@@ -10,7 +10,7 @@
     width: 100%,
     indent-size: 2,
     ````typ
-    #import "@preview/utraw:0.0.1": *
+    #import "@preview/ultraw:0.0.1": *
 
     #show: uraw
 
@@ -31,7 +31,7 @@
   source(
     width: 100%,
     ````typ
-    #import "@preview/utraw:0.0.1": *
+    #import "@preview/ultraw:0.0.1": *
 
     #uraw(
       ```py

@@ -14,7 +14,7 @@
       indent-size: 2,
       ````typ
       // Set the default highlight parameters:
-      #set-uraw(highlight: (:..highlights.box(color: red)))
+      #set-uraw(highlight: highlights.box(color: red))
       #uraw(
         highlights: (
           (line: (2, 3), fill: aqua.transparentize(70%), stroke: none),
@@ -34,7 +34,7 @@
   ],
 
   [
-    #set-uraw(highlight: (:..highlights.box(color: red)))
+    #set-uraw(highlight: highlights.box(color: red))
 
     #uraw(
       highlights: (

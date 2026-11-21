@@ -75,7 +75,7 @@
 
   grid.cell(rowspan: 2, uraw(
     ..themes.window,
-    header: style.window-header[The Merge Sort algorithm in python.],
+    header: style.window-header[The Merge Sort algorithm in Python.],
     line-spacing: 0.75em,
     lang-tag-fill: blue.lighten(75%),
     highlights: (
@@ -93,7 +93,7 @@
         content: text(
           style: "italic",
           olive,
-        )[Safety condition to avoid out of bounds indices],
+        )[Safety condition to avoid out-of-bounds indices],
         indent: true,
         marker: octique("feed-issue-closed", color: olive),
         marker-placement: "markers",

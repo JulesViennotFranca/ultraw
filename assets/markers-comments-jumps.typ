@@ -12,7 +12,7 @@
     markers: ((4, octique("smiley", color: olive)), ((6, 7), [?]), (16, style.badge-marker(color: red))),
     comments: (
       (3, [Correct way to be polite:]),
-      (after: 6, content: [That's a strange thing to print in a program...], indent: true, fill: purple.lighten(80%), marker: [?], marker-placement: "markers"),
+      (after: 6, content: [That's a strange thing to print in a program...], indent: true, fill: purple.lighten(80%), marker: [!], marker-placement: "markers"),
     ),
     jumps: (from: 7, to: 15, marker: $dots.v$, comment: [More code about the conversation.], separate: gray),
     ```py
@@ -47,7 +47,7 @@
         content: [That's a strange thing to print in a program...],
         indent: true,
         fill: purple.lighten(80%),
-        marker: [?],
+        marker: [!],
         marker-placement: "markers",
       ),
     ),

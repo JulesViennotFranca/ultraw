@@ -40,7 +40,7 @@ Writing pseudo code is also possible with **`ultraw`** with the `uraw-pseudo` fu
 
 ![pseudo](assets/pseudo.png)
 
-Lines of `uraw`, `uraw-diff` and `uraw-pseudo` outputs inside labeled figures can be referenced **if** `#show: uraw` formats the document.
+Lines of `uraw`, `uraw-diff` and `uraw-pseudo` outputs inside labeled figures can be referenced **if** `#show: uraw` is used.
 
 ## Documentation
 

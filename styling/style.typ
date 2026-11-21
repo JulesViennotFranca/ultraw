@@ -238,8 +238,9 @@
 )
 
 
-/// A map from common languages to their icon.
+/// A map from common languages to their icon. All available icons can be inspected in the Typst package directory at "./preview/ultraw/\$VERSION/styling/icons/".
 #let icons = {
   import "../src/languages.typ": lang-tag-config
-  lang-tag-config.map(i => i.icon)
+  // Tinymist documentation workaround:
+  (:) + lang-tag-config.map(i => i.icon)
 }

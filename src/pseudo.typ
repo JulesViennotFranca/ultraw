@@ -18,12 +18,11 @@
     args.pos().len() == 0,
     message: "`pseudo-comment` takes a single content.",
   )
-  ut.check-keys(
+  let settings = ut.known-keys(
     args.named(),
     cf.pseudo-pre-default.comment.keys(),
-    "a comment of pseudo code",
   )
-  metadata((uraw-pseudo-comment: args.named() + (content: body)))
+  metadata((uraw-pseudo-comment: settings + (content: body)))
 }
 
 /// Write a special information comment in pseudo code.

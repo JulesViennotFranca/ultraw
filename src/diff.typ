@@ -70,17 +70,15 @@
         let columns = formatting.diff-columns(general.columns)
         let same-code = columns.len() == 1
         // (the start and end of the numbers, and the continuations, can be given by version)
-        number.start = formatting.by-version(number.start, auto, "start")
-        number.end = formatting.by-version(number.end, none, "end")
+        number.start = formatting.by-version(number.start, auto)
+        number.end = formatting.by-version(number.end, none)
         let follows = formatting.by-version(
           args.at("follows", default: false),
           false,
-          "follows",
         )
         let precedes = formatting.by-version(
           args.at("precedes", default: false),
           false,
-          "precedes",
         )
 
         // Continuation: the diff follows or precedes another one, as at a page break

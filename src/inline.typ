@@ -51,10 +51,9 @@
   let manual = ut
     .single-to-list(manual)
     .map(h => {
-      ut.check-keys(
+      let h = ut.known-keys(
         h,
         defaults.keys() + ("start", "end", "range", "line", "ldel", "rdel"),
-        "a highlight of inline code",
       )
       simplify(defaults + h, ..inline-bounds(h, length))
     })

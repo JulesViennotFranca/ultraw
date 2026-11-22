@@ -346,3 +346,9 @@
 }
 
 #let show-highlight(code) = [#code #h(1fr) #uraw-inline(lang: "typ", code)]
+#let show-highlight-plus(code, ..args) = box(grid(
+  columns: 2,
+  column-gutter: 1fr,
+  align: horizon,
+  code, uraw(..args, raw(code.text, lang: "typ", block: true)),
+))

@@ -28,7 +28,7 @@
 /// -> dictionary
 #let pre-highlight(h) = {
   assert(type(h) == dictionary, message: "A highlight must be a dictionary.")
-  ut.check-keys(h, style-keys + ("del", "ldel", "rdel"), "a highlight")
+  h = ut.known-keys(h, style-keys + ("del", "ldel", "rdel"))
   if "del" in h {
     let del = h.remove("del")
     h += (ldel: del, rdel: del)
@@ -107,10 +107,9 @@
 /// - defaults (dictionary): The `highlight` settings, giving the value of the missing style fields.
 /// -> dictionary
 #let format-highlight(hl, defaults) = {
-  ut.check-keys(
+  hl = ut.known-keys(
     hl,
     defaults.keys() + ("line", "start", "end", "ldel", "rdel"),
-    "a highlight",
   )
   let style = ut.filter-add-dict(defaults, hl)
 

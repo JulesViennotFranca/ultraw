@@ -354,7 +354,7 @@
           )
         }
       )
-      ut.check-keys(value, parameters, "`" + name + "`")
+      value = ut.known-keys(value, parameters)
       settings.insert(name, settings.at(name, default: (:)) + value)
     } else if name == "diff" and spec != pseudo-spec {
       // The settings of diffs (as in a theme): they override the other ones for a diff, and are kept apart otherwise (for `set-uraw`)
@@ -378,9 +378,8 @@
         section,
         settings.at(section, default: (:)) + ((key): value),
       )
-    } else {
-      panic("Unknown setting `" + name + "`.")
     }
+    // (an unknown setting is ignored)
   }
 
   settings
@@ -728,8 +727,7 @@
 #let flatten-theme(theme, spec) = {
   let flat = (:)
   for (category, settings) in theme {
-    ut.check-keys(settings, spec.categories.at(category), "`" + category + "`")
-    for (k, v) in settings {
+    for (k, v) in ut.known-keys(settings, spec.categories.at(category)) {
       // (a name or icon of the lang tag `none` would hide the ones of the languages)
       if category == "lang-tag" and k in ("name", "icon") and v == none {
         continue
@@ -749,16 +747,11 @@
 )
 
 #let complete-pre-theme(pre-theme) = {
-  ut.check-keys(
-    pre-theme,
-    uraw-spec.categories.keys() + ("diff",),
-    "a pre-theme",
-  )
-  ut.check-keys(
-    pre-theme.at("diff", default: (:)),
-    diff-spec.categories.keys(),
-    "the `diff` of a pre-theme",
-  )
+  // (the unknown categories being ignored)
+  pre-theme = ut.known-keys(pre-theme, uraw-spec.categories.keys() + ("diff",))
+  if "diff" in pre-theme {
+    pre-theme.diff = ut.known-keys(pre-theme.diff, diff-spec.categories.keys())
+  }
   let diff = merge-categories(pre-default.diff, pre-theme.at(
     "diff",
     default: (:),
@@ -781,6 +774,11 @@
 /// - pre-theme (dictionary): The pre-theme to format, look at `themes.pre-themes.pseudo-pre-default` for an example.
 /// -> dictionary
 #let make-pseudo(pre-theme) = {
-  ut.check-keys(pre-theme, pseudo-spec.categories.keys(), "a pre-theme")
-  flatten-theme(merge-categories(pseudo-pre-default, pre-theme), pseudo-spec)
+  flatten-theme(
+    merge-categories(
+      pseudo-pre-default,
+      ut.known-keys(pre-theme, pseudo-spec.categories.keys()),
+    ),
+    pseudo-spec,
+  )
 }

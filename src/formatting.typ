@@ -923,11 +923,10 @@
 #let jump-comments(jumps, jump, comment, line-index, format) = {
   jumps
     .map(j => {
-      ut.check-keys(
+      let j = ut.known-keys(
         j,
         ("from", "to", "skip-lines", "comment")
           + comment.keys().filter(k => k != "style"),
-        "a jump",
       )
 
       let settings = (:)
@@ -972,11 +971,7 @@
         and "content" in c,
       message: "A comment must have an `after` or `before` line and a `content`.",
     )
-    ut.check-keys(
-      c,
-      comment.keys() + ("after", "before", "content"),
-      "a comment",
-    )
+    c = ut.known-keys(c, comment.keys() + ("after", "before", "content"))
 
     let after = "after" in c
     let n = if after { c.after } else { c.before }
@@ -1584,8 +1579,7 @@
 )
 
 // A setting of diffs given for both versions, or by version as `(old: ..., new: ...)` (`default` for a missing one)
-#let by-version(value, default, name) = if type(value) == dictionary {
-  ut.check-keys(value, ("old", "new"), "`" + name + "`")
+#let by-version(value, default) = if type(value) == dictionary {
   (
     old: value.at("old", default: default),
     new: value.at("new", default: default),

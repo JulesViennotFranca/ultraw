@@ -144,7 +144,7 @@
   numbers: (fill: none, sep: none),
   frame: (fill: luma(25)),
   lang-tag: (fill: white.transparentize(75%), stroke: none),
-  highlight: (fill: purple.transparentize(70%), stroke: purple),
+  highlight: (fill: purple.transparentize(60%), stroke: purple.lighten(20%)),
   comment: (fill: luma(80)),
   diff: (
     general: (sep: none),

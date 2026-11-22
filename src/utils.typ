@@ -13,20 +13,14 @@
   return d1 + d2
 }
 
-/// Check that the keys of a dictionary of settings are known.
+/// Keep the known keys of a dictionary of settings (the unknown ones being ignored).
 ///
 /// - d (dictionary): The settings.
 /// - allowed (array): The known keys.
-/// - name (str): The name of the settings, used in the error message.
-/// -> none
-#let check-keys(d, allowed, name) = {
-  for k in d.keys() {
-    assert(
-      k in allowed,
-      message: "Unknown setting `" + k + "` in " + name + ".",
-    )
-  }
-}
+/// -> dictionary
+#let known-keys(d, allowed) = (
+  d.pairs().filter(((k, _)) => k in allowed).to-dict()
+)
 
 /// Wrap a single element given without a trailing comma (a dictionary, or a pair whose first value is an integer) into an array.
 #let single-to-list(a) = if (
